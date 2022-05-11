@@ -716,23 +716,20 @@ impl<DstChain: ChainHandle, SrcChain: ChainHandle> ForeignClient<DstChain, SrcCh
         let client_latest_height = client_state.latest_height();
 
         if client_latest_height < target_height {
-            // If the latest height of the client is already lower than the
-            // target height, we can simply use it.
+            // Use the latest client height if it is lower than the
+            // target height.
             Ok(client_latest_height)
         } else {
-            // We cannot use the client's latest height as trusted height. Instead, we
-            // need to find a consensus state at height `h` that this client previously
-            // installed, so that `h` < `target_height`.
+            // Latest height cannot be used as trusted height.
+            // Find a consensus state at height `h` so that `h` < `target_height`.
             //
-            // The occasion when we're in this case is when the command line user
-            // wants to submit a client update at an older height even
-            // when the relayer already have an up-to-date client at a newer height.
-            // In production, this should rarely happen, e.g., when there is another
-            // relayer racing to update the client state, and that we so happen
-            // to get the the latest client state that was updated between
-            // the time the target height was determined, and the time
-            // the client state was fetched.
-            self.consensus_state_height_bounded(target_height)
+            // Note: This can happen in the following cases:
+            //  - a client update CLI specifies a target height lower than the
+            // latest on-chain consensus height
+            //  - multiple workers are relaying between the same two chains using same clients and
+            //    perform client update with the height dictated by the proof heights
+            //  - multiple relayer instances
+            self.bounded_consensus_state_height(target_height)
         }
     }
 
@@ -1107,13 +1104,16 @@ impl<DstChain: ChainHandle, SrcChain: ChainHandle> ForeignClient<DstChain, SrcCh
         Ok(res)
     }
 
-    /// Retrieves all consensus heights for this client sorted in descending
-    /// order.
-    fn consensus_state_heights(&self) -> Result<Vec<Height>, ForeignClientError> {
+    /// Retrieves some or all consensus heights for this client as specified by
+    /// `result_limit`. Heights are sorted in descending order.
+    fn consensus_state_heights(
+        &self,
+        result_limit: Option<u64>,
+    ) -> Result<Vec<Height>, ForeignClientError> {
         // [TODO] Utilize query that only fetches consensus state heights
         // https://github.com/cosmos/ibc-go/issues/798
         let consensus_state_heights: Vec<Height> = self
-            .consensus_states_with_limit(None)?
+            .consensus_states_with_limit(result_limit)?
             .iter()
             .map(|cs| cs.height)
             .collect();
@@ -1121,11 +1121,11 @@ impl<DstChain: ChainHandle, SrcChain: ChainHandle> ForeignClient<DstChain, SrcCh
         Ok(consensus_state_heights)
     }
 
-    /// Search the consensus heights of this client to find one that is
+    /// Find the highest client consensus state with a height
     /// smaller than the provided [`Height`] upper bound.
     ///
     /// Utility method for use when solving a trusted height for this client.
-    fn consensus_state_height_bounded(
+    fn bounded_consensus_state_height(
         &self,
         upper_bound: Height,
     ) -> Result<Height, ForeignClientError> {
@@ -1133,21 +1133,20 @@ impl<DstChain: ChainHandle, SrcChain: ChainHandle> ForeignClient<DstChain, SrcCh
         // Iterate through the available consensus heights and find one
         // that is lower than the target height.
         if let Some(res) = self
-            .consensus_states_with_limit(Some(OPTIMISTIC_CONSENSUS_STATES_QUERY_LIMIT))?
+            .consensus_state_heights(Some(OPTIMISTIC_CONSENSUS_STATES_QUERY_LIMIT))?
             .iter()
-            .map(|cs| cs.height)
-            .find(|h| h < &upper_bound)
+            .find(|h| h < &&upper_bound)
         {
             info!(upper_bound = %upper_bound, result = %res, "optimistically resolved consensus_state_height");
-            Ok(res)
+            Ok(*res)
         } else {
             // The optimistic query was not enough. We'll pull _all_ the consensus states
             // and pick an appropriate height among those.
             warn!("resolving trusted height from the full list of consensus state heights; this may take a while");
-            self.consensus_states_with_limit(None)?
+            self.consensus_state_heights(None)?
                 .iter()
-                .map(|cs| cs.height)
-                .find(|h| h < &upper_bound)
+                .find(|h| h < &&upper_bound)
+                .cloned()
                 .ok_or_else(|| {
                     ForeignClientError::missing_smaller_trusted_height(
                         self.dst_chain().id(),
@@ -1216,7 +1215,7 @@ impl<DstChain: ChainHandle, SrcChain: ChainHandle> ForeignClient<DstChain, SrcCh
             // the one installed by the `CreateClient` which does not include a header.
             // For chains that do support pruning, it is possible that the last consensus state
             // was installed by an `UpdateClient` and an event and header will be found.
-            self.consensus_state_heights()?
+            self.consensus_state_heights(None)?
         };
 
         trace!(
