@@ -1,78 +1,190 @@
-use abscissa_core::{Command, Options, Runnable};
+use ibc_relayer::supervisor::SupervisorOptions;
+use std::error::Error;
+use std::io;
 
-use ibc::ics24_host::identifier::{ChainId, ChannelId, PortId};
-use ibc_relayer::link::LinkParameters;
-use ibc_relayer::relay::{channel_relay, relay_on_new_link};
+use abscissa_core::clap::Parser;
+use abscissa_core::{Command, Runnable};
+use crossbeam_channel::Sender;
 
-use crate::cli_utils::ChainHandlePair;
+use ibc_relayer::chain::handle::{CachingChainHandle, ChainHandle};
+use ibc_relayer::config::Config;
+use ibc_relayer::registry::SharedRegistry;
+use ibc_relayer::rest;
+use ibc_relayer::supervisor::{cmd::SupervisorCmd, spawn_supervisor, SupervisorHandle};
+
+use crate::conclude::json;
 use crate::conclude::Output;
 use crate::prelude::*;
 
-#[derive(Clone, Command, Debug, Options)]
+#[derive(Clone, Command, Debug, Parser)]
 pub struct StartCmd {
-    #[options(free, required, help = "identifier of the source chain")]
-    src_chain_id: ChainId,
-
-    #[options(free, required, help = "identifier of the destination chain")]
-    dst_chain_id: ChainId,
-
-    #[options(help = "identifier of the source port", short = "p")]
-    src_port_id: Option<PortId>,
-
-    #[options(help = "identifier of the source channel", short = "c")]
-    src_channel_id: Option<ChannelId>,
+    #[clap(
+        short = 'f',
+        long = "full-scan",
+        help = "Force a full scan of the chains for clients, connections and channels"
+    )]
+    full_scan: bool,
 }
 
 impl Runnable for StartCmd {
     fn run(&self) {
-        let config = app_config();
+        let config = (*app_config()).clone();
 
-        let chains = match ChainHandlePair::spawn(&config, &self.src_chain_id, &self.dst_chain_id) {
-            Ok(chains) => chains,
-            Err(e) => return Output::error(format!("{}", e)).exit(),
+        let supervisor_handle = make_supervisor::<CachingChainHandle>(config, self.full_scan)
+            .unwrap_or_else(|e| {
+                Output::error(format!("Hermes failed to start, last error: {}", e)).exit()
+            });
+
+        match crate::config::config_path() {
+            Some(_) => {
+                register_signals(supervisor_handle.sender.clone()).unwrap_or_else(|e| {
+                    warn!("failed to install signal handler: {}", e);
+                });
+            }
+            None => {
+                warn!("cannot figure out configuration path, skipping registration of signal handlers");
+            }
         };
 
-        match (&self.src_port_id, &self.src_channel_id) {
-            (Some(src_port_id), Some(src_channel_id)) => {
-                match channel_relay(
-                    chains.src,
-                    chains.dst,
-                    LinkParameters {
-                        src_port_id: src_port_id.clone(),
-                        src_channel_id: src_channel_id.clone(),
-                    },
-                ) {
-                    Ok(()) => Output::success(()).exit(),
-                    Err(e) => Output::error(e.to_string()).exit(),
-                }
-            }
-            (None, None) => {
-                // Relay for a single channel, first on the first connection between the two chains
-                let relay_path = config.first_matching_path(&self.src_chain_id, &self.dst_chain_id);
+        info!("Hermes has started");
 
-                match relay_path {
-                    Some((connection, path)) => {
-                        info!("Start relayer on {:?}", self);
+        supervisor_handle.wait();
+    }
+}
 
-                        match relay_on_new_link(
-                            chains.src,
-                            chains.dst,
-                            connection.delay,
-                            path.ordering,
-                            path.clone(),
-                        ) {
-                            Ok(()) => Output::success(()).exit(),
-                            Err(e) => Output::error(e.to_string()).exit(),
+/// Register the SIGHUP and SIGUSR1 signals, and notify the supervisor.
+/// - [DEPRECATED] SIGHUP: Trigger a reload of the configuration.
+/// - SIGUSR1: Ask the supervisor to dump its state and print it to the console.
+fn register_signals(tx_cmd: Sender<SupervisorCmd>) -> Result<(), io::Error> {
+    use signal_hook::{consts::signal::*, iterator::Signals};
+
+    let sigs = vec![
+        SIGHUP,  // Reload of configuration (disabled)
+        SIGUSR1, // Dump state
+    ];
+
+    let mut signals = Signals::new(&sigs)?;
+
+    std::thread::spawn(move || {
+        for signal in &mut signals {
+            match signal {
+                SIGHUP => warn!(
+                    "configuration reloading via SIGHUP has been disabled, \
+                     the signal handler will be removed in the future"
+                ),
+                SIGUSR1 => {
+                    info!("dumping state (triggered by SIGUSR1)");
+
+                    let (tx, rx) = crossbeam_channel::bounded(1);
+                    tx_cmd.try_send(SupervisorCmd::DumpState(tx)).unwrap();
+
+                    std::thread::spawn(move || {
+                        if let Ok(state) = rx.recv() {
+                            if json() {
+                                match serde_json::to_string(&state) {
+                                    Ok(out) => println!("{}", out),
+                                    Err(e) => {
+                                        error!("failed to serialize relayer state to JSON: {}", e)
+                                    }
+                                }
+                            } else {
+                                state.print_info();
+                            }
                         }
-                    }
-                    None => Output::error(format!("No paths configured for {:?}", self)).exit(),
+                    });
                 }
+
+                _ => (),
             }
-            _ => Output::error(format!(
-                "Invalid parameters, either both port and channel must be specified or none: {:?}",
-                self
-            ))
-            .exit(),
+        }
+    });
+
+    Ok(())
+}
+
+#[cfg(feature = "rest-server")]
+fn spawn_rest_server(config: &Config) -> Option<rest::Receiver> {
+    let rest = config.rest.clone();
+
+    if rest.enabled {
+        let rest_config = ibc_relayer_rest::Config::new(rest.host, rest.port);
+        let (_, rest_receiver) = ibc_relayer_rest::server::spawn(rest_config);
+        Some(rest_receiver)
+    } else {
+        info!("[rest] address not configured, REST server disabled");
+        None
+    }
+}
+
+#[cfg(not(feature = "rest-server"))]
+fn spawn_rest_server(config: &Config) -> Option<rest::Receiver> {
+    let rest = config.rest.clone();
+
+    if rest.enabled {
+        warn!(
+            "REST server enabled in the config but Hermes was built without RESET support, \
+             build Hermes with --features=rest-server to enable REST support."
+        );
+
+        None
+    } else {
+        None
+    }
+}
+
+#[cfg(feature = "telemetry")]
+fn spawn_telemetry_server(config: &Config) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let state = ibc_telemetry::global();
+
+    let telemetry = config.telemetry.clone();
+    if telemetry.enabled {
+        match ibc_telemetry::spawn((telemetry.host, telemetry.port), state.clone()) {
+            Ok((addr, _)) => {
+                info!(
+                    "telemetry service running, exposing metrics at http://{}/metrics",
+                    addr
+                );
+            }
+            Err(e) => {
+                error!("telemetry service failed to start: {}", e);
+                return Err(e);
+            }
         }
     }
+
+    Ok(())
+}
+
+#[cfg(not(feature = "telemetry"))]
+fn spawn_telemetry_server(
+    config: &Arc<RwLock<Config>>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    if config.read().expect("poisoned lock").telemetry.enabled {
+        warn!(
+            "telemetry enabled in the config but Hermes was built without telemetry support, \
+             build Hermes with --features=telemetry to enable telemetry support."
+        );
+    }
+
+    Ok(())
+}
+
+fn make_supervisor<Chain: ChainHandle>(
+    config: Config,
+    force_full_scan: bool,
+) -> Result<SupervisorHandle, Box<dyn Error + Send + Sync>> {
+    let registry = SharedRegistry::<Chain>::new(config.clone());
+    spawn_telemetry_server(&config)?;
+
+    let rest = spawn_rest_server(&config);
+
+    Ok(spawn_supervisor(
+        config,
+        registry,
+        rest,
+        SupervisorOptions {
+            health_check: true,
+            force_full_scan,
+        },
+    )?)
 }

@@ -1,18 +1,33 @@
-# Concurrent packet relaying on multiple paths
+# Relay packets on multiple paths
 
-At the moment, the `start` command relays packets over a single channel.
-To relay packets over multiple channels concurrently, one can instead use
-the `start-multi` command.
+Hermes can relay packets over all current or future paths between the configured set of chains.
 
-> __WARNING__: Relaying packets concurrently over multiple channels with the
-> `start-multi` command is currently __experimental__. Use at your own risk.
+Follow the steps below to connect three chains together and relay packets between them:
 
 1. Paste the following configuration in the standard Hermes configuration file at `~/.hermes/config.toml`:
 
     ```toml
     [global]
-    strategy = 'naive'
     log_level = 'info'
+
+    [mode]
+
+    [mode.clients]
+    enabled = true
+    refresh = true
+    misbehaviour = true
+
+    [mode.connections]
+    enabled = false
+
+    [mode.channels]
+    enabled = false
+
+    [mode.packets]
+    enabled = true
+    clear_interval = 100
+    clear_on_start = true
+    tx_confirmation = true
 
     [[chains]]
     id = 'ibc-0'
@@ -23,15 +38,12 @@ the `start-multi` command.
     account_prefix = 'cosmos'
     key_name = 'testkey'
     store_prefix = 'ibc'
-    gas = 200000
-    fee_denom = 'stake'
-    fee_amount = 10
+    max_gas = 2000000
+    gas_price = { price = 0.001, denom = 'stake' }
+    gas_adjustment = 0.1
     clock_drift = '5s'
     trusting_period = '14days'
-
-    [chains.trust_threshold]
-    numerator = '1'
-    denominator = '3'
+    trust_threshold = { numerator = '1', denominator = '3' }
 
     [[chains]]
     id = 'ibc-1'
@@ -42,11 +54,12 @@ the `start-multi` command.
     account_prefix = 'cosmos'
     key_name = 'testkey'
     store_prefix = 'ibc'
-    gas = 200000
-    fee_denom = 'stake'
-    fee_amount = 10
+    max_gas = 2000000
+    gas_price = { price = 0.001, denom = 'stake' }
+    gas_adjustment = 0.1
     clock_drift = '5s'
     trusting_period = '14days'
+    trust_threshold = { numerator = '1', denominator = '3' }
 
     [[chains]]
     id = 'ibc-2'
@@ -57,15 +70,12 @@ the `start-multi` command.
     account_prefix = 'cosmos'
     key_name = 'testkey'
     store_prefix = 'ibc'
-    gas = 200000
-    fee_denom = 'stake'
-    fee_amount = 10
+    max_gas = 2000000
+    gas_price = { price = 0.001, denom = 'stake' }
+    gas_adjustment = 0.1
     clock_drift = '5s'
     trusting_period = '14days'
-
-    [chains.trust_threshold]
-    numerator = '1'
-    denominator = '3'
+    trust_threshold = { numerator = '1', denominator = '3' }
     ```
 
     This configuration has three chains `ibc-0`, `ibc-1` and `ibc-2`.
@@ -82,13 +92,21 @@ the `start-multi` command.
     The script configures and starts three __`gaiad`__ instances, named __`ibc-0`__, and __`ibc-1`__, and __`ibc-2`__.
 
 
-3. Create a channel between `ibc-0` and `ibc-1`:
+3. Create a channel between `ibc-0` and `ibc-1`. Since this is the first time
+   we're connecting these two chains, we'll need to spin up a client and a
+   connection between them as well. The `create channel` command gives us the
+   convenient option to create a client and a connection. Keep in mind that this
+   is not the default behavior of `create channel`, but in this case we're
+   making an exception. Execute the following command:
 
     ```shell
-    hermes create channel ibc-0 ibc-1 --port-a transfer --port-b transfer -o unordered
+    hermes create channel ibc-0 --chain-b-id ibc-1 --port-a transfer --port-b transfer --new-client-connection
     ```
 
-    ```rust
+    Then respond 'yes' to the prompt that pops up. Once the command has run to
+    completion, you should see the following among the output logs:
+
+    ```json
     (...)
 
     Success: Channel {
@@ -135,7 +153,7 @@ the `start-multi` command.
                 "channel-0",
             ),
         },
-        connection_delay: 0ns,
+        connection_delay: 0s,
         version: Some(
             "ics20-1",
         ),
@@ -144,13 +162,14 @@ the `start-multi` command.
 
     Note that the channel identifier on both `ibc-0` and `ibc-1` is `channel-0`.
 
-5. Create a channel between `ibc-1` and `ibc-2`:
+4. Create a channel between `ibc-1` and `ibc-2` using the structure of the
+   previous invocation we used to create a channel between `ibc-0` and `ibc-1`:
 
     ```shell
-    hermes create channel ibc-1 ibc-2 --port-a transfer --port-b transfer -o unordered
+    hermes create channel ibc-1 --chain-b-id ibc-2 --port-a transfer --port-b transfer --new-client-connection
     ```
 
-    ```rust
+    ```json
     (...)
 
     Success: Channel {
@@ -197,7 +216,7 @@ the `start-multi` command.
                 "channel-0",
             ),
         },
-        connection_delay: 0ns,
+        connection_delay: 0s,
         version: Some(
             "ics20-1",
         ),
@@ -206,24 +225,24 @@ the `start-multi` command.
 
     Note that the channel identifier on `ibc-1` is `channel-1`, and on `ibc-2` it is `channel-0`.
 
-3. Start Hermes using the `start-multi` command:
+5. Start Hermes using the `start` command:
 
     ```shell
-    hermes start-multi
+    hermes start
     ```
 
-   Hermes will first relay the pending packets that have not been relayed and then start passive relaying by listening
-    to and acting on packet events.
+   Hermes will first relay the pending packets that have not been relayed and then
+   start passive relaying by listening to and acting on packet events.
 
-4. In a separate terminal, use the `ft-transfer` command to send:
+6. In a separate terminal, use the `ft-transfer` command to send:
 
     - Two packets from `ibc-0` to `ibc-1` from source channel `channel-0`
 
       ```shell
-      hermes tx raw ft-transfer ibc-1 ibc-0 transfer channel-0 9999 1000 -n 2
+      hermes tx raw ft-transfer ibc-1 ibc-0 transfer channel-0 9999 -o 1000 -n 2
       ```
 
-      ```rust
+      ```json
       Success: [
           SendPacket(
               SendPacket {
@@ -243,10 +262,10 @@ the `start-multi` command.
     - Two packets from `ibc-1` to `ibc-2` from source channel `channel-1`
 
       ```shell
-      hermes tx raw ft-transfer ibc-2 ibc-1 transfer channel-1 9999 1000 -n 2
+      hermes tx raw ft-transfer ibc-2 ibc-1 transfer channel-1 9999 -o 1000 -n 2
       ```
 
-      ```rust
+      ```json
       Success: [
           SendPacket(
               SendPacket {
@@ -263,9 +282,9 @@ the `start-multi` command.
       ]
       ```
 
-5. Observe the output on the relayer terminal, verify that the send events are processed, and that the `recv_packets` are sent out.
+7. Observe the output on the relayer terminal, verify that the send events are processed, and that the `recv_packets` are sent out.
 
-    ```
+    ```text
     (...)
 
     INFO ibc_relayer::link: [ibc-0 -> ibc-1] result events:
@@ -293,7 +312,7 @@ the `start-multi` command.
     (...)
     ```
 
-5. Query the unreceived packets and acknowledgments on `ibc-1` and `ibc-2` from a different terminal:
+8. Query the unreceived packets and acknowledgments on `ibc-1` and `ibc-2` from a different terminal:
 
     ```shell
     hermes query packet unreceived-packets ibc-1 transfer channel-0

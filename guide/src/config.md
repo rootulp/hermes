@@ -16,135 +16,168 @@ name of the command to run, eg. `hermes -c my_config.toml query connection chann
 hermes [-c CONFIG_FILE] COMMAND
 ```
 
-## Sections
+## Table of contents
+
+<!-- toc -->
+
+## Configuration
 
 The configuration file must have one `global` section, and one `chains` section for each chain.
 
-### `[global]`
+> **Note:** As of 0.6.0, the Hermes configuration file is self-documented.
+> Please read the configuration file [`config.toml`](https://github.com/informalsystems/ibc-rs/blob/v0.14.1/config.toml)
+> itself for the most up-to-date documentation of parameters.
 
-The global section has parameters that apply globally to the relayer operation.
+By default, Hermes will relay on all channels available between all the configured chains.
+In this way, every configured chain will act as a source (in the sense that Hermes listens for events)
+and as a destination (to relay packets that others chains have sent).
 
-#### Parameters
+For example, if there are only two chains configured, then Hermes will only relay packets between those two,
+i.e. the two chains will serve as a source for each other, and likewise as a destination for each other's relevant events.
+Hermes will ignore all events that pertain to chains which are unknown (ie. not present in config.toml).
 
-* __strategy__: Specify the strategy to be used by the relayer. Currently only `naive` is supported.
+To restrict relaying on specific channels, or uni-directionally, you can use [packet filtering policies](https://github.com/informalsystems/ibc-rs/blob/v0.14.1/config.toml#L207-L224).
 
-* __log_level__: Specify the verbosity for the relayer logging output. Valid options are 'error', 'warn', 'info', 'debug', 'trace'. Default value is `info`.
-For more information on parametrizing the log output, see the section
-  [help/log-level][log-level].
+## Adding private keys
 
-Here is an example for the `global` section:
+For each chain configured you need to add a private key for that chain in order to submit [transactions](./commands/raw/index.md),
+please refer to the [Keys](./commands/keys/index.md) sections in order to learn how to add the private keys that are used by the relayer.
 
-```toml
-[global]
-strategy = 'naive'
-log_level = 'info'
+## Connecting via TLS
+
+Hermes supports connection via TLS for use-cases such as connecting from behind
+a proxy or a load balancer. In order to enable this, you'll want to set the
+`rpc_addr`, `grpc_addr`, or `websocket_addr` parameters to specify a TLS
+connection via HTTPS using the following scheme (note that the port number 443
+is just used for example):
+```
+rpc_addr = 'https://domain.com:443'
+grpc_addr = 'https://domain.com:443'
+websocket_addr = 'wss://domain.com:443/websocket'
 ```
 
-### `[[chains]]`
+## Support for Interchain Accounts
 
-A `chains` section includes parameters related to a chain and the full node to which the relayer can send transactions and queries.
+As of version 0.13.0, Hermes supports relaying on [Interchain Accounts][ica] channels.
 
-#### Parameters
+If the `packet_filter` option in the chain configuration is disabled, then
+Hermes will relay on all existing and future channels, including ICA channels.
 
-* __id__: Specify the chain ID. For example `ibc-0`
+There are two kinds of ICA channels:
 
-* __rpc_addr__: Specify the RPC address and port where the chain RPC server listens on. For example `http://localhost:26657`
+1. The host channels, whose port is `icahost`
+2. The controller channels, whose port starts with `icacontroller-` followed
+   by the owner account address. [See the spec for more details][ica].
 
-* __grpc_addr__: Specify the GRPC address and port where the chain GRPC server listens on. For example `http://localhost:9090`
+If you wish to only relay on a few specific standard channels (here `channel-0` and `channel-1`),
+but also relay on all ICA channels, you can specify the following packet filter:
 
-* __websocket_addr__: Specify the WebSocket address and port where the chain WebSocket server listens on. For example `ws://localhost:26657/websocket`
-
-* __rpc_timeout__: Specify the maximum amount of time (duration) that the RPC requests should take before timing out. Default value is `10s` (10 seconds).
-
-* __account_prefix__: Specify the prefix used by the chain. For example `cosmos`
-
-* __key_name__: Specify the name of the private key JSON file. This is the filename for the private key used to sign transactions on this chain. Don't specify the file extension, for example if the filename for the private key is `testkey.json`, specify only `testkey` for this parameter.
-
-* __store_prefix__: Specify the store prefix used by the on-chain IBC modules. For example `ibc`.
-
-* __gas__: Specify the maximum amount of gas to be used as the gas limit for a transaction. Default value is `300000`
-
-* __fee_denom__: Specify the denom to be used in the fee for a transaction.
-
-* __fee_amount__: Specify the amount value to be used in the fee for a transaction. Default value is `1000`
-
-* __clock_drift__: Specify the maximum amount of time to tolerate a clock drift. The clock drift parameter defines how much new (untrusted) header's Time can drift into the future. Default value is `5s`
-
-* __trusting_period__: Specify the amount of time to be used as the trusting period. It should be significantly less than the unbonding period (e.g. unbonding period = 3 weeks, trusting period = 2 weeks). Default value is `14days` (336 hours)
-
-For example if you want to add a configuration for a chain named `ibc-0`:
+> Note the use of wildcards in the port and channel identifiers (`['ica*', '*']`)
+> to match over all the possible ICA ports.
 
 ```toml
-[[chains]]
-id = 'ibc-0'
-rpc_addr = 'http://127.0.0.1:26657'
-grpc_addr = 'http://127.0.0.1:9090'
-websocket_addr = 'ws://localhost:26657/websocket'
-rpc_timeout = '10s'
-account_prefix = 'cosmos'
-key_name = 'testkey'
-store_prefix = 'ibc'
-gas = 200000
-fee_denom = 'stake'
-fee_amount = 10
-clock_drift = '5s'
-trusting_period = '14days'
+[chains.packet_filter]
+policy = 'allow'
+list = [
+  ['ica*', '*'], # allow relaying on all channels whose port starts with `ica`
+  ['transfer', 'channel-0'],
+  ['transfer', 'channel-1'],
+  # Add any other port/channel pairs you wish to relay on
+]
 ```
 
-### Adding Private Keys
-
-For each chain configured you need to add a private key for that chain in order to submit [transactions](./commands/raw/index.md), please refer to the [Keys](./commands/keys/index.md) sections in order to learn how to add the private keys that are used by the relayer.
-
-### Example configuration file
-
-Here is a full example of a configuration file with two chains configured:
+If you wish to relay on all channels but not on ICA channels, you can use
+the following packet filter configuration:
 
 ```toml
-[global]
-strategy = 'naive'
-log_level = 'error'
-
-[[chains]]
-id = 'ibc-0'
-rpc_addr = 'http://127.0.0.1:26657'
-grpc_addr = 'http://127.0.0.1:9090'
-websocket_addr = 'ws://localhost:26657/websocket'
-rpc_timeout = '10s'
-account_prefix = 'cosmos'
-key_name = 'testkey'
-store_prefix = 'ibc'
-gas = 200000
-fee_denom = 'stake'
-fee_amount = 10
-clock_drift = '5s'
-trusting_period = '14days'
-
-[chains.trust_threshold]
-numerator = '1'
-denominator = '3'
-
-[[chains]]
-id = 'ibc-1'
-rpc_addr = 'http://127.0.0.1:26557'
-grpc_addr = 'http://127.0.0.1:9091'
-websocket_addr = 'ws://localhost:26557/websocket'
-rpc_timeout = '10s'
-account_prefix = 'cosmos'
-key_name = 'testkey'
-store_prefix = 'ibc'
-gas = 200000
-fee_denom = 'stake'
-fee_amount = 10
-clock_drift = '5s'
-trusting_period = '14days'
-
-[chains.trust_threshold]
-numerator = '1'
-denominator = '3'
+[chains.packet_filter]
+policy = 'deny'
+list = [
+  ['ica*', '*'], # deny relaying on all channels whose port starts with `ica`
+]
 ```
 
-### Next Steps
+## Update the configuration without restarting Hermes
+
+> ⚠️  This feature has been removed in Hermes v0.12.0.
+
+Before Hermes 0.6.1, the only way to get Hermes to pick up a change in the
+configuration was to stop and restart Hermes.
+
+As of version 0.6.1, Hermes will react to receiving a `SIGHUP` signal
+by reloading the `[chains]` section of the configuration, and
+stopping, starting or restarting the affected workers.
+
+> **Warning:** the configuration reload feature only supports
+> adding, removing, or updating configuration of chains. It does
+> not support dynamically changing global features, such as the
+> filtering mechanism or logging level.
+
+For example, say you start with the configuration given in the previous section
+in `~/.hermes/config.toml`, ie. with two chains `ibc-0` and `ibc-1`.
+
+1. Start three chains `ibc-0`, `ibc-1` and `ibc-2`:
+
+    ```shell
+    ./scripts/dev-env ibc-0 ibc-1 ibc-2
+    ```
+
+2. Start Hermes
+
+    ```shell
+    hermes start
+    ```
+
+3. Add the configuration for the chain `ibc-2` to the configuration file:
+
+    ```toml
+    [[chains]]
+    id = 'ibc-2'
+    rpc_addr = 'http://127.0.0.1:26457'
+    grpc_addr = 'http://127.0.0.1:9092'
+    websocket_addr = 'ws://127.0.0.1:26457/websocket'
+    rpc_timeout = '10s'
+    account_prefix = 'cosmos'
+    key_name = 'testkey'
+    store_prefix = 'ibc'
+    max_gas = 20000000
+    gas_price = { price = 0.001, denom = 'stake' }
+    clock_drift = '5s'
+    trusting_period = '14days'
+    ```
+
+4. Change the configuration of the chain `ibc-0`, eg. the `max_gas` property.
+
+5. Send a `SIGHUP` signal to the `hermes` process:
+
+    > ⚠️  **Warning:** the command below will send a `SIGHUP` signal to the first
+    > process in the list emitted by `ps aux` which contains the string `hermes`.
+    > Alternatively, you can look up the process ID (PID) of the `hermes` process
+    > you want to target and use `kill -SIGHUP PID`.
+
+    ```shell
+    ps aux | rg hermes | awk '{ print $2 }' | head -n1 | xargs -I{} kill -SIGHUP {}
+    ```
+
+6. Watch the output of Hermes, it will show that Hermes has picked up the changes in
+   the config. Hermes is now relaying between the three chains and using the new
+   maximum amount of gas specified for `ibc-0`.
+
+   ```
+   ...
+
+   INFO reloading configuration (triggered by SIGHUP)
+   INFO configuration successfully reloaded
+   INFO updating existing chain chain.id=ibc-1
+   INFO adding new chain chain.id=ibc-2
+   ```
+
+To make sure Hermes ends up in the expected state, check out the documentation
+on [inspecting the relayer state](help.md#inspecting-the-relayer-state).
+
+## Next steps
 
 Now that you learned how to build the relayer and how to create a configuration file, you can go to the [`Two Chains`](./tutorials/local-chains/index.md) tutorial to learn how to perform some local testing connecting the relayer to two local chains.
 
-[log-level]: ./help.html#parametrizing-the-log-output-level
+[log-level]: ./help.md#parametrizing-the-log-output-level
+[ica]: https://github.com/cosmos/ibc/blob/master/spec/app/ics-027-interchain-accounts/README.md

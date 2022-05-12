@@ -9,13 +9,13 @@ pub struct ClientState {
     /// duration of the period since the LastestTimestamp during which the
     /// submitted headers are valid for upgrade
     #[prost(message, optional, tag="3")]
-    pub trusting_period: ::core::option::Option<::prost_types::Duration>,
+    pub trusting_period: ::core::option::Option<super::super::super::super::google::protobuf::Duration>,
     /// duration of the staking unbonding period
     #[prost(message, optional, tag="4")]
-    pub unbonding_period: ::core::option::Option<::prost_types::Duration>,
+    pub unbonding_period: ::core::option::Option<super::super::super::super::google::protobuf::Duration>,
     /// defines how much new (untrusted) header's Time can drift into the future.
     #[prost(message, optional, tag="5")]
-    pub max_clock_drift: ::core::option::Option<::prost_types::Duration>,
+    pub max_clock_drift: ::core::option::Option<super::super::super::super::google::protobuf::Duration>,
     /// Block height when the client was frozen due to a misbehaviour
     #[prost(message, optional, tag="6")]
     pub frozen_height: ::core::option::Option<super::super::super::core::client::v1::Height>,
@@ -26,10 +26,12 @@ pub struct ClientState {
     #[prost(message, repeated, tag="8")]
     pub proof_specs: ::prost::alloc::vec::Vec<super::super::super::super::ics23::ProofSpec>,
     /// Path at which next upgraded client will be committed.
-    /// Each element corresponds to the key for a single CommitmentProof in the chained proof.
-    /// NOTE: ClientState must stored under `{upgradePath}/{upgradeHeight}/clientState`
-    /// ConsensusState must be stored under `{upgradepath}/{upgradeHeight}/consensusState`
-    /// For SDK chains using the default upgrade module, upgrade_path should be []string{"upgrade", "upgradedIBCState"}`
+    /// Each element corresponds to the key for a single CommitmentProof in the
+    /// chained proof. NOTE: ClientState must stored under
+    /// `{upgradePath}/{upgradeHeight}/clientState` ConsensusState must be stored
+    /// under `{upgradepath}/{upgradeHeight}/consensusState` For SDK chains using
+    /// the default upgrade module, upgrade_path should be []string{"upgrade",
+    /// "upgradedIBCState"}`
     #[prost(string, repeated, tag="9")]
     pub upgrade_path: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// This flag, when set to true, will allow governance to recover a client
@@ -47,7 +49,7 @@ pub struct ConsensusState {
     /// timestamp that corresponds to the block height in which the ConsensusState
     /// was stored.
     #[prost(message, optional, tag="1")]
-    pub timestamp: ::core::option::Option<::prost_types::Timestamp>,
+    pub timestamp: ::core::option::Option<super::super::super::super::google::protobuf::Timestamp>,
     /// commitment root (i.e app hash)
     #[prost(message, optional, tag="2")]
     pub root: ::core::option::Option<super::super::super::core::commitment::v1::MerkleRoot>,
@@ -88,7 +90,8 @@ pub struct Header {
     #[prost(message, optional, tag="4")]
     pub trusted_validators: ::core::option::Option<::tendermint_proto::types::ValidatorSet>,
 }
-/// Fraction defines the protobuf message type for tmmath.Fraction that only supports positive values.
+/// Fraction defines the protobuf message type for tmmath.Fraction that only
+/// supports positive values.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Fraction {
     #[prost(uint64, tag="1")]

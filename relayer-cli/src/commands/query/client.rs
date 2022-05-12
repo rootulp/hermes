@@ -1,34 +1,35 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
-use abscissa_core::{Command, Options, Runnable};
+use abscissa_core::clap::Parser;
+use abscissa_core::{Command, Runnable};
 use tokio::runtime::Runtime as TokioRuntime;
 use tracing::debug;
 
-use ibc::events::IbcEventType;
-use ibc::ics02_client::client_consensus::QueryClientEventRequest;
-use ibc::ics02_client::client_state::ClientState;
-use ibc::ics24_host::identifier::ChainId;
-use ibc::ics24_host::identifier::ClientId;
+use ibc::core::ics02_client::client_consensus::QueryClientEventRequest;
+use ibc::core::ics02_client::client_state::ClientState;
+use ibc::core::ics24_host::identifier::ChainId;
+use ibc::core::ics24_host::identifier::ClientId;
+use ibc::events::WithBlockDataType;
 use ibc::query::QueryTxRequest;
 use ibc::Height;
 use ibc_proto::ibc::core::client::v1::QueryConsensusStatesRequest;
 use ibc_proto::ibc::core::connection::v1::QueryClientConnectionsRequest;
-use ibc_relayer::chain::Chain;
+use ibc_relayer::chain::ChainEndpoint;
 use ibc_relayer::chain::CosmosSdkChain;
 
 use crate::application::app_config;
-use crate::conclude::Output;
+use crate::conclude::{exit_with_unrecoverable_error, Output};
 
 /// Query client state command
-#[derive(Clone, Command, Debug, Options)]
+#[derive(Clone, Command, Debug, Parser)]
 pub struct QueryClientStateCmd {
-    #[options(free, required, help = "identifier of the chain to query")]
+    #[clap(required = true, help = "identifier of the chain to query")]
     chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the client to query")]
+    #[clap(required = true, help = "identifier of the client to query")]
     client_id: ClientId,
 
-    #[options(help = "the chain height context for the query", short = "h")]
+    #[clap(short = 'H', long, help = "the chain height context for the query")]
     height: Option<u64>,
 }
 
@@ -39,18 +40,17 @@ impl Runnable for QueryClientStateCmd {
         let config = app_config();
 
         let chain_config = match config.find_chain(&self.chain_id) {
-            None => {
-                return Output::error(format!(
-                    "chain '{}' not found in configuration file",
-                    self.chain_id
-                ))
-                .exit()
-            }
+            None => Output::error(format!(
+                "chain '{}' not found in configuration file",
+                self.chain_id
+            ))
+            .exit(),
             Some(chain_config) => chain_config,
         };
 
         let rt = Arc::new(TokioRuntime::new().unwrap());
-        let chain = CosmosSdkChain::bootstrap(chain_config.clone(), rt).unwrap();
+        let chain = CosmosSdkChain::bootstrap(chain_config.clone(), rt)
+            .unwrap_or_else(exit_with_unrecoverable_error);
         let height = ibc::Height::new(chain.id().version(), self.height.unwrap_or(0_u64));
 
         match chain.query_client_state(&self.client_id, height) {
@@ -61,23 +61,28 @@ impl Runnable for QueryClientStateCmd {
 }
 
 /// Query client consensus command
-#[derive(Clone, Command, Debug, Options)]
+#[derive(Clone, Command, Debug, Parser)]
 pub struct QueryClientConsensusCmd {
-    #[options(free, required, help = "identifier of the chain to query")]
+    #[clap(required = true, help = "identifier of the chain to query")]
     chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the client to query")]
+    #[clap(required = true, help = "identifier of the client to query")]
     client_id: ClientId,
 
-    #[options(help = "height of the client's consensus state to query", short = "c")]
+    #[clap(
+        short = 'c',
+        long,
+        help = "height of the client's consensus state to query"
+    )]
     consensus_height: Option<u64>,
 
-    #[options(help = "show only consensus heights", short = "s")]
+    #[clap(short = 's', long, help = "show only consensus heights")]
     heights_only: bool,
 
-    #[options(
-        help = "the chain height context to be used, applicable only to a specific height",
-        short = "h"
+    #[clap(
+        short = 'H',
+        long,
+        help = "the chain height context to be used, applicable only to a specific height"
     )]
     height: Option<u64>,
 }
@@ -89,30 +94,27 @@ impl Runnable for QueryClientConsensusCmd {
         let config = app_config();
 
         let chain_config = match config.find_chain(&self.chain_id) {
-            None => {
-                return Output::error(format!(
-                    "chain '{}' not found in configuration file",
-                    self.chain_id
-                ))
-                .exit()
-            }
+            None => Output::error(format!(
+                "chain '{}' not found in configuration file",
+                self.chain_id
+            ))
+            .exit(),
             Some(chain_config) => chain_config,
         };
 
         debug!("Options: {:?}", self);
 
         let rt = Arc::new(TokioRuntime::new().unwrap());
-        let chain = CosmosSdkChain::bootstrap(chain_config.clone(), rt).unwrap();
+        let chain = CosmosSdkChain::bootstrap(chain_config.clone(), rt)
+            .unwrap_or_else(exit_with_unrecoverable_error);
 
         let counterparty_chain = match chain.query_client_state(&self.client_id, Height::zero()) {
             Ok(cs) => cs.chain_id(),
-            Err(e) => {
-                return Output::error(format!(
-                    "Failed while querying client '{}' on chain '{}' with error: {}",
-                    self.client_id, self.chain_id, e
-                ))
-                .exit()
-            }
+            Err(e) => Output::error(format!(
+                "failed while querying client '{}' on chain '{}' with error: {}",
+                self.client_id, self.chain_id, e
+            ))
+            .exit(),
         };
 
         match self.consensus_height {
@@ -150,18 +152,18 @@ impl Runnable for QueryClientConsensusCmd {
     }
 }
 
-#[derive(Clone, Command, Debug, Options)]
+#[derive(Clone, Command, Debug, Parser)]
 pub struct QueryClientHeaderCmd {
-    #[options(free, required, help = "identifier of the chain to query")]
+    #[clap(required = true, help = "identifier of the chain to query")]
     chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the client to query")]
+    #[clap(required = true, help = "identifier of the client to query")]
     client_id: ClientId,
 
-    #[options(free, required, help = "height of header to query")]
+    #[clap(required = true, help = "height of header to query")]
     consensus_height: u64,
 
-    #[options(help = "the chain height context for the query", short = "h")]
+    #[clap(short = 'H', long, help = "the chain height context for the query")]
     height: Option<u64>,
 }
 
@@ -172,30 +174,27 @@ impl Runnable for QueryClientHeaderCmd {
         let config = app_config();
 
         let chain_config = match config.find_chain(&self.chain_id) {
-            None => {
-                return Output::error(format!(
-                    "chain '{}' not found in configuration file",
-                    self.chain_id
-                ))
-                .exit()
-            }
+            None => Output::error(format!(
+                "chain '{}' not found in configuration file",
+                self.chain_id
+            ))
+            .exit(),
             Some(chain_config) => chain_config,
         };
 
         debug!("Options: {:?}", self);
 
         let rt = Arc::new(TokioRuntime::new().unwrap());
-        let chain = CosmosSdkChain::bootstrap(chain_config.clone(), rt).unwrap();
+        let chain = CosmosSdkChain::bootstrap(chain_config.clone(), rt)
+            .unwrap_or_else(exit_with_unrecoverable_error);
 
         let counterparty_chain = match chain.query_client_state(&self.client_id, Height::zero()) {
             Ok(cs) => cs.chain_id(),
-            Err(e) => {
-                return Output::error(format!(
-                    "Failed while querying client '{}' on chain '{}' with error: {}",
-                    self.client_id, self.chain_id, e
-                ))
-                .exit()
-            }
+            Err(e) => Output::error(format!(
+                "failed while querying client '{}' on chain '{}' with error: {}",
+                self.client_id, self.chain_id, e
+            ))
+            .exit(),
         };
 
         let consensus_height =
@@ -204,7 +203,7 @@ impl Runnable for QueryClientHeaderCmd {
 
         let res = chain.query_txs(QueryTxRequest::Client(QueryClientEventRequest {
             height,
-            event_id: IbcEventType::UpdateClient,
+            event_id: WithBlockDataType::UpdateClient,
             client_id: self.client_id.clone(),
             consensus_height,
         }));
@@ -217,15 +216,19 @@ impl Runnable for QueryClientHeaderCmd {
 }
 
 /// Query client connections command
-#[derive(Clone, Command, Debug, Options)]
+#[derive(Clone, Command, Debug, Parser)]
 pub struct QueryClientConnectionsCmd {
-    #[options(free, required, help = "identifier of the chain to query")]
+    #[clap(required = true, help = "identifier of the chain to query")]
     chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the client to query")]
+    #[clap(required = true, help = "identifier of the client to query")]
     client_id: ClientId,
 
-    #[options(help = "the chain height which this query should reflect", short = "h")]
+    #[clap(
+        short = 'H',
+        long,
+        help = "the chain height which this query should reflect"
+    )]
     height: Option<u64>,
 }
 
@@ -235,20 +238,19 @@ impl Runnable for QueryClientConnectionsCmd {
         let config = app_config();
 
         let chain_config = match config.find_chain(&self.chain_id) {
-            None => {
-                return Output::error(format!(
-                    "chain '{}' not found in configuration file",
-                    self.chain_id
-                ))
-                .exit()
-            }
+            None => Output::error(format!(
+                "chain '{}' not found in configuration file",
+                self.chain_id
+            ))
+            .exit(),
             Some(chain_config) => chain_config,
         };
 
         debug!("Options: {:?}", self);
 
         let rt = Arc::new(TokioRuntime::new().unwrap());
-        let chain = CosmosSdkChain::bootstrap(chain_config.clone(), rt).unwrap();
+        let chain = CosmosSdkChain::bootstrap(chain_config.clone(), rt)
+            .unwrap_or_else(exit_with_unrecoverable_error);
 
         let req = QueryClientConnectionsRequest {
             client_id: self.client_id.to_string(),

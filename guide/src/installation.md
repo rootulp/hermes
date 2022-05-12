@@ -14,11 +14,11 @@ There are two main approaches for obtaining Hermes:
 
 Simply head to the GitHub [Releases][releases] page and download the latest
 version of Hermes binary matching your platform:
-- MacOS: `hermes-v0.3.0-x86_64-apple-darwin.tar.gz` (or .zip),
-- Linux: `hermes-v0.3.0-x86_64-unknown-linux-gnu.tar.gz` (or .zip).
+- MacOS: `hermes-v0.14.1-x86_64-apple-darwin.tar.gz` (or .zip),
+- Linux: `hermes-v0.14.1-x86_64-unknown-linux-gnu.tar.gz` (or .zip).
 
 The step-by-step instruction below should carry you through the whole process:
- 
+
 1. Make the directory where we'll place the binary:
    ```shell
    mkdir -p $HOME/.hermes/bin
@@ -47,7 +47,7 @@ hermes version
 ```
 
 ```
-hermes 0.3.0
+hermes 0.14.1
 ```
 
 ## Install via Cargo
@@ -62,7 +62,7 @@ To install the latest release of Hermes, run the following command in a terminal
 cargo install ibc-relayer-cli --bin hermes --locked
 ```
 
-This will download and build the crate `ibc-relayer-cli`, and install the 
+This will download and build the crate `ibc-relayer-cli`, and install the
 `hermes` binary in `$HOME/.cargo/bin`.
 
 > If you have not installed Rust and Cargo via [rustup.rs](https://rustup.rs), you may need to
@@ -81,17 +81,17 @@ hermes version
 ```
 
 ```
-hermes 0.3.0
+hermes 0.14.1
 ```
 
 ## Build from source
 
 ### Clone the repository
 
-Open a terminal and clone the following `ibc-rs` repository:
+Open a terminal and clone the `ibc-rs` repository:
 
 ```shell
-git clone https://github.com/informalsystems/ibc-rs.git`
+git clone https://github.com/informalsystems/ibc-rs.git
 ```
 
 Change to the repository directory
@@ -103,10 +103,10 @@ cd ibc-rs
 
 Go to the [ibc-rs releases](https://github.com/informalsystems/ibc-rs/releases) page to see what is the most recent release.
 
-Then checkout the release, for example if the most recent release is `v0.3.0` then execute the command:
+Then checkout the release, for example if the most recent release is `v0.14.1` then execute the command:
 
 ```shell
-git checkout v0.3.0
+git checkout v0.14.1
 ```
 
 ### Building with `cargo build`
@@ -117,6 +117,16 @@ The last of these crates contains the `hermes` binary.
 ```shell
 cargo build --release --bin hermes
 ```
+
+<a name="telemetry-support"></a>
+
+> By default, Hermes bundles a [telemetry service and server](./telemetry.md).
+> To build Hermes without telemetry support, and get a smaller executable,
+> supply the `--no-default-features flag` to `cargo build`:
+>
+> ```shell
+> cargo build --release --no-default-features --bin hermes
+> ```
 
 If the build is successful, the `hermes` executable will be located in the following location:
 
@@ -141,7 +151,7 @@ If you run the `hermes` without any additional parameters you should see the usa
 ```
 
 ```
-hermes 0.3.0
+hermes 0.14.1
 Informal Systems <hello@informal.systems>
 
 USAGE:
@@ -149,12 +159,12 @@ USAGE:
 
 SUBCOMMANDS:
     help       Get usage information
+    config     Validate Hermes configuration file
     keys       Manage keys in the relayer for each chain
     create     Create objects (client, connection, or channel) on chains
     update     Update objects (clients) on chains
     upgrade    Upgrade objects (clients) after chain upgrade
     start      Start the relayer
-    start-multi Start the relayer in multi-chain mode. Handles packet relaying across all open channels between all chains in the config.
     query      Query objects from the chain
     tx         Create and send IBC transactions
     listen     Listen to and display IBC events emitted by a chain
@@ -170,7 +180,41 @@ It might be easier to create an alias for `hermes` so you can just run it by spe
 alias hermes='cargo run --release --bin hermes --'
 ```
 
-### Next Steps
+## Shell auto-completions
+
+The `completions` subcommand of Hermes can be used to output a completion script
+for a choice of widely used command-line shells.
+Refer to `hermes completions --help` for the list. Some shell-specific examples
+of setting up auto-completion with this command are provided below; check your
+shell configuration to decide on the suitable directory in which to install the script
+and any further necessary modifications to the shell's startup files.
+
+### Bash
+
+```sh
+hermes completions bash > ~/.local/share/bash-completion/completions/hermes
+```
+
+On a MacOS installation with Homebrew `bash-completion` formula installed, use 
+
+```sh
+hermes completions bash > $(brew --prefix)/etc/bash_completion.d/hermes.bash-completion
+```
+
+### Zsh
+
+```sh
+hermes completions zsh > ~/.zfunc/_hermes
+```
+
+To make the shell load the script on initialization, add the directory to `fpath`
+in your `~/.zshrc` before `compinit`:
+
+```
+fpath+=~/.zfunc
+```
+
+## Next Steps
 
 Go to the [`Configuration`](./config.md) section to learn how to create a configuration file to be used by Hermes.
 

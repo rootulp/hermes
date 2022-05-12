@@ -1,43 +1,116 @@
-use anomaly::{BoxError, Context};
-use thiserror::Error;
+use flex_error::{define_error, DisplayOnly, TraceError};
+use std::io::Error as IoError;
 
-pub type Error = anomaly::Error<Kind>;
+define_error! {
+    Error {
+        InvalidKey
+            [ TraceError<signature::Error> ]
+            |_| { "invalid key: could not build signing key from private key bytes" },
 
-#[derive(Clone, Debug, Error)]
-pub enum Kind {
-    #[error("invalid key")]
-    InvalidKey,
+        InvalidKeyRaw
+            [ TraceError<bitcoin::secp256k1::Error> ]
+            |_| { "invalid key: could not build signing key from private key bytes" },
 
-    #[error("key not found")]
-    KeyNotFound,
+        KeyNotFound
+            |_| { "key not found" },
 
-    #[error("key already exists")]
-    ExistingKey,
+        KeyAlreadyExist
+            |_| { "key already exist" },
 
-    #[error("invalid mnemonic")]
-    InvalidMnemonic,
+        InvalidMnemonic
+            [ DisplayOnly<anyhow::Error> ]
+            |_| { "invalid mnemonic" },
 
-    #[error("cannot generate private key")]
-    PrivateKey,
+        PrivateKey
+            [ TraceError<bitcoin::util::bip32::Error> ]
+            |_| { "cannot generate private key" },
 
-    #[error("cannot generate bech32 account")]
-    Bech32Account,
+        UnsupportedPublicKey
+            { key_type: String }
+            |e| {
+                format!("unsupported public key: {}. only secp256k1 pub keys are currently supported",
+                    e.key_type)
+            },
 
-    #[error("bech32 error")]
-    Bech32,
+        EncodedPublicKey
+            {
+                key: String,
+            }
+            [ TraceError<serde_json::Error> ]
+            |e| {
+                format!("cannot deserialize the encoded public key {0}",
+                    e.key)
+            },
 
-    #[error("mismatch between the public key in the key file and the public key in the mnemonic")]
-    PublicKeyMismatch { keyfile: Vec<u8>, mnemonic: Vec<u8> },
+        Bech32Account
+            [ TraceError<bech32::Error> ]
+            |_| { "cannot generate bech32 account" },
 
-    #[error("key store error")]
-    KeyStore,
+        Bech32
+            [ TraceError<bech32::Error> ]
+            |_| { "bech32 error" },
 
-    #[error("invalid HD path: {0}")]
-    InvalidHdPath(String),
-}
+        PublicKeyMismatch
+             { keyfile: Vec<u8>, mnemonic: Vec<u8> }
+            |_| { "mismatch between the public key in the key file and the public key in the mnemonic" },
 
-impl Kind {
-    pub fn context(self, source: impl Into<BoxError>) -> Context<Self> {
-        Context::new(self, Some(source.into()))
+        KeyFileEncode
+            { file_path: String }
+            [ TraceError<serde_json::Error> ]
+            |e| {
+                format!("error encoding key file at '{}'",
+                    e.file_path)
+            },
+
+        Encode
+            [ TraceError<serde_json::Error> ]
+            |_| { "error encoding key" },
+
+        KeyFileDecode
+            { file_path: String }
+            [ TraceError<serde_json::Error> ]
+            |e| {
+                format!("error decoding key file at '{}'",
+                    e.file_path)
+            },
+
+        KeyFileIo
+            {
+                file_path: String,
+                description: String,
+            }
+            [ TraceError<IoError> ]
+            |e| {
+                format!("I/O error on key file at '{}': {}",
+                    e.file_path, e.description)
+            },
+
+        KeyFileNotFound
+            { file_path: String }
+            |e| {
+                format!("cannot find key file at '{}'",
+                    e.file_path)
+            },
+
+        HomeLocationUnavailable
+            |_| { "home location is unavailable" },
+
+        RemoveIoFail
+            {
+                file_path: String,
+            }
+            [ TraceError<IoError> ]
+            |e| {
+                format!("I/O error while removing key file at location '{}'",
+                    e.file_path)
+            },
+
+        InvalidHdPath
+            {
+                path: String,
+            }
+            |e| {
+                format!("invalid HD path: {0}", e.path)
+            },
     }
 }

@@ -1,72 +1,124 @@
-use std::sync::Arc;
+use abscissa_core::clap::Parser;
+use abscissa_core::{config::Override, Command, FrameworkErrorKind, Runnable};
 
-use abscissa_core::{Command, Options, Runnable};
-use anomaly::BoxError;
-use tokio::runtime::Runtime as TokioRuntime;
-
-use ibc::events::IbcEvent;
-use ibc::ics02_client::height::Height;
-use ibc::ics24_host::identifier::{ChainId, ChannelId, PortId};
+use core::time::Duration;
+use ibc::{
+    core::{
+        ics02_client::client_state::ClientState,
+        ics02_client::height::Height,
+        ics24_host::identifier::{ChainId, ChannelId, PortId},
+    },
+    events::IbcEvent,
+};
+use ibc_relayer::chain::handle::ChainHandle;
+use ibc_relayer::transfer::Amount;
 use ibc_relayer::{
-    chain::{Chain, CosmosSdkChain},
     config::Config,
     transfer::{build_and_send_transfer_messages, TransferOptions},
 };
 
+use crate::cli_utils::ChainHandlePair;
 use crate::conclude::{exit_with_unrecoverable_error, Output};
-use crate::error::{Error, Kind};
+use crate::error::Error;
 use crate::prelude::*;
 
-#[derive(Clone, Command, Debug, Options)]
+#[derive(Clone, Command, Debug, Parser)]
 pub struct TxIcs20MsgTransferCmd {
-    #[options(free, required, help = "identifier of the destination chain")]
+    #[clap(required = true, help = "identifier of the destination chain")]
     dst_chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the source chain")]
+    #[clap(required = true, help = "identifier of the source chain")]
     src_chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the source port")]
+    #[clap(required = true, help = "identifier of the source port")]
     src_port_id: PortId,
 
-    #[options(free, required, help = "identifier of the source channel")]
+    #[clap(required = true, help = "identifier of the source channel")]
     src_channel_id: ChannelId,
 
-    #[options(
-        free,
-        required,
+    #[clap(
+        required = true,
         help = "amount of coins (samoleans, by default) to send (e.g. `100000`)"
     )]
-    amount: u64,
+    amount: Amount,
 
-    #[options(free, required, help = "timeout in number of blocks since current")]
-    height_offset: u64,
+    #[clap(
+        short = 'o',
+        long,
+        default_value = "0",
+        help = "timeout in number of blocks since current"
+    )]
+    timeout_height_offset: u64,
 
-    #[options(
-        help = "receiving account address on the destination chain",
-        short = "r"
+    #[clap(
+        short = 't',
+        long,
+        default_value = "0",
+        help = "timeout in seconds since current"
+    )]
+    timeout_seconds: u64,
+
+    #[clap(
+        short = 'r',
+        long,
+        help = "receiving account address on the destination chain"
     )]
     receiver: Option<String>,
 
-    #[options(
+    #[clap(
+        short = 'd',
+        long,
         help = "denomination of the coins to send",
-        short = "d",
-        default = "samoleans"
+        default_value = "samoleans"
     )]
     denom: String,
 
-    #[options(help = "number of messages to send", short = "n")]
+    #[clap(short = 'n', long, help = "number of messages to send")]
     number_msgs: Option<usize>,
+
+    #[clap(
+        short = 'k',
+        long,
+        help = "use the given signing key (default: `key_name` config)"
+    )]
+    key: Option<String>,
+}
+
+impl Override<Config> for TxIcs20MsgTransferCmd {
+    fn override_config(&self, mut config: Config) -> Result<Config, abscissa_core::FrameworkError> {
+        let src_chain_config = config.find_chain_mut(&self.src_chain_id).ok_or_else(|| {
+            FrameworkErrorKind::ComponentError.context(format!(
+                "missing configuration for source chain '{}'",
+                self.src_chain_id
+            ))
+        })?;
+
+        if let Some(ref key_name) = self.key {
+            src_chain_config.key_name = key_name.to_string();
+        }
+
+        Ok(config)
+    }
 }
 
 impl TxIcs20MsgTransferCmd {
-    fn validate_options(&self, config: &Config) -> Result<TransferOptions, BoxError> {
-        let src_chain_config = config
-            .find_chain(&self.src_chain_id)
-            .ok_or("missing src chain configuration")?;
+    fn validate_options(
+        &self,
+        config: &Config,
+    ) -> Result<TransferOptions, Box<dyn std::error::Error>> {
+        config.find_chain(&self.src_chain_id).ok_or_else(|| {
+            format!(
+                "missing configuration for source chain '{}'",
+                self.src_chain_id
+            )
+        })?;
 
-        let dest_chain_config = config
-            .find_chain(&self.dst_chain_id)
-            .ok_or("missing destination chain configuration")?;
+        config.find_chain(&self.dst_chain_id).ok_or_else(|| {
+            format!(
+                "missing configuration for destination chain '{}'",
+                self.dst_chain_id
+            )
+        })?;
 
         let denom = self.denom.clone();
 
@@ -75,15 +127,22 @@ impl TxIcs20MsgTransferCmd {
             return Err("number of messages should be greater than zero".into());
         }
 
+        if self.timeout_height_offset == 0 && self.timeout_seconds == 0 {
+            return Err(
+                "packet timeout height and packet timeout timestamp cannot both be 0, \
+                please specify either --timeout-height-offset or --timeout-seconds"
+                    .into(),
+            );
+        }
+
         let opts = TransferOptions {
-            packet_src_chain_config: src_chain_config.clone(),
-            packet_dst_chain_config: dest_chain_config.clone(),
             packet_src_port_id: self.src_port_id.clone(),
-            packet_src_channel_id: self.src_channel_id.clone(),
+            packet_src_channel_id: self.src_channel_id,
             amount: self.amount,
             denom,
             receiver: self.receiver.clone(),
-            height_offset: self.height_offset,
+            timeout_height_offset: self.timeout_height_offset,
+            timeout_duration: Duration::from_secs(self.timeout_seconds),
             number_msgs,
         };
 
@@ -96,77 +155,79 @@ impl Runnable for TxIcs20MsgTransferCmd {
         let config = app_config();
 
         let opts = match self.validate_options(&config) {
-            Err(err) => return Output::error(err).exit(),
+            Err(err) => Output::error(err).exit(),
             Ok(result) => result,
         };
 
         debug!("Message: {:?}", opts);
 
-        let rt = Arc::new(TokioRuntime::new().unwrap());
-
-        let src_chain_res =
-            CosmosSdkChain::bootstrap(opts.packet_src_chain_config.clone(), rt.clone())
-                .map_err(|e| Kind::Runtime.context(e));
-
-        let src_chain = match src_chain_res {
-            Ok(chain) => chain,
-            Err(e) => return Output::error(format!("{}", e)).exit(),
-        };
-
-        let dst_chain_res = CosmosSdkChain::bootstrap(opts.packet_dst_chain_config.clone(), rt)
-            .map_err(|e| Kind::Runtime.context(e));
-
-        let dst_chain = match dst_chain_res {
-            Ok(chain) => chain,
-            Err(e) => return Output::error(format!("{}", e)).exit(),
-        };
+        let chains = ChainHandlePair::spawn(&config, &self.src_chain_id, &self.dst_chain_id)
+            .unwrap_or_else(exit_with_unrecoverable_error);
 
         // Double check that channels and chain identifiers match.
         // To do this, fetch from the source chain the channel end, then the associated connection
         // end, and then the underlying client state; finally, check that this client is verifying
         // headers for the destination chain.
-        let channel_end = src_chain
+        let channel_end_src = chains
+            .src
             .query_channel(
                 &opts.packet_src_port_id,
                 &opts.packet_src_channel_id,
                 Height::zero(),
             )
             .unwrap_or_else(exit_with_unrecoverable_error);
-        // TODO: Support for multi-hop channels will impact this.
-        let conn_id = match channel_end.connection_hops.first() {
+        if !channel_end_src.is_open() {
+            Output::error(format!(
+                "the requested port/channel ('{}'/'{}') on chain id '{}' is in state '{}'; expected 'open' state",
+                opts.packet_src_port_id,
+                opts.packet_src_channel_id,
+                self.src_chain_id,
+                channel_end_src.state
+            ))
+                .exit();
+        }
+
+        let conn_id = match channel_end_src.connection_hops.first() {
             None => {
-                return Output::error(format!(
+                Output::error(format!(
                     "could not retrieve the connection hop underlying port/channel '{}'/'{}' on chain '{}'",
                     opts.packet_src_port_id, opts.packet_src_channel_id, self.src_chain_id
                 ))
-                .exit()
+                    .exit();
             }
             Some(cid) => cid,
         };
-        let conn_end = src_chain
+
+        let conn_end = chains
+            .src
             .query_connection(conn_id, Height::zero())
             .unwrap_or_else(exit_with_unrecoverable_error);
+
         debug!("connection hop underlying the channel: {:?}", conn_end);
-        let src_chain_client_state = src_chain
+
+        let src_chain_client_state = chains
+            .src
             .query_client_state(conn_end.client_id(), Height::zero())
             .unwrap_or_else(exit_with_unrecoverable_error);
+
         debug!(
             "client state underlying the channel: {:?}",
             src_chain_client_state
         );
-        if src_chain_client_state.chain_id != self.dst_chain_id {
-            return Output::error(
-                format!("the requested port/channel ({}/{}) provides a path from chain '{}' to \
+
+        if src_chain_client_state.chain_id() != self.dst_chain_id {
+            Output::error(
+                format!("the requested port/channel ('{}'/'{}') provides a path from chain '{}' to \
                  chain '{}' (not to the destination chain '{}'). Bailing due to mismatching arguments.",
                         opts.packet_src_port_id, opts.packet_src_channel_id,
                         self.src_chain_id,
-                        src_chain_client_state.chain_id, self.dst_chain_id)).exit();
+                        src_chain_client_state.chain_id(), self.dst_chain_id)).exit();
         }
 
         // Checks pass, build and send the tx
         let res: Result<Vec<IbcEvent>, Error> =
-            build_and_send_transfer_messages(src_chain, dst_chain, opts)
-                .map_err(|e| Kind::Tx.context(e).into());
+            build_and_send_transfer_messages(&chains.src, &chains.dst, &opts)
+                .map_err(Error::transfer);
 
         match res {
             Ok(ev) => Output::success(ev).exit(),

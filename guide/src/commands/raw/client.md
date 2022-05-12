@@ -28,7 +28,7 @@ Create a new client of `ibc-1` on `ibc-0`:
 hermes tx raw create-client ibc-0 ibc-1
 ```
 
-```rust
+```json
 {
     Success: CreateClient(
         CreateClient(
@@ -63,7 +63,7 @@ POSITIONAL ARGUMENTS:
     dst_client_id             identifier of the client to be updated on destination chain
 
 FLAGS:
-    -h, --target-height TARGET-HEIGHT
+    -H, --target-height TARGET-HEIGHT
     -t, --trusted-height TRUSTED-HEIGHT
 ```
 

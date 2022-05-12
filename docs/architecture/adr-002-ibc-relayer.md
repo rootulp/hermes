@@ -40,9 +40,7 @@ This section covers assumptions and dependencies about the chains and their IBC 
 The relayer monitors the chain state to determine when packet forwarding is required. The relayer must be able to retrieve the data within some time bound. This is referred to as **data availability**.
 
 #### Data Legibility
-IBC protocol defines the minimal data set that must be made available to relayers for correct operation of the protocol. The relayer expects the data to be legible, i.e. **data should be serialized** according to the IBC specification format; this includes consensus state, client, connection, channel, and packet information, and any auxiliary state structure necessary to construct proofs of inclusion or exclusion of particular key/value pairs in state. 
- - [IBC Specification] some protobuf specifications can be found under individual ICS-es, for exmple [ICS-03 connection protobufs](https://github.com/cosmos/ics/blob/master/spec/ics-002-client-semantics/data-structures.proto)
- Note: Some relayer development is blocked on SDK and Tendermint migration to protobuf encoding. Current work is done in [migration to protobuf](https://github.com/cosmos/cosmos-sdk/pull/6097)
+IBC protocol defines the minimal data set that must be made available to relayers for correct operation of the protocol. The relayer expects the data to be legible, i.e. **data should be serialized** according to the IBC specification format; this includes consensus state, client, connection, channel, and packet information, and any auxiliary state structure necessary to construct proofs of inclusion or exclusion of particular key/value pairs in state.
 
 #### Query Functionality 
 IBC host state machines MUST expose an interface for inspecting their state. For Cosmos/Tendermint chains this means:
@@ -74,7 +72,7 @@ The relay process must have access to its accounts with tokens on all destinatio
 
 ### Chain Transactions and Signing
 The relayer must create chain specific signed transactions. 
-[Cosmos-Tx-Rust] For the first release Cosmos-SDK transaction signing is required. One possible implementation is [iqlusion's sdtx crate](https://github.com/iqlusioninc/crates/tree/develop/stdtx)
+[Cosmos-Tx-Rust] For the first release Cosmos-SDK transaction signing is required. One possible implementation is [iqlusion's sdtx crate](https://github.com/iqlusioninc/crates/tree/main/stdtx)
 
 #### Implementation of IBC "routing module"
 The default IBC handler uses a receiver call pattern, where modules must individually call the IBC handler in order to bind to
@@ -119,8 +117,26 @@ Below is an example of a configuration file.
 
 ```toml
 [global]
-strategy = "naive"
 log_level = "error"
+
+[mode]
+
+[mode.clients]
+enabled = true
+refresh = true
+misbehaviour = true
+
+[mode.connections]
+enabled = false
+
+[mode.channels]
+enabled = false
+
+[mode.packets]
+enabled = true
+clear_interval = 100
+clear_on_start = true
+tx_confirmation = true
 
 [[chains]]
   id = "chain_A"
@@ -152,31 +168,6 @@ log_level = "error"
   gas_price = "0.025stake"
   trusting_period = "336h"
 
-[[connections]]
-
-[connections.src]
-  client_id = "clB1"
-  connection_id = "connAtoB"
-
-[connections.dest]
-  client_id = "clA1"
-  connection_id = "connBtoA"
-
-[[connections.paths]]
-  src_port = "portA1"
-  dest_port = "portB1"
-  direction = "unidirectional"
-
-[[connections.paths]]
-  src_port = "portA2"
-  dest_port = "portB2"
-  direction = "bidirectional"
-
-[[connections.paths]]
-  src_port = "portA3"
-  dest_port = "portB3"
-  src_channel = "chan3-on-A"
-  dest_channel = "chan3-on-B"
 ```
 The main sections of the configuration file are:
 - `global`:
@@ -199,13 +190,7 @@ pub struct Config {
     pub connections: Option<Vec<Connection>>, 
 }
 
-pub enum Strategy {
-    Naive,
-}
-
 pub struct GlobalConfig {
-    pub strategy: Strategy,
-
     /// All valid log levels, as defined in tracing:
     /// https://docs.rs/tracing-core/0.1.17/tracing_core/struct.Level.html
     pub log_level: String,
@@ -321,7 +306,7 @@ Future versions may create multiple relay threads. One possibility is to create 
 
 ### Relayer Algorithm
 
-A relayer algorithm is described in [relayer algorithm described in IBC Specifigication](https://github.com/cosmos/ics/blame/master/spec/ics-018-relayer-algorithms/README.md#L47) and [Go relayer implementation ](https://github.com/cosmos/relayer/blob/f3a302df9e6e0c28883f5480199d3190821bcc06/relayer/strategies.go#L49.).
+A relayer algorithm is described in [relayer algorithm described in IBC Specification](https://github.com/cosmos/ibc/blame/master/spec/relayer/ics-018-relayer-algorithms/README.md#L47) and [Go relayer implementation ](https://github.com/cosmos/relayer/blob/f3a302df9e6e0c28883f5480199d3190821bcc06/relayer/strategies.go#L49.).
 
 This section describes some of the details of the realy thread algorithm in the Rust implementation. Inputs are the IBC Events and the events of interest are described in Appendix A.
 

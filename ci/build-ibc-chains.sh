@@ -8,7 +8,28 @@ set -eou pipefail
 ## After updating the gaia version below, double-check the following (see readme.md also):
 ##   - the new version made it to docker hub, and is available for download, e.g. `docker pull informaldev/ibc-1:v4.0.0`
 ##   - the image versions and the relayer release in `docker-compose.yml` are consistent with the new version
-GAIA_BRANCH="v4.2.0" # Requires a version with the `--keyring-backend` option. v2.1 and above.
+
+# For building current gaia use this
+# GAIA_BRANCH="v5.0.8" # Requires a version with the `--keyring-backend` option. v2.1 and above.
+
+# For future gaia use this
+GAIA_BRANCH="v7.0.1" # Requires a version with the `--keyring-backend` option. v2.1 and above.
+
+# Check if gaiad is installed and if the versions match
+if ! [ -x "$(command -v gaiad)" ]; then
+  echo 'Error: gaiad is not installed.' >&2
+  exit 1
+fi
+
+CURRENT_GAIA="$(gaiad version 2>&1)"
+echo "Current Gaia Version: $CURRENT_GAIA"
+
+if [ "$GAIA_BRANCH" != "$CURRENT_GAIA" ]; then
+  echo "Error: gaiad installed is different than target gaiad ($CURRENT_GAIA != $GAIA_BRANCH)"
+  exit 1
+else
+  echo "Gaiad installed matches desired version ($CURRENT_GAIA = $GAIA_BRANCH)"
+fi
 
 BASE_DIR="$(dirname $0)"
 ONE_CHAIN="$BASE_DIR/../scripts/one-chain"
@@ -51,8 +72,8 @@ echo "*** Requirements"
 which docker
 
 echo "*** Create Docker image and upload to Docker Hub"
-docker build --build-arg CHAIN=gaia --build-arg RELEASE=$GAIA_BRANCH --build-arg NAME=ibc-0 -f --no-cache -t informaldev/ibc-0:$GAIA_BRANCH -f "$BASE_DIR/gaia.Dockerfile" .
-docker build --build-arg CHAIN=gaia --build-arg RELEASE=$GAIA_BRANCH --build-arg NAME=ibc-1 -f --no-cache -t informaldev/ibc-1:$GAIA_BRANCH -f "$BASE_DIR/gaia.Dockerfile" .
+docker build --build-arg CHAIN=gaia --build-arg RELEASE=$GAIA_BRANCH --build-arg NAME=ibc-0 --no-cache -t informaldev/ibc-0:$GAIA_BRANCH -f "$BASE_DIR/gaia.Dockerfile" .
+docker build --build-arg CHAIN=gaia --build-arg RELEASE=$GAIA_BRANCH --build-arg NAME=ibc-1 --no-cache -t informaldev/ibc-1:$GAIA_BRANCH -f "$BASE_DIR/gaia.Dockerfile" .
 
 read -p "Press ANY KEY to push image to Docker Hub, or CTRL-C to cancel. " dontcare
 docker push informaldev/ibc-0:$GAIA_BRANCH

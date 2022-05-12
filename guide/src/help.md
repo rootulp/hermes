@@ -4,6 +4,8 @@ This section provides guidelines regarding troubleshooting and general
 resources for getting help with `hermes`.
 For this purpose, we recommend a few ideas that could be of help:
 
+- [hermes help][help] command, providing a CLI
+  documentation for all `hermes` commands.
 - [profile][profiling] your relayer binary to identify slow methods;
 - [configure][log-level] the `log_level` to help with debugging;
 - [patch][patching] your local gaia chain(s) to enable some corner-case methods
@@ -19,6 +21,428 @@ And if the above options do not address your specific problem:
 
 Lastly, for general questions, you can reach us at `hello@informal.systems`,
 or on Twitter [@informalinc][twitter].
+
+## Table of contents
+
+<!-- toc -->
+
+## Help command
+
+The CLI comprises a special `help` command, which accepts as parameter other commands, and provides guidance on what is the correct way to invoke those commands.
+
+For instance,
+
+```shell
+hermes help create
+```
+
+will provide details about all the valid invocations of the `create` CLI command.
+
+```
+USAGE:
+    hermes create <SUBCOMMAND>
+
+DESCRIPTION:
+    Create objects (client, connection, or channel) on chains
+
+SUBCOMMANDS:
+    help       Get usage information
+    client     Create a new IBC client
+    connection Create a new connection between two chains
+    channel    Create a new channel between two chains
+```
+
+This can provide further specific guidance if we add additional parameters, e.g., 
+
+```shell
+hermes help create channel
+```
+
+```
+USAGE:
+    hermes create channel <OPTIONS>
+
+DESCRIPTION:
+    Create a new channel between two chains
+
+POSITIONAL ARGUMENTS:
+    chain_a_id                identifier of the side `a` chain for the new channel
+    chain_b_id                identifier of the side `b` chain for the new channel (optional)
+
+FLAGS:
+    -c, --connection-a CONNECTION-A
+    --port-a PORT-A           identifier of the side `a` port for the new channel
+    --port-b PORT-B           identifier of the side `b` port for the new channel
+    -o, --order ORDER         the channel ordering, valid options 'unordered' (default) and 'ordered'
+    -v, --channel-version VERSION     the version for the new channel
+```
+
+Additionally, the `-h`/`--help` flags typical for CLI applications work on
+all commands.
+
+## Parametrizing the log output level
+
+The relayer configuration file permits parametrization of output verbosity via the knob called `log_level`.
+This file is loaded by default from `$HOME/.hermes/config.toml`, but can be overridden in all commands
+with the `-c` flag, eg. `hermes -c ./path/to/my/config.toml some command`.
+
+Relevant snippet:
+
+```toml
+[global]
+log_level = 'error'
+```
+
+Valid options for `log_level` are: 'error', 'warn', 'info', 'debug', 'trace'.
+These levels correspond to the tracing sub-component of the relayer-cli,
+[see here](https://docs.rs/tracing-core/0.1.17/tracing_core/struct.Level.html).
+
+The relayer will _always_ print a last line summarizing the result of its
+operation for queries or transactions. In addition to this last line,
+arbitrary debug, info, or other outputs may be produced.
+
+## Overriding the tracing filter using `RUST_LOG`
+
+For debugging purposes, we may want to inspect which RPC queries the relayer is making.
+The relayer makes use of the `tendermint-rpc` library to issue RPC queries, but
+the output of this library is by default turned off in order to keep the logs more
+readable.
+
+Using the `RUST_LOG` environment variable, we can turn logging on for the
+`tendermint-rpc` library, as follows:
+
+```
+RUST_LOG=tendermint-rpc=debug,info hermes start
+```
+
+Setting the `RUST_LOG` environment variable to `tendermint_rpc=debug,info` instructs
+the relayer to set the log level of the `tendermint_rpc` crate to `debug` and otherwise
+use the `info` log level.
+
+> **Note:** While the `tendermint-rpc` contains a dash in its name, the logging filter
+> expects a module name, which can only contain alphanumeric characters and underscores,
+> hence why the filter above is written `tendermint_rpc=debug`.
+
+**Example:**
+
+```
+❯ RUST_LOG=tendermint_rpc=debug,info hermes start
+2022-02-24T14:32:14.039555Z  INFO ThreadId(01) using default configuration from '/Users/coromac/.hermes/config.toml'
+2022-02-24T14:32:14.043500Z  INFO ThreadId(01) telemetry service running, exposing metrics at http://127.0.0.1:3001/metrics
+2022-02-24T14:32:14.043542Z  INFO ThreadId(01) [rest] address not configured, REST server disabled
+2022-02-24T14:32:14.049759Z DEBUG ThreadId(01) Incoming response: {
+  "jsonrpc": "2.0",
+  "id": "143b4580-c49e-47c1-81b2-4e7090f6e762",
+  "result": {
+    "node_info": {
+      "protocol_version": {
+        "p2p": "8",
+        "block": "11",
+        "app": "0"
+      },
+      "id": "73f9134539f9845cd253dc302e36d48ee4c0f32d",
+      "listen_addr": "tcp://0.0.0.0:27003",
+      "network": "ibc0",
+      "version": "v0.34.14",
+      "channels": "40202122233038606100",
+      "moniker": "ibc0",
+      "other": {
+        "tx_index": "on",
+        "rpc_address": "tcp://0.0.0.0:27000"
+      }
+    },
+    "sync_info": {
+      "latest_block_hash": "8396B93E355AD80EED8167A04BB9858A315A8BEB482547DE16A6CD82BC11551B",
+      "latest_app_hash": "22419E041D6997EE75FF66F7F537A3D36122B220EAB89A9C246FEF680FB1C97A",
+      "latest_block_height": "86392",
+      "latest_block_time": "2022-02-24T14:32:08.673989Z",
+      "earliest_block_hash": "0A73CFE8566D4D4FBFE3178D9BCBAD483FD689854CA8012FF1457F8EC4598132",
+      "earliest_app_hash": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "earliest_block_height": "1",
+      "earliest_block_time": "2022-01-20T09:04:21.549736Z",
+      "catching_up": false
+    },
+    "validator_info": {
+      "address": "6FD56E6AA1EEDAD227AFAB6B9DE631719D4A3691",
+      "pub_key": {
+        "type": "tendermint/PubKeyEd25519",
+        "value": "mR5V/QWOv/mJYyNmlsl3mfxKy1PNaOzdztyas4NF2BA="
+      },
+      "voting_power": "10"
+    }
+  }
+}
+2022-02-24T14:32:14.052503Z DEBUG ThreadId(21) Incoming response: {
+  "jsonrpc": "2.0",
+  "id": "0ca35e64-ea98-4fbf-bd66-c3291128ace9",
+  "result": {}
+}
+
+...
+```
+
+The two DEBUG log lines above were emitted by the `tendermint-rpc` crate.
+
+## Inspecting the relayer state
+
+To get a little bit of insight into the state of the relayer,
+Hermes will react to a `SIGUSR1` signal by dumping its state to
+the console, either in plain text form or as a JSON object if Hermes
+was started with the `--json` option.
+
+To send a `SIGUSR1` signal to Hermes, look up its process ID (below PID)
+and use the following command:
+
+```shell
+kill -SIGUSR1 PID
+```
+
+Hermes will print some information about the workers which are currently running.
+
+For example, with three chains configured and one channel between each pair of chains:
+
+```text
+INFO Dumping state (triggered by SIGUSR1)
+INFO
+INFO * Chains: ibc-0, ibc-1, ibc-2
+INFO * Client workers:
+INFO   - client::ibc-0->ibc-1:07-tendermint-0 (id: 5)
+INFO   - client::ibc-0->ibc-2:07-tendermint-0 (id: 9)
+INFO   - client::ibc-1->ibc-0:07-tendermint-0 (id: 1)
+INFO   - client::ibc-1->ibc-2:07-tendermint-1 (id: 11)
+INFO   - client::ibc-2->ibc-0:07-tendermint-1 (id: 3)
+INFO   - client::ibc-2->ibc-1:07-tendermint-1 (id: 7)
+INFO * Packet workers:
+INFO   - packet::channel-0/transfer:ibc-0->ibc-1 (id: 2)
+INFO   - packet::channel-0/transfer:ibc-1->ibc-0 (id: 6)
+INFO   - packet::channel-0/transfer:ibc-2->ibc-0 (id: 10)
+INFO   - packet::channel-1/transfer:ibc-0->ibc-2 (id: 4)
+INFO   - packet::channel-1/transfer:ibc-1->ibc-2 (id: 8)
+INFO   - packet::channel-1/transfer:ibc-2->ibc-1 (id: 12)
+```
+
+or in JSON form (prettified):
+
+```json
+{
+  "timestamp": "Jul 12 17:04:37.244",
+  "level": "INFO",
+  "fields": {
+    "message": "Dumping state (triggered by SIGUSR1)"
+  }
+}
+{
+  "chains": [
+    "ibc-0",
+    "ibc-1",
+    "ibc-2"
+  ],
+  "workers": {
+    "Client": [
+      {
+        "id": 5,
+        "object": {
+          "type": "Client",
+          "dst_chain_id": "ibc-1",
+          "dst_client_id": "07-tendermint-0",
+          "src_chain_id": "ibc-0"
+        }
+      },
+      {
+        "id": 9,
+        "object": {
+          "type": "Client",
+          "dst_chain_id": "ibc-2",
+          "dst_client_id": "07-tendermint-0",
+          "src_chain_id": "ibc-0"
+        }
+      },
+      {
+        "id": 1,
+        "object": {
+          "type": "Client",
+          "dst_chain_id": "ibc-0",
+          "dst_client_id": "07-tendermint-0",
+          "src_chain_id": "ibc-1"
+        }
+      },
+      {
+        "id": 11,
+        "object": {
+          "type": "Client",
+          "dst_chain_id": "ibc-2",
+          "dst_client_id": "07-tendermint-1",
+          "src_chain_id": "ibc-1"
+        }
+      },
+      {
+        "id": 3,
+        "object": {
+          "type": "Client",
+          "dst_chain_id": "ibc-0",
+          "dst_client_id": "07-tendermint-1",
+          "src_chain_id": "ibc-2"
+        }
+      },
+      {
+        "id": 7,
+        "object": {
+          "type": "Client",
+          "dst_chain_id": "ibc-1",
+          "dst_client_id": "07-tendermint-1",
+          "src_chain_id": "ibc-2"
+        }
+      }
+    ],
+    "Packet": [
+      {
+        "id": 2,
+        "object": {
+          "type": "Packet",
+          "dst_chain_id": "ibc-1",
+          "src_chain_id": "ibc-0",
+          "src_channel_id": "channel-0",
+          "src_port_id": "transfer"
+        }
+      },
+      {
+        "id": 6,
+        "object": {
+          "type": "Packet",
+          "dst_chain_id": "ibc-0",
+          "src_chain_id": "ibc-1",
+          "src_channel_id": "channel-0",
+          "src_port_id": "transfer"
+        }
+      },
+      {
+        "id": 10,
+        "object": {
+          "type": "Packet",
+          "dst_chain_id": "ibc-0",
+          "src_chain_id": "ibc-2",
+          "src_channel_id": "channel-0",
+          "src_port_id": "transfer"
+        }
+      },
+      {
+        "id": 4,
+        "object": {
+          "type": "Packet",
+          "dst_chain_id": "ibc-2",
+          "src_chain_id": "ibc-0",
+          "src_channel_id": "channel-1",
+          "src_port_id": "transfer"
+        }
+      },
+      {
+        "id": 8,
+        "object": {
+          "type": "Packet",
+          "dst_chain_id": "ibc-2",
+          "src_chain_id": "ibc-1",
+          "src_channel_id": "channel-1",
+          "src_port_id": "transfer"
+        }
+      },
+      {
+        "id": 12,
+        "object": {
+          "type": "Packet",
+          "dst_chain_id": "ibc-1",
+          "src_chain_id": "ibc-2",
+          "src_channel_id": "channel-1",
+          "src_port_id": "transfer"
+        }
+      }
+    ]
+  }
+}
+```
+
+## Patching `gaia` to support `ChanCloseInit`
+
+The guide below refers specifically to patching your gaia chain so that the
+relayer can initiate the closing of channels by submitting a [`ChanCloseInit`][chan-close] message.
+Without this modification, the transaction will be rejected.
+We also describe how to test the channel closing feature.
+
+- Clone the Cosmos SDK
+
+    ```shell
+    git clone https://github.com/cosmos/cosmos-sdk.git ~/go/src/github.com/cosmos/cosmos-sdk
+    cd ~/go/src/github.com/cosmos/cosmos-sdk
+    ```
+
+- Apply these diffs:
+
+    ```
+       --- a/x/ibc/applications/transfer/module.go
+       +++ b/x/ibc/applications/transfer/module.go
+       @@ -305,7 +305,7 @@ func (am AppModule) OnChanCloseInit(
+               channelID string,
+        ) error {
+               // Disallow user-initiated channel closing for transfer channels
+       -       return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "user cannot close channel")
+       +       return nil
+        }
+    ```
+
+- Append the line below (watch for the placeholder `<your>`) as the last line
+  in your `go.mod` in the gaia clone:
+
+```replace github.com/cosmos/cosmos-sdk => /Users/<your>/go/src/github.com/cosmos/cosmos-sdk```
+
+- Now `make build` and `make install` your local copy of gaia
+
+In order to test the correct operation during the channel close, perform the steps below.
+
+- the channel should be in state open-open:
+
+- transfer of 5555 samoleans from `ibc-1` to `ibc-0`. This results in a
+  Tx to `ibc-1` for a `MsgTransfer` packet.
+  Make sure you're not relaying this packet (the relayer should not be running on
+  this path).
+
+  ```shell
+  hermes tx raw ft-transfer ibc-0 ibc-1 transfer channel-1 5555 -o 1000 -n 1 -d samoleans
+  ```
+
+- now do the first step of channel closing: the channel will transition
+to close-open:
+
+    ```shell
+    hermes -c config.toml tx raw chan-close-init ibc-0 ibc-1 connection-0 transfer transfer channel-0 channel-1
+    ```
+
+- trigger timeout on close to ibc-1
+
+    ```shell
+    hermes -c config.toml tx raw packet-recv ibc-0 ibc-1 transfer channel-1
+    ```
+
+- close-close
+
+    ```shell
+    hermes -c config.toml tx raw chan-close-confirm ibc-1 ibc-0 connection-1 transfer transfer channel-1 channel-0
+    ```
+
+- verify that the two ends are in Close state:
+
+  ```shell
+  hermes -c config.toml query channel end ibc-0 transfer channel-0
+  hermes -c config.toml query channel end ibc-1 transfer channel-1
+  ```
+
+
+## New Feature Request
+
+If you would like a feature to be added to `hermes`, don't hesitate
+to open a discussion about that via the [feature request][feature-request]
+issue template.
+
+> Note that Hermes is packaged as part of the `ibc-relayer-cli` crate.
+
 
 ## Profiling
 
@@ -88,7 +512,7 @@ the `profiling` feature and the [log level][log-level] should be `info` level or
 #### Example output for `tx raw conn-init` command
 
 ```
-hermes -c config_example.toml tx raw conn-init ibc-0 ibc-1 07-tendermint-0 07-tendermint-0
+hermes -c   config.toml tx raw conn-init ibc-0 ibc-1 07-tendermint-0 07-tendermint-0
 ```
 
 ```
@@ -146,128 +570,9 @@ Success: CreateClient(
 )
 ```
 
-## Parametrizing the log output level
 
-The relayer configuration file permits parametrization of output verbosity via the knob called `log_level`.
-This file is loaded by default from `$HOME/.hermes/config.toml`, but can be overridden in all commands
-with the `-c` flag, eg. `hermes -c ./path/to/my/config.toml some command`.
 
-Relevant snippet:
-
-```toml
-[global]
-strategy = 'naive'
-log_level = 'error'
-```
-
-Valid options for `log_level` are: 'error', 'warn', 'info', 'debug', 'trace'.
-These levels correspond to the tracing sub-component of the relayer-cli,
-[see here](https://docs.rs/tracing-core/0.1.17/tracing_core/struct.Level.html).
-
-The relayer will _always_ print a last line summarizing the result of its
-operation for queries of transactions. In addition to  this last line,
-arbitrary debug, info, or other outputs may be produced.  Example, with
-`log_level = 'debug'` and JSON output:
-
-```bash
-{"timestamp":"Jan 20 19:21:52.070","level":"DEBUG","fields":{"message":"registered component: abscissa_core::terminal::component::Terminal (v0.5.2)"},"target":"abscissa_core::component::registry"}
-{"timestamp":"Jan 20 19:21:52.071","level":"DEBUG","fields":{"message":"registered component: relayer_cli::components::Tracing (v0.0.6)"},"target":"abscissa_core::component::registry"}
-{"timestamp":"Jan 20 19:21:52.078","level":"INFO","fields":{"message":"Options QueryClientConsensusOptions { client_id: ClientId(\"07-tendermint-X\"), revision_number: 0, revision_height: 1, height: 0, proof: true }"},"target":"relayer_cli::commands::query::client"}
-{"timestamp":"Jan 20 19:21:52.080","level":"DEBUG","fields":{"message":"resolving host=\"localhost\""},"target":"hyper::client::connect::dns"}
-{"timestamp":"Jan 20 19:21:52.083","level":"DEBUG","fields":{"message":"connecting to [::1]:26657"},"target":"hyper::client::connect::http"}
-{"timestamp":"Jan 20 19:21:52.083","level":"DEBUG","fields":{"message":"connecting to 127.0.0.1:26657"},"target":"hyper::client::connect::http"}
-{"status":"error","result":["query error: RPC error to endpoint tcp://localhost:26657: error trying to connect: tcp connect error: Connection refused (os error 61) (code: 0)"]}
-```
-
-For the same command, with `log_level = 'error'`, just the last line will be
-produced:
-
-```bash
-{"status":"error","result":["query error: RPC error to endpoint tcp://localhost:26657: error trying to connect: tcp connect error: Connection refused (os error 61) (code: 0)"]}
-```
-
-## Patching `gaia`
-
-The guide below refers specifically to patching your gaia chain so that the
-relayer can initiate the closing of channels by submitting a [`chan-close-init` transaction][chan-close].
-Without this modification, the transaction will be rejected.
-We also describe how to test the channel closing feature.
-
-- Clone the Cosmos SDK
-
-    ```shell
-    git clone https://github.com/cosmos/cosmos-sdk.git ~/go/src/github.com/cosmos/cosmos-sdk
-    cd ~/go/src/github.com/cosmos/cosmos-sdk
-    ```
-
-- Apply these diffs:
-
-    ```
-       --- a/x/ibc/applications/transfer/module.go
-       +++ b/x/ibc/applications/transfer/module.go
-       @@ -305,7 +305,7 @@ func (am AppModule) OnChanCloseInit(
-               channelID string,
-        ) error {
-               // Disallow user-initiated channel closing for transfer channels
-       -       return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "user cannot close channel")
-       +       return nil
-        }
-    ```
-
-- Append the line below (watch for the placeholder `<your>`) as the last line
-  in your `go.mod` in the gaia clone:
-
-```replace github.com/cosmos/cosmos-sdk => /Users/<your>/go/src/github.com/cosmos/cosmos-sdk```
-
-- Now `make build` and `make install` your local copy of gaia
-
-In order to test the correct operation during the channel close, perform the steps below.
-
-- the channel should be in state open-open:
-
-- transfer of 5555 samoleans from `ibc-1` to `ibc-0`. This results in a
-  Tx to `ibc-1` for a `MsgTransfer` packet.
-  Make sure you're not relaying this packet (the relayer should not be running on
-  this path).
-
-  ```shell
-  hermes tx raw ft-transfer ibc-0 ibc-1 transfer channel-1 5555 1000 -n 1 -d samoleans
-  ```
-
-- now do the first step of channel closing: the channel will transition
-to close-open:
-
-    ```shell
-    hermes -c config.toml tx raw chan-close-init ibc-0 ibc-1 connection-0 transfer transfer channel-0 channel-1
-    ```
-
-- trigger timeout on close to ibc-1
-
-    ```shell
-    hermes -c config.toml tx raw packet-recv ibc-0 ibc-1 transfer channel-1
-    ```
-
-- close-close
-
-    ```shell
-    hermes -c config.toml tx raw chan-close-confirm ibc-1 ibc-0 connection-1 transfer transfer channel-1 channel-0
-    ```
-
-- verify that the two ends are in Close state:
-
-  ```shell
-  hermes -c config.toml query channel end ibc-0 transfer channel-0
-  hermes -c config.toml query channel end ibc-1 transfer channel-1
-  ```
-
-## New Feature Request
-
-If you would like a feature to be added to `hermes`, don't hesitate
-to open a discussion about that via the [feature request][feature-request]
-issue template.
-
-> Note that Hermes is packaged as part of the `ibc-relayer-cli` crate.
-
+[help]: ./help.md#help-command
 [feature-request]: https://github.com/informalsystems/ibc-rs/issues/new?assignees=&labels=&template=feature-request.md
 [bug-report]: https://github.com/informalsystems/ibc-rs/issues/new?assignees=&labels=&template=bug-report.md
 [twitter]: https://twitter.com/informalinc

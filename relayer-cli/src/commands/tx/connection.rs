@@ -1,14 +1,14 @@
-use std::time::Duration;
+use abscissa_core::clap::Parser;
+use abscissa_core::{Command, Runnable};
 
-use abscissa_core::{Command, Options, Runnable};
-
+use ibc::core::ics24_host::identifier::{ChainId, ClientId, ConnectionId};
 use ibc::events::IbcEvent;
-use ibc::ics24_host::identifier::{ChainId, ClientId, ConnectionId};
+use ibc::timestamp::ZERO_DURATION;
 use ibc_relayer::connection::{Connection, ConnectionSide};
 
 use crate::cli_utils::ChainHandlePair;
 use crate::conclude::Output;
-use crate::error::{Error, Kind};
+use crate::error::Error;
 use crate::prelude::*;
 
 macro_rules! conn_open_cmd {
@@ -18,15 +18,14 @@ macro_rules! conn_open_cmd {
         let chains = match ChainHandlePair::spawn(&config, &$self.src_chain_id, &$self.dst_chain_id)
         {
             Ok(chains) => chains,
-            Err(e) => return Output::error(format!("{}", e)).exit(),
+            Err(e) => Output::error(format!("{}", e)).exit(),
         };
 
         let connection = $conn(chains);
 
         debug!("Message {}: {:?}", $dbg_string, connection);
 
-        let res: Result<IbcEvent, Error> =
-            connection.$func().map_err(|e| Kind::Tx.context(e).into());
+        let res: Result<IbcEvent, Error> = connection.$func().map_err(Error::connection);
 
         match res {
             Ok(receipt) => Output::success(receipt).exit(),
@@ -35,18 +34,18 @@ macro_rules! conn_open_cmd {
     };
 }
 
-#[derive(Clone, Command, Debug, Options)]
+#[derive(Clone, Command, Debug, Parser)]
 pub struct TxRawConnInitCmd {
-    #[options(free, required, help = "identifier of the destination chain")]
+    #[clap(required = true, help = "identifier of the destination chain")]
     dst_chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the source chain")]
+    #[clap(required = true, help = "identifier of the source chain")]
     src_chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the destination client")]
+    #[clap(required = true, help = "identifier of the destination client")]
     dst_client_id: ClientId,
 
-    #[options(free, required, help = "identifier of the source client")]
+    #[clap(required = true, help = "identifier of the source client")]
     src_client_id: ClientId,
 }
 
@@ -58,44 +57,45 @@ impl Runnable for TxRawConnInitCmd {
             self,
             |chains: ChainHandlePair| {
                 Connection {
-                    delay_period: Duration::from_secs(0),
-                    a_side: ConnectionSide::new(
-                        chains.src,
-                        self.src_client_id.clone(),
-                        ConnectionId::default(),
-                    ),
-                    b_side: ConnectionSide::new(
-                        chains.dst,
-                        self.dst_client_id.clone(),
-                        ConnectionId::default(),
-                    ),
+                    delay_period: ZERO_DURATION,
+                    a_side: ConnectionSide::new(chains.src, self.src_client_id.clone(), None),
+                    b_side: ConnectionSide::new(chains.dst, self.dst_client_id.clone(), None),
                 }
             }
         );
     }
 }
 
-#[derive(Clone, Command, Debug, Options)]
+#[derive(Clone, Command, Debug, Parser)]
 pub struct TxRawConnTryCmd {
-    #[options(free, required, help = "identifier of the destination chain")]
+    #[clap(required = true, help = "identifier of the destination chain")]
     dst_chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the source chain")]
+    #[clap(required = true, help = "identifier of the source chain")]
     src_chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the destination client")]
+    #[clap(required = true, help = "identifier of the destination client")]
     dst_client_id: ClientId,
 
-    #[options(free, required, help = "identifier of the source client")]
+    #[clap(required = true, help = "identifier of the source client")]
     src_client_id: ClientId,
 
-    #[options(
-        required,
+    #[clap(
+        short = 's',
+        long,
+        required = true,
         help = "identifier of the source connection (required)",
-        short = "s",
-        meta = "ID"
+        value_name = "ID"
     )]
     src_conn_id: ConnectionId,
+
+    #[clap(
+        short = 'd',
+        long,
+        help = "identifier of the destination connection (optional)",
+        value_name = "ID"
+    )]
+    dst_conn_id: Option<ConnectionId>,
 }
 
 impl Runnable for TxRawConnTryCmd {
@@ -106,16 +106,16 @@ impl Runnable for TxRawConnTryCmd {
             self,
             |chains: ChainHandlePair| {
                 Connection {
-                    delay_period: Duration::from_secs(0),
+                    delay_period: ZERO_DURATION,
                     a_side: ConnectionSide::new(
                         chains.src,
                         self.src_client_id.clone(),
-                        self.src_conn_id.clone(),
+                        Some(self.src_conn_id.clone()),
                     ),
                     b_side: ConnectionSide::new(
                         chains.dst,
                         self.dst_client_id.clone(),
-                        ConnectionId::default(),
+                        self.dst_conn_id.clone(),
                     ),
                 }
             }
@@ -123,33 +123,35 @@ impl Runnable for TxRawConnTryCmd {
     }
 }
 
-#[derive(Clone, Command, Debug, Options)]
+#[derive(Clone, Command, Debug, Parser)]
 pub struct TxRawConnAckCmd {
-    #[options(free, required, help = "identifier of the destination chain")]
+    #[clap(required = true, help = "identifier of the destination chain")]
     dst_chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the source chain")]
+    #[clap(required = true, help = "identifier of the source chain")]
     src_chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the destination client")]
+    #[clap(required = true, help = "identifier of the destination client")]
     dst_client_id: ClientId,
 
-    #[options(free, required, help = "identifier of the source client")]
+    #[clap(required = true, help = "identifier of the source client")]
     src_client_id: ClientId,
 
-    #[options(
-        required,
+    #[clap(
+        short = 'd',
+        long,
+        required = true,
         help = "identifier of the destination connection (required)",
-        short = "d",
-        meta = "ID"
+        value_name = "ID"
     )]
     dst_conn_id: ConnectionId,
 
-    #[options(
-        required,
+    #[clap(
+        short = 's',
+        long,
+        required = true,
         help = "identifier of the source connection (required)",
-        short = "s",
-        meta = "ID"
+        value_name = "ID"
     )]
     src_conn_id: ConnectionId,
 }
@@ -162,16 +164,16 @@ impl Runnable for TxRawConnAckCmd {
             self,
             |chains: ChainHandlePair| {
                 Connection {
-                    delay_period: Duration::from_secs(0),
+                    delay_period: ZERO_DURATION,
                     a_side: ConnectionSide::new(
                         chains.src,
                         self.src_client_id.clone(),
-                        self.src_conn_id.clone(),
+                        Some(self.src_conn_id.clone()),
                     ),
                     b_side: ConnectionSide::new(
                         chains.dst,
                         self.dst_client_id.clone(),
-                        self.dst_conn_id.clone(),
+                        Some(self.dst_conn_id.clone()),
                     ),
                 }
             }
@@ -179,33 +181,35 @@ impl Runnable for TxRawConnAckCmd {
     }
 }
 
-#[derive(Clone, Command, Debug, Options)]
+#[derive(Clone, Command, Debug, Parser)]
 pub struct TxRawConnConfirmCmd {
-    #[options(free, required, help = "identifier of the destination chain")]
+    #[clap(required = true, help = "identifier of the destination chain")]
     dst_chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the source chain")]
+    #[clap(required = true, help = "identifier of the source chain")]
     src_chain_id: ChainId,
 
-    #[options(free, required, help = "identifier of the destination client")]
+    #[clap(required = true, help = "identifier of the destination client")]
     dst_client_id: ClientId,
 
-    #[options(free, required, help = "identifier of the source client")]
+    #[clap(required = true, help = "identifier of the source client")]
     src_client_id: ClientId,
 
-    #[options(
-        required,
+    #[clap(
+        short = 'd',
+        long,
+        required = true,
         help = "identifier of the destination connection (required)",
-        short = "d",
-        meta = "ID"
+        value_name = "ID"
     )]
     dst_conn_id: ConnectionId,
 
-    #[options(
-        required,
+    #[clap(
+        short = 's',
+        long,
+        required = true,
         help = "identifier of the source connection (required)",
-        short = "s",
-        meta = "ID"
+        value_name = "ID"
     )]
     src_conn_id: ConnectionId,
 }
@@ -218,16 +222,16 @@ impl Runnable for TxRawConnConfirmCmd {
             self,
             |chains: ChainHandlePair| {
                 Connection {
-                    delay_period: Duration::from_secs(0),
+                    delay_period: ZERO_DURATION,
                     a_side: ConnectionSide::new(
                         chains.src,
                         self.src_client_id.clone(),
-                        self.src_conn_id.clone(),
+                        Some(self.src_conn_id.clone()),
                     ),
                     b_side: ConnectionSide::new(
                         chains.dst,
                         self.dst_client_id.clone(),
-                        self.dst_conn_id.clone(),
+                        Some(self.dst_conn_id.clone()),
                     ),
                 }
             }

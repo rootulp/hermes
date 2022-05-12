@@ -46,7 +46,7 @@ class TxUpdateClient(Cmd[ClientUpdated]):
         return [self.dst_chain_id, self.dst_client_id]
 
     def process(self, result: Any) -> ClientUpdated:
-        return from_dict(ClientUpdated, result['UpdateClient']['common'])
+        return from_dict(ClientUpdated, result[-1]['UpdateClient']['common'])
 
 
 # -----------------------------------------------------------------------------
@@ -60,7 +60,7 @@ class AllowUpdate:
 @dataclass
 class ClientState:
     chain_id: ChainId
-    frozen_height: Height
+    frozen_height: Optional[Height]
     latest_height: Height
     max_clock_drift: Duration
     trust_level: TrustLevel

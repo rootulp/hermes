@@ -6,7 +6,4 @@
 pub use abscissa_core::prelude::*;
 
 /// Application state accessors
-pub use crate::application::{app_config, app_reader, app_writer};
-
-/// BoxError type for top-level error handling
-pub use abscissa_core::error::BoxError;
+pub use crate::application::{app_config, app_reader};

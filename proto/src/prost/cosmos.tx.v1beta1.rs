@@ -66,8 +66,10 @@ pub struct TxBody {
     /// is referred to as the primary signer and pays the fee for the whole
     /// transaction.
     #[prost(message, repeated, tag="1")]
-    pub messages: ::prost::alloc::vec::Vec<::prost_types::Any>,
-    /// memo is any arbitrary memo to be added to the transaction
+    pub messages: ::prost::alloc::vec::Vec<super::super::super::google::protobuf::Any>,
+    /// memo is any arbitrary note/comment to be added to the transaction.
+    /// WARNING: in clients, any publicly exposed text should not be called memo,
+    /// but should be called `note` instead (see <https://github.com/cosmos/cosmos-sdk/issues/9122>).
     #[prost(string, tag="2")]
     pub memo: ::prost::alloc::string::String,
     /// timeout is the block height after which this transaction will not
@@ -78,12 +80,12 @@ pub struct TxBody {
     /// when the default options are not sufficient. If any of these are present
     /// and can't be handled, the transaction will be rejected
     #[prost(message, repeated, tag="1023")]
-    pub extension_options: ::prost::alloc::vec::Vec<::prost_types::Any>,
+    pub extension_options: ::prost::alloc::vec::Vec<super::super::super::google::protobuf::Any>,
     /// extension_options are arbitrary options that can be added by chains
     /// when the default options are not sufficient. If any of these are present
     /// and can't be handled, they will be ignored
     #[prost(message, repeated, tag="2047")]
-    pub non_critical_extension_options: ::prost::alloc::vec::Vec<::prost_types::Any>,
+    pub non_critical_extension_options: ::prost::alloc::vec::Vec<super::super::super::google::protobuf::Any>,
 }
 /// AuthInfo describes the fee and signer modes that are used to sign a
 /// transaction.
@@ -110,7 +112,7 @@ pub struct SignerInfo {
     /// that already exist in state. If unset, the verifier can use the required \
     /// signer address for this position and lookup the public key.
     #[prost(message, optional, tag="1")]
-    pub public_key: ::core::option::Option<::prost_types::Any>,
+    pub public_key: ::core::option::Option<super::super::super::google::protobuf::Any>,
     /// mode_info describes the signing mode of the signer and is a nested
     /// structure to support nested multisig pubkey's
     #[prost(message, optional, tag="2")]
@@ -236,8 +238,15 @@ pub struct BroadcastTxResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SimulateRequest {
     /// tx is the transaction to simulate.
+    /// Deprecated. Send raw tx bytes instead.
+    #[deprecated]
     #[prost(message, optional, tag="1")]
     pub tx: ::core::option::Option<Tx>,
+    /// tx_bytes is the raw transaction.
+    ///
+    /// Since: cosmos-sdk 0.43
+    #[prost(bytes="vec", tag="2")]
+    pub tx_bytes: ::prost::alloc::vec::Vec<u8>,
 }
 /// SimulateResponse is the response type for the
 /// Service.SimulateRPC method.
@@ -295,4 +304,150 @@ pub enum BroadcastMode {
     /// immediately.
     Async = 3,
 }
-# [doc = r" Generated client implementations."] pub mod service_client { # ! [allow (unused_variables , dead_code , missing_docs)] use tonic :: codegen :: * ; # [doc = " Service defines a gRPC service for interacting with transactions."] pub struct ServiceClient < T > { inner : tonic :: client :: Grpc < T > , } impl ServiceClient < tonic :: transport :: Channel > { # [doc = r" Attempt to create a new client by connecting to a given endpoint."] pub async fn connect < D > (dst : D) -> Result < Self , tonic :: transport :: Error > where D : std :: convert :: TryInto < tonic :: transport :: Endpoint > , D :: Error : Into < StdError > , { let conn = tonic :: transport :: Endpoint :: new (dst) ? . connect () . await ? ; Ok (Self :: new (conn)) } } impl < T > ServiceClient < T > where T : tonic :: client :: GrpcService < tonic :: body :: BoxBody > , T :: ResponseBody : Body + HttpBody + Send + 'static , T :: Error : Into < StdError > , < T :: ResponseBody as HttpBody > :: Error : Into < StdError > + Send , { pub fn new (inner : T) -> Self { let inner = tonic :: client :: Grpc :: new (inner) ; Self { inner } } pub fn with_interceptor (inner : T , interceptor : impl Into < tonic :: Interceptor >) -> Self { let inner = tonic :: client :: Grpc :: with_interceptor (inner , interceptor) ; Self { inner } } # [doc = " Simulate simulates executing a transaction for estimating gas usage."] pub async fn simulate (& mut self , request : impl tonic :: IntoRequest < super :: SimulateRequest > ,) -> Result < tonic :: Response < super :: SimulateResponse > , tonic :: Status > { self . inner . ready () . await . map_err (| e | { tonic :: Status :: new (tonic :: Code :: Unknown , format ! ("Service was not ready: {}" , e . into ())) }) ? ; let codec = tonic :: codec :: ProstCodec :: default () ; let path = http :: uri :: PathAndQuery :: from_static ("/cosmos.tx.v1beta1.Service/Simulate") ; self . inner . unary (request . into_request () , path , codec) . await } # [doc = " GetTx fetches a tx by hash."] pub async fn get_tx (& mut self , request : impl tonic :: IntoRequest < super :: GetTxRequest > ,) -> Result < tonic :: Response < super :: GetTxResponse > , tonic :: Status > { self . inner . ready () . await . map_err (| e | { tonic :: Status :: new (tonic :: Code :: Unknown , format ! ("Service was not ready: {}" , e . into ())) }) ? ; let codec = tonic :: codec :: ProstCodec :: default () ; let path = http :: uri :: PathAndQuery :: from_static ("/cosmos.tx.v1beta1.Service/GetTx") ; self . inner . unary (request . into_request () , path , codec) . await } # [doc = " BroadcastTx broadcast transaction."] pub async fn broadcast_tx (& mut self , request : impl tonic :: IntoRequest < super :: BroadcastTxRequest > ,) -> Result < tonic :: Response < super :: BroadcastTxResponse > , tonic :: Status > { self . inner . ready () . await . map_err (| e | { tonic :: Status :: new (tonic :: Code :: Unknown , format ! ("Service was not ready: {}" , e . into ())) }) ? ; let codec = tonic :: codec :: ProstCodec :: default () ; let path = http :: uri :: PathAndQuery :: from_static ("/cosmos.tx.v1beta1.Service/BroadcastTx") ; self . inner . unary (request . into_request () , path , codec) . await } # [doc = " GetTxsEvent fetches txs by event."] pub async fn get_txs_event (& mut self , request : impl tonic :: IntoRequest < super :: GetTxsEventRequest > ,) -> Result < tonic :: Response < super :: GetTxsEventResponse > , tonic :: Status > { self . inner . ready () . await . map_err (| e | { tonic :: Status :: new (tonic :: Code :: Unknown , format ! ("Service was not ready: {}" , e . into ())) }) ? ; let codec = tonic :: codec :: ProstCodec :: default () ; let path = http :: uri :: PathAndQuery :: from_static ("/cosmos.tx.v1beta1.Service/GetTxsEvent") ; self . inner . unary (request . into_request () , path , codec) . await } } impl < T : Clone > Clone for ServiceClient < T > { fn clone (& self) -> Self { Self { inner : self . inner . clone () , } } } impl < T > std :: fmt :: Debug for ServiceClient < T > { fn fmt (& self , f : & mut std :: fmt :: Formatter < '_ >) -> std :: fmt :: Result { write ! (f , "ServiceClient {{ ... }}") } } }
+/// Generated client implementations.
+#[cfg(feature = "client")]
+pub mod service_client {
+    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    use tonic::codegen::*;
+    /// Service defines a gRPC service for interacting with transactions.
+    #[derive(Debug, Clone)]
+    pub struct ServiceClient<T> {
+        inner: tonic::client::Grpc<T>,
+    }
+    impl ServiceClient<tonic::transport::Channel> {
+        /// Attempt to create a new client by connecting to a given endpoint.
+        pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+        where
+            D: std::convert::TryInto<tonic::transport::Endpoint>,
+            D::Error: Into<StdError>,
+        {
+            let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
+            Ok(Self::new(conn))
+        }
+    }
+    impl<T> ServiceClient<T>
+    where
+        T: tonic::client::GrpcService<tonic::body::BoxBody>,
+        T::Error: Into<StdError>,
+        T::ResponseBody: Default + Body<Data = Bytes> + Send + 'static,
+        <T::ResponseBody as Body>::Error: Into<StdError> + Send,
+    {
+        pub fn new(inner: T) -> Self {
+            let inner = tonic::client::Grpc::new(inner);
+            Self { inner }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> ServiceClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
+        {
+            ServiceClient::new(InterceptedService::new(inner, interceptor))
+        }
+        /// Compress requests with `gzip`.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
+        pub fn send_gzip(mut self) -> Self {
+            self.inner = self.inner.send_gzip();
+            self
+        }
+        /// Enable decompressing responses with `gzip`.
+        #[must_use]
+        pub fn accept_gzip(mut self) -> Self {
+            self.inner = self.inner.accept_gzip();
+            self
+        }
+        /// Simulate simulates executing a transaction for estimating gas usage.
+        pub async fn simulate(
+            &mut self,
+            request: impl tonic::IntoRequest<super::SimulateRequest>,
+        ) -> Result<tonic::Response<super::SimulateResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cosmos.tx.v1beta1.Service/Simulate",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        /// GetTx fetches a tx by hash.
+        pub async fn get_tx(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetTxRequest>,
+        ) -> Result<tonic::Response<super::GetTxResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cosmos.tx.v1beta1.Service/GetTx",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        /// BroadcastTx broadcast transaction.
+        pub async fn broadcast_tx(
+            &mut self,
+            request: impl tonic::IntoRequest<super::BroadcastTxRequest>,
+        ) -> Result<tonic::Response<super::BroadcastTxResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cosmos.tx.v1beta1.Service/BroadcastTx",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        /// GetTxsEvent fetches txs by event.
+        pub async fn get_txs_event(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetTxsEventRequest>,
+        ) -> Result<tonic::Response<super::GetTxsEventResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cosmos.tx.v1beta1.Service/GetTxsEvent",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+    }
+}

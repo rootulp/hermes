@@ -20,7 +20,6 @@ RUN git checkout $RELEASE
 
 # Install minimum necessary dependencies, build Cosmos SDK, remove packages
 RUN apk add --no-cache $PACKAGES && \
-    make tools && \
     make install
 
 # Show version
@@ -45,6 +44,10 @@ WORKDIR /$NAME
 COPY --from=build-env /go/bin/gaiad /usr/bin/gaiad
 
 COPY --chown=root:root ./chains/$CHAIN/$RELEASE/$NAME /chain/$CHAIN
+
+# Copy entrypoint script
+COPY ./run-gaiad.sh /chain/$CHAIN
+RUN chmod 755 /chain/$CHAIN/run-gaiad.sh
 
 RUN tree -pug /chain
 

@@ -12,10 +12,14 @@ USAGE:
     hermes query clients <OPTIONS>
 
 DESCRIPTION:
-    Query clients
+    Query the identifiers of all clients on a chain
 
 POSITIONAL ARGUMENTS:
     chain_id                  identifier of the chain to query
+
+FLAGS:
+    -s, --src-chain-id ID     filter for clients which target a specific chain id (implies '-o')
+    -o, --omit-chain-ids      omit printing the source chain for each client (default: false)
 ```
 
 __Example__
@@ -26,10 +30,40 @@ Query all clients on `ibc-1`:
 hermes query clients ibc-1
 ```
 
-```rust
+```json
 Success: [
-    ClientId("07-tendermint-0"),
-    ClientId("07-tendermint-1"),
+    ClientChain {
+        client_id: ClientId(
+            "07-tendermint-0",
+        ),
+        chain_id: ChainId {
+            id: "ibc-0",
+            version: 0,
+        },
+    },
+    ClientChain {
+        client_id: ClientId(
+            "07-tendermint-1",
+        ),
+        chain_id: ChainId {
+            id: "ibc-2",
+            version: 2,
+        },
+    },
+]
+```
+
+Query all clients on `ibc-1` having `ibc-2` as their source chain:
+
+```shell
+hermes query clients ibc-1 -s ibc-2
+```
+
+```json
+Success: [
+    ClientId(
+        "07-tendermint-1",
+    ),
 ]
 ```
 
@@ -66,7 +100,7 @@ POSITIONAL ARGUMENTS:
     client_id                 identifier of the client to query
 
 FLAGS:
-    -h, --height HEIGHT       the chain height which this query should reflect
+    -H, --height HEIGHT       the chain height which this query should reflect
 ```
 
 __Example__
@@ -77,7 +111,7 @@ Query the state of client `07-tendermint-2` on `ibc-1`:
 hermes query client state ibc-1 07-tendermint-1
 ```
 
-```rust
+```json
 Success: ClientState {
     chain_id: ChainId {
         id: "ibc-2",
@@ -125,7 +159,7 @@ POSITIONAL ARGUMENTS:
 FLAGS:
     -c, --consensus-height    CONSENSUS-HEIGHT
     -s, --heights-only        show only consensus heights
-    -h, --height HEIGHT       the chain height context to be used, applicable only to a specific height
+    -H, --height HEIGHT       the chain height context to be used, applicable only to a specific height
 ```
 
 __Example__
@@ -201,7 +235,7 @@ POSITIONAL ARGUMENTS:
     client_id                 identifier of the client to query
 
 FLAGS:
-    -h, --height HEIGHT       the chain height which this query should reflect
+    -H, --height HEIGHT       the chain height which this query should reflect
 ```
 
 __Example__
@@ -212,7 +246,7 @@ Query the connections of client `07-tendermint-0` on `ibc-0`:
 hermes query client connections ibc-0 07-tendermint-0
 ```
 
-```rust
+```json
 Success: [
     ConnectionId("connection-0"),
     ConnectionId("connection-1"),
@@ -234,7 +268,7 @@ POSITIONAL ARGUMENTS:
     consensus_height          height of header to query
 
 FLAGS:
-    -h, --height HEIGHT       the chain height context for the query
+    -H, --height HEIGHT       the chain height context for the query
 ```
 
 __Example__
@@ -245,7 +279,7 @@ Query for the header used in the `07-tendermint-0` client update at height 2724 
 hermes query client header ibc-0 07-tendermint-0 2724
 ```
 
-```rust
+```json
 Success: [
     UpdateClient(
         UpdateClient {

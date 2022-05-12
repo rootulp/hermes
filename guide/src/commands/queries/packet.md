@@ -8,21 +8,75 @@ Use the `query packet` commands to query information about packets.
 USAGE:
     hermes query packet <SUBCOMMAND>
 
-DESCRIPTION:
-    Query information about packets
+OPTIONS:
+    -h, --help    Print help information
 
 SUBCOMMANDS:
-    commitments          Query packet commitments
-    commitment           Query packet commitment
-    acks                 Query packet acknowledgments
-    ack                  Query packet acknowledgment
-    unreceived-packets   Query unreceived packets
-    unreceived-acks      Query unreceived acknowledgments
+    ack                   Query packet acknowledgment
+    acks                  Query packet acknowledgments
+    commitment            Query packet commitment
+    commitments           Query packet commitments
+    pending               Output a summary of pending packets in both directions
+    unreceived-acks       Query unreceived acknowledgments
+    unreceived-packets    Query unreceived packets
+    help                  Print this message or the help of the given subcommand(s)
 ```
 
 ## Table of Contents
 
 <!-- toc -->
+
+
+## Pending Packets
+
+Use the `query packet pending` command to query the sequence numbers of all packets that have not yet been received or acknowledged, at both ends of a channel.
+
+```shell
+USAGE:
+    hermes query packet pending <CHAIN_ID> <PORT_ID> <CHANNEL_ID>
+
+ARGS:
+    <CHAIN_ID>      identifier of the chain at one end of the channel
+    <PORT_ID>       port identifier on the chain given by <CHAIN_ID>
+    <CHANNEL_ID>    channel identifier on the chain given by <CHAIN_ID>
+```
+
+__Example__
+
+Query the sequence numbers of all packets that either not yet been received or not yet been acknowledged, at both ends of the channel `channel-1`.
+
+```shell
+$ hermes query packet pending ibc-0 tranfer channel-1
+```
+
+```json
+Success: Summary {
+    forward: PendingPackets {
+        unreceived_packets: [
+            2203,
+            ...
+            2212,
+        ],
+        unreceived_acks: [
+           2183,
+           ...
+           2202,
+        ],
+    },
+    reverse: PendingPackets {
+        unreceived_packets: [
+           14,
+           ...
+           23,
+        ],
+        unreceived_acks: [
+           4,
+           ...
+           13,
+        ],
+    },
+}
+```
 
 
 ## Packet Commitments
@@ -50,7 +104,7 @@ Query `ibc-0` for the sequence numbers of packets that still have commitments on
 hermes query packet commitments ibc-0 transfer channel-0
 ```
 
-```rust
+```json
 Success: PacketSeqs {
     height: Height {
         revision: 0,
@@ -82,7 +136,7 @@ POSITIONAL ARGUMENTS:
     sequence                  sequence of packet to query
 
 FLAGS:
-    -h, --height HEIGHT       height of the state to query
+    -H, --height HEIGHT       height of the state to query
 ```
 
 __Example__
@@ -93,7 +147,7 @@ Query `ibc-0` for the commitment of packet with sequence `3` sent on `transfer` 
 hermes query packet commitment ibc-0 transfer channel-0 3
 ```
 
-```rust
+```json
 Success: "F9458DC7EBEBCD6D18E983FCAB5BD752CC2A74532BBD50B812DB229997739EFC"
 ```
 
@@ -122,7 +176,7 @@ Query `ibc-1` for the sequence numbers of packets acknowledged that were receive
 hermes query packet acks ibc-1 transfer channel-1
 ```
 
-```rust
+```json
 Success: PacketSeqs {
     height: Height {
         revision: 1,
@@ -154,7 +208,7 @@ POSITIONAL ARGUMENTS:
     sequence                  sequence of packet to query
 
 FLAGS:
-    -h, --height HEIGHT       height of the state to query
+    -H, --height HEIGHT       height of the state to query
 ```
 
 __Example__
@@ -165,7 +219,7 @@ Query `ibc-1` for the acknowledgment of packet with sequence `2` received on `tr
 hermes query packet ack ibc-1 transfer channel-1 2
 ```
 
-```rust
+```json
 Success: "08F7557ED51826FE18D84512BF24EC75001EDBAF2123A477DF72A0A9F3640A7C"
 ```
 

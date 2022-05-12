@@ -1,80 +1,209 @@
-use thiserror::Error;
-use tracing::error;
+use core::fmt::{Display, Formatter};
+use core::str::FromStr;
+use core::time::Duration;
 
-use ibc::application::ics20_fungible_token_transfer::msgs::transfer::MsgTransfer;
+use flex_error::{define_error, DetailOnly};
+use ibc::applications::ics20_fungible_token_transfer::msgs::transfer::MsgTransfer;
+use ibc::core::ics24_host::identifier::{ChainId, ChannelId, PortId};
 use ibc::events::IbcEvent;
-use ibc::ics24_host::identifier::{ChainId, ChannelId, PortId};
+use ibc::signer::Signer;
+use ibc::timestamp::{Timestamp, TimestampOverflowError};
 use ibc::tx_msg::Msg;
+use ibc::Height;
+use ibc_proto::google::protobuf::Any;
+use uint::FromStrRadixErr;
 
-use crate::chain::{Chain, CosmosSdkChain};
-use crate::config::ChainConfig;
+use crate::chain::handle::ChainHandle;
+use crate::chain::tx::TrackedMsgs;
+use crate::chain::ChainStatus;
 use crate::error::Error;
+use crate::util::bigint::U256;
 
-#[derive(Debug, Error)]
-pub enum PacketError {
-    #[error("failed with underlying cause: {0}")]
-    Failed(String),
+define_error! {
+    TransferError {
+        Relayer
+            [ Error ]
+            |_| { "relayer error" },
 
-    #[error("key error with underlying cause: {0}")]
-    KeyError(Error),
+        Key
+            [ Error ]
+            |_| { "key error" },
 
-    #[error(
-        "failed during a transaction submission step to chain id {0} with underlying error: {1}"
-    )]
-    SubmitError(ChainId, Error),
+        Submit
+            { chain_id: ChainId }
+            [ Error ]
+            |e| {
+                format!("failed while submitting the Transfer message to chain {0}",
+                    e.chain_id)
+            },
+
+        TimestampOverflow
+            [ DetailOnly<TimestampOverflowError> ]
+            |_| { "timestamp overflow" },
+
+        TxResponse
+            { event: String }
+            |e| {
+                format!("tx response event consists of an error: {}",
+                    e.event)
+            },
+
+        UnexpectedEvent
+            { event: IbcEvent }
+            |e| {
+                format!("internal error, expected IBCEvent::ChainError, got {:?}",
+                    e.event)
+            },
+
+        ZeroTimeout
+            | _ | { "packet timeout height and packet timeout timestamp cannot both be 0" },
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Amount(pub U256);
+
+impl Display for Amount {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl FromStr for Amount {
+    type Err = FromStrRadixErr;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(U256::from_str_radix(s, 10)?))
+    }
+}
+
+impl From<u64> for Amount {
+    fn from(amount: u64) -> Self {
+        Self(amount.into())
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct TransferTimeout {
+    pub timeout_height: Height,
+    pub timeout_timestamp: Timestamp,
+}
+
+impl TransferTimeout {
+    /**
+       Construct the transfer timeout parameters from the given timeout
+       height offset, timeout duration, and the latest chain status
+       containing the latest time of the destination chain.
+
+       The height offset and duration are optional, with zero indicating
+       that the packet do not get expired at the given height or time.
+       If both height offset and duration are zero, then the packet will
+       never expire.
+    */
+    pub fn new(
+        timeout_height_offset: u64,
+        timeout_duration: Duration,
+        destination_chain_status: &ChainStatus,
+    ) -> Result<Self, TransferError> {
+        let timeout_height = if timeout_height_offset == 0 {
+            Height::zero()
+        } else {
+            destination_chain_status.height.add(timeout_height_offset)
+        };
+
+        let timeout_timestamp = if timeout_duration == Duration::ZERO {
+            Timestamp::none()
+        } else {
+            (destination_chain_status.timestamp + timeout_duration)
+                .map_err(TransferError::timestamp_overflow)?
+        };
+
+        Ok(TransferTimeout {
+            timeout_height,
+            timeout_timestamp,
+        })
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct TransferOptions {
-    pub packet_src_chain_config: ChainConfig,
-    pub packet_dst_chain_config: ChainConfig,
     pub packet_src_port_id: PortId,
     pub packet_src_channel_id: ChannelId,
-    pub amount: u64,
+    pub amount: Amount,
     pub denom: String,
     pub receiver: Option<String>,
-    pub height_offset: u64,
+    pub timeout_height_offset: u64,
+    pub timeout_duration: Duration,
     pub number_msgs: usize,
 }
 
-pub fn build_and_send_transfer_messages(
-    mut packet_src_chain: CosmosSdkChain, // the chain whose account is debited
-    mut packet_dst_chain: CosmosSdkChain, // the chain where the transfer is sent
-    opts: TransferOptions,
-) -> Result<Vec<IbcEvent>, PacketError> {
+pub fn build_transfer_message(
+    packet_src_port_id: PortId,
+    packet_src_channel_id: ChannelId,
+    amount: Amount,
+    denom: String,
+    sender: Signer,
+    receiver: Signer,
+    timeout_height: Height,
+    timeout_timestamp: Timestamp,
+) -> Any {
+    let msg = MsgTransfer {
+        source_port: packet_src_port_id,
+        source_channel: packet_src_channel_id,
+        token: Some(ibc_proto::cosmos::base::v1beta1::Coin {
+            denom,
+            amount: amount.to_string(),
+        }),
+        sender,
+        receiver,
+        timeout_height,
+        timeout_timestamp,
+    };
+
+    msg.to_any()
+}
+
+pub fn build_and_send_transfer_messages<SrcChain: ChainHandle, DstChain: ChainHandle>(
+    packet_src_chain: &SrcChain, // the chain whose account is debited
+    packet_dst_chain: &DstChain, // the chain whose account eventually gets credited
+    opts: &TransferOptions,
+) -> Result<Vec<IbcEvent>, TransferError> {
     let receiver = match &opts.receiver {
-        None => packet_dst_chain.get_signer(),
-        Some(r) => Ok(r.clone().into()),
-    }
-    .map_err(PacketError::KeyError)?;
+        None => packet_dst_chain.get_signer().map_err(TransferError::key)?,
+        Some(r) => r.clone().into(),
+    };
 
-    let sender = packet_src_chain
-        .get_signer()
-        .map_err(PacketError::KeyError)?;
+    let sender = packet_src_chain.get_signer().map_err(TransferError::key)?;
 
-    let latest_height = packet_dst_chain
-        .query_latest_height()
-        .map_err(|_| PacketError::Failed("Height error".to_string()))?;
+    let destination_chain_status = packet_dst_chain
+        .query_application_status()
+        .map_err(TransferError::relayer)?;
+
+    let timeout = TransferTimeout::new(
+        opts.timeout_height_offset,
+        opts.timeout_duration,
+        &destination_chain_status,
+    )?;
 
     let msg = MsgTransfer {
         source_port: opts.packet_src_port_id.clone(),
-        source_channel: opts.packet_src_channel_id.clone(),
+        source_channel: opts.packet_src_channel_id,
         token: Some(ibc_proto::cosmos::base::v1beta1::Coin {
             denom: opts.denom.clone(),
             amount: opts.amount.to_string(),
         }),
         sender,
         receiver,
-        timeout_height: latest_height.add(opts.height_offset),
-        timeout_timestamp: 0,
+        timeout_height: timeout.timeout_height,
+        timeout_timestamp: timeout.timeout_timestamp,
     };
 
     let raw_msg = msg.to_any();
     let msgs = vec![raw_msg; opts.number_msgs];
 
     let events = packet_src_chain
-        .send_msgs(msgs)
-        .map_err(|e| PacketError::SubmitError(packet_src_chain.id().clone(), e))?;
+        .send_messages_and_wait_commit(TrackedMsgs::new(msgs, "ft-transfer"))
+        .map_err(|e| TransferError::submit(packet_src_chain.id(), e))?;
 
     // Check if the chain rejected the transaction
     let result = events
@@ -85,7 +214,7 @@ pub fn build_and_send_transfer_messages(
         None => Ok(events),
         Some(err) => {
             if let IbcEvent::ChainError(err) = err {
-                Err(PacketError::Failed(err.to_string()))
+                Err(TransferError::tx_response(err.clone()))
             } else {
                 panic!(
                     "internal error, expected IBCEvent::ChainError, got {:?}",

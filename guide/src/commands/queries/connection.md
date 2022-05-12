@@ -25,7 +25,7 @@ Query all connections on `ibc-1`:
 hermes query connections ibc-1
 ```
 
-```rust
+```json
 Success: [
     ConnectionId(
         "connection-0",
@@ -68,7 +68,7 @@ POSITIONAL ARGUMENTS:
     connection_id             identifier of the connection to query
 
 FLAGS:
-    -h, --height HEIGHT       height of the state to query
+    -H, --height HEIGHT       height of the state to query
 ```
 
 __Example__
@@ -79,7 +79,7 @@ Query the connection end of connection `connection-1` on `ibc-1`:
 hermes query connection end ibc-1 connection-1
 ```
 
-```rust
+```json
 Success: ConnectionEnd {
     state: Open,
     client_id: ClientId(
@@ -105,7 +105,7 @@ Success: ConnectionEnd {
             ],
         },
     ],
-    delay_period: 0ns,
+    delay_period: 0s,
 }
 ```
 
@@ -133,11 +133,23 @@ Query the channels associated with connection `connection-1` on `ibc-1`:
 hermes query connection channels ibc-1 connection-1
 ```
 
-```rust
+```json
 Success: [
-    ChannelId(
-        "channel-1",
-    ),
+    PortChannelId {
+        channel_id: ChannelId(
+            "channel-0",
+        ),
+        port_id: PortId(
+            "transfer",
+        ),
+    },
+    PortChannelId {
+        channel_id: ChannelId(
+            "channel-1",
+        ),
+        port_id: PortId(
+            "transfer",
+        ),
+    },
 ]
 ```
-

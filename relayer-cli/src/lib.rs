@@ -14,23 +14,25 @@
 
 #![forbid(unsafe_code)]
 #![deny(
-    missing_docs,
     rust_2018_idioms,
     trivial_casts,
     unused_lifetimes,
     unused_qualifications
 )]
 
+extern crate alloc;
+
 pub mod application;
+pub mod cli_utils;
 pub mod commands;
+pub mod components;
 pub mod config;
-pub mod error;
 pub mod prelude;
 
-pub(crate) mod cli_utils;
-pub(crate) mod components;
+pub mod error;
+
 pub(crate) mod conclude;
 pub(crate) mod entry;
 
-/// The path to the default configuration file.
+/// The path to the default configuration file, relative to the home directory.
 pub const DEFAULT_CONFIG_PATH: &str = ".hermes/config.toml";

@@ -55,7 +55,7 @@
 //! Output::success(h).with_result(end).exit();
 //! ```
 
-use std::fmt;
+use core::fmt;
 
 use serde::Serialize;
 use tracing::warn;
@@ -65,7 +65,7 @@ use crate::prelude::app_reader;
 /// Functional-style method to exit a program.
 ///
 /// ## Note: See `Output::exit()` for the preferred method of exiting a relayer command.
-pub fn exit_with(out: Output) {
+pub fn exit_with(out: Output) -> ! {
     let status = out.status;
 
     // Handle the output message
@@ -99,7 +99,7 @@ pub fn json() -> bool {
 /// let res = ForeignClient::new(chains.src.clone(), chains.dst.clone());
 /// let client = match res {
 ///     Ok(client) => client,
-///     Err(e) => return Output::error(format!("{}", e)).exit(),
+///     Err(e) => Output::error(format!("{}", e)).exit(),
 /// };
 /// ```
 /// - With support from `exit_with_unrecoverable_error`:
@@ -108,10 +108,7 @@ pub fn json() -> bool {
 ///     .unwrap_or_else(exit_with_unrecoverable_error);
 /// ```
 pub fn exit_with_unrecoverable_error<T, E: fmt::Display>(err: E) -> T {
-    // TODO(@romac): Once never (!) stabilizes, adapt `Output::exit` to return !
-    //  https://github.com/informalsystems/ibc-rs/pull/688#discussion_r583758439
-    Output::error(format!("{}", err)).exit();
-    unreachable!()
+    Output::error(format!("{}", err)).exit()
 }
 
 /// The result to display before quitting, can either be a JSON value, some plain text,
@@ -170,7 +167,7 @@ impl Output {
     /// Builder-style method for attaching a result to an output object.
     pub fn with_result<R>(mut self, result: R) -> Self
     where
-        R: Serialize + std::fmt::Debug + 'static,
+        R: Serialize + core::fmt::Debug + 'static,
     {
         if json() {
             self.result = Result::Json(serialize_result(result));
@@ -191,7 +188,7 @@ impl Output {
     /// input `result`.
     pub fn success<R>(result: R) -> Self
     where
-        R: Serialize + std::fmt::Debug + 'static,
+        R: Serialize + core::fmt::Debug + 'static,
     {
         Output::with_success().with_result(result)
     }
@@ -208,7 +205,7 @@ impl Output {
     }
 
     /// Exits from the process with the current output. Convenience wrapper over `exit_with`.
-    pub fn exit(self) {
+    pub fn exit(self) -> ! {
         exit_with(self);
     }
 
@@ -235,7 +232,7 @@ impl Output {
 }
 
 /// Helper to serialize a result into a `serde_json::Value`.
-fn serialize_result(res: impl Serialize + std::fmt::Debug) -> serde_json::Value {
+fn serialize_result(res: impl Serialize + core::fmt::Debug) -> serde_json::Value {
     let last_resort = format!("{:#?}", res);
 
     match serde_json::to_value(res) {

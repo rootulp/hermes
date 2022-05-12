@@ -1,47 +1,51 @@
 pub mod step;
 
-use std::collections::HashMap;
-use std::error::Error;
-use std::fmt::{Debug, Display};
-use std::time::Duration;
+use alloc::collections::btree_map::BTreeMap as HashMap;
 
-use ibc::ics02_client::client_consensus::AnyConsensusState;
-use ibc::ics02_client::client_state::AnyClientState;
-use ibc::ics02_client::client_type::ClientType;
-use ibc::ics02_client::context::ClientReader;
-use ibc::ics02_client::error::Kind as Ics02ErrorKind;
-use ibc::ics02_client::header::AnyHeader;
-use ibc::ics02_client::msgs::create_client::MsgCreateAnyClient;
-use ibc::ics02_client::msgs::update_client::MsgUpdateAnyClient;
-use ibc::ics02_client::msgs::ClientMsg;
-use ibc::ics03_connection::connection::{Counterparty, State as ConnectionState};
-use ibc::ics03_connection::error::Kind as Ics03ErrorKind;
-use ibc::ics03_connection::msgs::conn_open_ack::MsgConnectionOpenAck;
-use ibc::ics03_connection::msgs::conn_open_confirm::MsgConnectionOpenConfirm;
-use ibc::ics03_connection::msgs::conn_open_init::MsgConnectionOpenInit;
-use ibc::ics03_connection::msgs::conn_open_try::MsgConnectionOpenTry;
-use ibc::ics03_connection::msgs::ConnectionMsg;
-use ibc::ics03_connection::version::Version;
-use ibc::ics04_channel::context::ChannelReader;
-use ibc::ics18_relayer::context::Ics18Context;
-use ibc::ics18_relayer::error::{Error as Ics18Error, Kind as Ics18ErrorKind};
-use ibc::ics23_commitment::commitment::{CommitmentPrefix, CommitmentProofBytes};
-use ibc::ics24_host::identifier::{ChainId, ClientId, ConnectionId};
-use ibc::ics26_routing::error::{Error as Ics26Error, Kind as Ics26ErrorKind};
-use ibc::ics26_routing::msgs::Ics26Envelope;
+use core::convert::TryInto;
+use core::fmt::Debug;
+use core::time::Duration;
+
+use ibc::core::ics02_client::client_consensus::AnyConsensusState;
+use ibc::core::ics02_client::client_state::AnyClientState;
+use ibc::core::ics02_client::client_type::ClientType;
+use ibc::core::ics02_client::context::ClientReader;
+use ibc::core::ics02_client::error as client_error;
+use ibc::core::ics02_client::header::AnyHeader;
+use ibc::core::ics02_client::msgs::create_client::MsgCreateAnyClient;
+use ibc::core::ics02_client::msgs::update_client::MsgUpdateAnyClient;
+use ibc::core::ics02_client::msgs::upgrade_client::MsgUpgradeAnyClient;
+use ibc::core::ics02_client::msgs::ClientMsg;
+use ibc::core::ics03_connection::connection::{Counterparty, State as ConnectionState};
+use ibc::core::ics03_connection::error as connection_error;
+use ibc::core::ics03_connection::msgs::conn_open_ack::MsgConnectionOpenAck;
+use ibc::core::ics03_connection::msgs::conn_open_confirm::MsgConnectionOpenConfirm;
+use ibc::core::ics03_connection::msgs::conn_open_init::MsgConnectionOpenInit;
+use ibc::core::ics03_connection::msgs::conn_open_try::MsgConnectionOpenTry;
+use ibc::core::ics03_connection::msgs::ConnectionMsg;
+use ibc::core::ics03_connection::version::Version;
+use ibc::core::ics04_channel::context::ChannelReader;
+use ibc::core::ics23_commitment::commitment::{CommitmentPrefix, CommitmentProofBytes};
+use ibc::core::ics24_host::identifier::{ChainId, ClientId, ConnectionId};
+use ibc::core::ics26_routing::error as routing_error;
+use ibc::core::ics26_routing::msgs::Ics26Envelope;
 use ibc::mock::client_state::{MockClientState, MockConsensusState};
 use ibc::mock::context::MockContext;
 use ibc::mock::header::MockHeader;
 use ibc::mock::host::HostType;
 use ibc::proofs::{ConsensusProof, Proofs};
+use ibc::relayer::ics18_relayer::context::Ics18Context;
+use ibc::relayer::ics18_relayer::error as relayer_error;
 use ibc::signer::Signer;
+use ibc::timestamp::ZERO_DURATION;
 use ibc::Height;
+
 use step::{Action, ActionOutcome, Chain, Step};
 
 #[derive(Debug, Clone)]
 pub struct IbcTestRunner {
     // mapping from chain identifier to its context
-    contexts: HashMap<ChainId, MockContext>,
+    contexts: HashMap<String, MockContext>,
 }
 
 impl IbcTestRunner {
@@ -53,24 +57,24 @@ impl IbcTestRunner {
 
     /// Create a `MockContext` for a given `chain_id`.
     /// Panic if a context for `chain_id` already exists.
-    pub fn init_chain_context(&mut self, chain_id: String, initial_height: u64) {
-        let chain_id = Self::chain_id(chain_id);
+    pub fn init_chain_context(&mut self, chain_id: String, initial_height: Height) {
+        let chain_id_struct = Self::chain_id(chain_id.clone(), initial_height);
         // never GC blocks
         let max_history_size = usize::MAX;
         let ctx = MockContext::new(
-            chain_id.clone(),
+            chain_id_struct,
             HostType::Mock,
             max_history_size,
-            Height::new(Self::revision(), initial_height),
+            initial_height,
         );
-        assert!(self.contexts.insert(chain_id, ctx).is_none());
+        self.contexts.insert(chain_id, ctx);
     }
 
     /// Returns a reference to the `MockContext` of a given `chain_id`.
     /// Panic if the context for `chain_id` is not found.
     pub fn chain_context(&self, chain_id: String) -> &MockContext {
         self.contexts
-            .get(&Self::chain_id(chain_id))
+            .get(&chain_id)
             .expect("chain context should have been initialized")
     }
 
@@ -78,43 +82,47 @@ impl IbcTestRunner {
     /// Panic if the context for `chain_id` is not found.
     pub fn chain_context_mut(&mut self, chain_id: String) -> &mut MockContext {
         self.contexts
-            .get_mut(&Self::chain_id(chain_id))
+            .get_mut(&chain_id)
             .expect("chain context should have been initialized")
     }
 
-    pub fn extract_handler_error_kind<K>(ics18_result: Result<(), Ics18Error>) -> K
-    where
-        K: Clone + Debug + Display + Into<anomaly::BoxError> + 'static,
-    {
+    pub fn extract_ics02_error_kind(
+        ics18_result: Result<(), relayer_error::Error>,
+    ) -> client_error::ErrorDetail {
         let ics18_error = ics18_result.expect_err("ICS18 error expected");
-        assert!(matches!(
-            ics18_error.kind(),
-            Ics18ErrorKind::TransactionFailed
-        ));
-        let ics26_error = ics18_error
-            .source()
-            .expect("expected source in ICS18 error")
-            .downcast_ref::<Ics26Error>()
-            .expect("ICS18 source should be an ICS26 error");
-        assert!(matches!(
-            ics26_error.kind(),
-            Ics26ErrorKind::HandlerRaisedError,
-        ));
-        ics26_error
-            .source()
-            .expect("expected source in ICS26 error")
-            .downcast_ref::<anomaly::Error<K>>()
-            .expect("ICS26 source should be an handler error")
-            .kind()
-            .clone()
+        match ics18_error.0 {
+            relayer_error::ErrorDetail::TransactionFailed(e) => match e.source {
+                routing_error::ErrorDetail::Ics02Client(e) => e.source,
+                e => {
+                    panic!("Expected Ics02Client error, instead got {:?}", e);
+                }
+            },
+            e => {
+                panic!("Expected TransactionFailed error, instead got {:?}", e);
+            }
+        }
     }
 
-    pub fn chain_id(chain_id: String) -> ChainId {
-        ChainId::new(chain_id, Self::revision())
+    pub fn extract_ics03_error_kind(
+        ics18_result: Result<(), relayer_error::Error>,
+    ) -> connection_error::ErrorDetail {
+        let ics18_error = ics18_result.expect_err("ICS18 error expected");
+
+        match ics18_error.0 {
+            relayer_error::ErrorDetail::TransactionFailed(e) => match e.source {
+                routing_error::ErrorDetail::Ics03Connection(e) => e.source,
+                e => {
+                    panic!("Expected Ics02Client error, instead got {:?}", e);
+                }
+            },
+            e => {
+                panic!("Expected TransactionFailed error, instead got {:?}", e);
+            }
+        }
     }
 
-    pub fn revision() -> u64 {
-        0
+    pub fn chain_id(chain_id: String, height: Height) -> ChainId {
+        ChainId::new(chain_id, height.revision_number)
     }
 
     pub fn version() -> Version {
@@ -134,24 +142,24 @@ impl IbcTestRunner {
         ConnectionId::new(connection_id)
     }
 
-    pub fn height(height: u64) -> Height {
-        Height::new(Self::revision(), height)
+    pub fn height(height: Height) -> Height {
+        Height::new(height.revision_number, height.revision_height)
     }
 
-    fn mock_header(height: u64) -> MockHeader {
+    fn mock_header(height: Height) -> MockHeader {
         MockHeader::new(Self::height(height))
     }
 
-    pub fn header(height: u64) -> AnyHeader {
+    pub fn header(height: Height) -> AnyHeader {
         AnyHeader::Mock(Self::mock_header(height))
     }
 
-    pub fn client_state(height: u64) -> AnyClientState {
-        AnyClientState::Mock(MockClientState(Self::mock_header(height)))
+    pub fn client_state(height: Height) -> AnyClientState {
+        AnyClientState::Mock(MockClientState::new(Self::mock_header(height)))
     }
 
-    pub fn consensus_state(height: u64) -> AnyConsensusState {
-        AnyConsensusState::Mock(MockConsensusState(Self::mock_header(height)))
+    pub fn consensus_state(height: Height) -> AnyConsensusState {
+        AnyConsensusState::Mock(MockConsensusState::new(Self::mock_header(height)))
     }
 
     fn signer() -> Signer {
@@ -166,25 +174,25 @@ impl IbcTestRunner {
     }
 
     pub fn delay_period() -> Duration {
-        Duration::from_secs(0)
+        ZERO_DURATION
     }
 
     pub fn commitment_prefix() -> CommitmentPrefix {
-        vec![0].into()
+        vec![0].try_into().unwrap()
     }
 
     pub fn commitment_proof_bytes() -> CommitmentProofBytes {
-        vec![0].into()
+        vec![0].try_into().unwrap()
     }
 
-    pub fn consensus_proof(height: u64) -> ConsensusProof {
+    pub fn consensus_proof(height: Height) -> ConsensusProof {
         let consensus_proof = Self::commitment_proof_bytes();
         let consensus_height = Self::height(height);
         ConsensusProof::new(consensus_proof, consensus_height)
             .expect("it should be possible to create the consensus proof")
     }
 
-    pub fn proofs(height: u64) -> Proofs {
+    pub fn proofs(height: Height) -> Proofs {
         let object_proof = Self::commitment_proof_bytes();
         let client_proof = None;
         let consensus_proof = Some(Self::consensus_proof(height));
@@ -200,17 +208,12 @@ impl IbcTestRunner {
         .expect("it should be possible to create the proofs")
     }
 
-    /// Check that chain heights match the ones in the model.
-    pub fn validate_chains(&self) -> bool {
-        self.contexts.values().all(|ctx| ctx.validate().is_ok())
-    }
-
     /// Check that chain states match the ones in the model.
     pub fn check_chain_states(&self, chains: HashMap<String, Chain>) -> bool {
         chains.into_iter().all(|(chain_id, chain)| {
             let ctx = self.chain_context(chain_id);
             // check that heights match
-            let heights_match = ctx.query_latest_height() == Self::height(chain.height);
+            let heights_match = ctx.query_latest_height() == chain.height;
 
             // check that clients match
             let clients_match = chain.clients.into_iter().all(|(client_id, client)| {
@@ -222,13 +225,12 @@ impl IbcTestRunner {
                         // if the model has consensus states (encoded simply as
                         // heights in the model), then the highest one should
                         // match the height in the client state
-                        client_state.is_some()
-                            && client_state.unwrap().latest_height() == Self::height(*max_height)
+                        client_state.is_ok() && client_state.unwrap().latest_height() == *max_height
                     }
                     None => {
                         // if the model doesn't have any consensus states
                         // (heights), then the client state should not exist
-                        client_state.is_none()
+                        client_state.is_err()
                     }
                 };
 
@@ -237,8 +239,8 @@ impl IbcTestRunner {
                 //       only existing consensus states are those in that also
                 //       exist in the model)
                 let consensus_states_match = client.heights.into_iter().all(|height| {
-                    ctx.consensus_state(&Self::client_id(client_id), Self::height(height))
-                        .is_some()
+                    ctx.consensus_state(&Self::client_id(client_id), height)
+                        .is_ok()
                 });
 
                 client_state_matches && consensus_states_match
@@ -254,7 +256,7 @@ impl IbcTestRunner {
                             // if the connection has not yet been initialized, then
                             // there's nothing to check
                             true
-                        } else if let Some(connection_end) =
+                        } else if let Ok(connection_end) =
                             ctx.connection_end(&Self::connection_id(connection_id))
                         {
                             // states must match
@@ -293,7 +295,7 @@ impl IbcTestRunner {
         })
     }
 
-    pub fn apply(&mut self, action: Action) -> Result<(), Ics18Error> {
+    pub fn apply(&mut self, action: Action) -> Result<(), relayer_error::Error> {
         match action {
             Action::None => panic!("unexpected action type"),
             Action::Ics02CreateClient {
@@ -328,6 +330,25 @@ impl IbcTestRunner {
                 }));
                 ctx.deliver(msg)
             }
+            Action::Ics07UpgradeClient {
+                chain_id,
+                client_id,
+                header,
+            } => {
+                // get chain's context
+                let ctx = self.chain_context_mut(chain_id);
+
+                // create ICS26 message and deliver it
+                let msg = Ics26Envelope::Ics2Msg(ClientMsg::UpgradeClient(MsgUpgradeAnyClient {
+                    client_id: Self::client_id(client_id),
+                    client_state: MockClientState::new(MockHeader::new(header)).into(),
+                    consensus_state: MockConsensusState::new(MockHeader::new(header)).into(),
+                    proof_upgrade_client: Default::default(),
+                    proof_upgrade_consensus_state: Default::default(),
+                    signer: Self::signer(),
+                }));
+                ctx.deliver(msg)
+            }
             Action::Ics03ConnectionOpenInit {
                 chain_id,
                 client_id,
@@ -342,7 +363,7 @@ impl IbcTestRunner {
                     MsgConnectionOpenInit {
                         client_id: Self::client_id(client_id),
                         counterparty: Self::counterparty(counterparty_client_id, None),
-                        version: Self::version(),
+                        version: Some(Self::version()),
                         delay_period: Self::delay_period(),
                         signer: Self::signer(),
                     },
@@ -428,8 +449,8 @@ impl IbcTestRunner {
     }
 }
 
-impl modelator::runner::TestRunner<Step> for IbcTestRunner {
-    fn initial_step(&mut self, step: Step) -> bool {
+impl modelator::step_runner::StepRunner<Step> for IbcTestRunner {
+    fn initial_step(&mut self, step: Step) -> Result<(), String> {
         assert_eq!(step.action, Action::None, "unexpected action type");
         assert_eq!(
             step.action_outcome,
@@ -440,57 +461,76 @@ impl modelator::runner::TestRunner<Step> for IbcTestRunner {
         for (chain_id, chain) in step.chains {
             self.init_chain_context(chain_id, chain.height);
         }
-        true
+        Ok(())
     }
 
-    fn next_step(&mut self, step: Step) -> bool {
+    fn next_step(&mut self, step: Step) -> Result<(), String> {
+        let show = step.action.clone();
         let result = self.apply(step.action);
         let outcome_matches = match step.action_outcome {
             ActionOutcome::None => panic!("unexpected action outcome"),
             ActionOutcome::Ics02CreateOk => result.is_ok(),
             ActionOutcome::Ics02UpdateOk => result.is_ok(),
             ActionOutcome::Ics02ClientNotFound => matches!(
-                Self::extract_handler_error_kind::<Ics02ErrorKind>(result),
-                Ics02ErrorKind::ClientNotFound(_)
+                Self::extract_ics02_error_kind(result),
+                client_error::ErrorDetail::ClientNotFound(_)
             ),
-            ActionOutcome::Ics02HeaderVerificationFailure => matches!(
-                Self::extract_handler_error_kind::<Ics02ErrorKind>(result),
-                Ics02ErrorKind::HeaderVerificationFailure
+            ActionOutcome::Ics02ConsensusStateNotFound => matches!(
+                Self::extract_ics02_error_kind(result),
+                client_error::ErrorDetail::ConsensusStateNotFound(_)
             ),
+            ActionOutcome::Ics02HeaderVerificationFailure => {
+                matches!(
+                    Self::extract_ics02_error_kind(result),
+                    client_error::ErrorDetail::HeaderVerificationFailure(_)
+                )
+            }
+            ActionOutcome::Ics07UpgradeOk => result.is_ok(),
+            ActionOutcome::Ics07ClientNotFound => matches!(
+                Self::extract_ics02_error_kind(result),
+                client_error::ErrorDetail::ClientNotFound(_)
+            ),
+            ActionOutcome::Ics07HeaderVerificationFailure => {
+                matches!(
+                    Self::extract_ics02_error_kind(result),
+                    client_error::ErrorDetail::LowUpgradeHeight(_)
+                )
+            }
             ActionOutcome::Ics03ConnectionOpenInitOk => result.is_ok(),
-            ActionOutcome::Ics03MissingClient => matches!(
-                Self::extract_handler_error_kind::<Ics03ErrorKind>(result),
-                Ics03ErrorKind::MissingClient(_)
-            ),
             ActionOutcome::Ics03ConnectionOpenTryOk => result.is_ok(),
             ActionOutcome::Ics03InvalidConsensusHeight => matches!(
-                Self::extract_handler_error_kind::<Ics03ErrorKind>(result),
-                Ics03ErrorKind::InvalidConsensusHeight(_, _)
+                Self::extract_ics03_error_kind(result),
+                connection_error::ErrorDetail::InvalidConsensusHeight(_)
             ),
             ActionOutcome::Ics03ConnectionNotFound => matches!(
-                Self::extract_handler_error_kind::<Ics03ErrorKind>(result),
-                Ics03ErrorKind::ConnectionNotFound(_)
+                Self::extract_ics03_error_kind(result),
+                connection_error::ErrorDetail::ConnectionNotFound(_)
             ),
             ActionOutcome::Ics03ConnectionMismatch => matches!(
-                Self::extract_handler_error_kind::<Ics03ErrorKind>(result),
-                Ics03ErrorKind::ConnectionMismatch(_)
-            ),
-            ActionOutcome::Ics03MissingClientConsensusState => matches!(
-                Self::extract_handler_error_kind::<Ics03ErrorKind>(result),
-                Ics03ErrorKind::MissingClientConsensusState(_, _)
+                Self::extract_ics03_error_kind(result),
+                connection_error::ErrorDetail::ConnectionMismatch(_)
             ),
             ActionOutcome::Ics03InvalidProof => matches!(
-                Self::extract_handler_error_kind::<Ics03ErrorKind>(result),
-                Ics03ErrorKind::InvalidProof
+                Self::extract_ics03_error_kind(result),
+                connection_error::ErrorDetail::InvalidProof(_)
             ),
             ActionOutcome::Ics03ConnectionOpenAckOk => result.is_ok(),
-            ActionOutcome::Ics03UninitializedConnection => matches!(
-                Self::extract_handler_error_kind::<Ics03ErrorKind>(result),
-                Ics03ErrorKind::UninitializedConnection(_)
-            ),
             ActionOutcome::Ics03ConnectionOpenConfirmOk => result.is_ok(),
         };
-        // also check the state of chains
-        outcome_matches && self.validate_chains() && self.check_chain_states(step.chains)
+
+        // Validate chains
+        for ctx in self.contexts.values() {
+            ctx.validate()?
+        }
+
+        if !outcome_matches {
+            return Err(format!("Action outcome did not match expected: {:?}", show));
+        }
+
+        if !self.check_chain_states(step.chains) {
+            return Err("Chain states do not match".into());
+        }
+
+        Ok(())
     }
 }

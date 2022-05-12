@@ -1,7 +1,18 @@
 use serde::Serialize;
 
-use crate::ics23_commitment::commitment::CommitmentProofBytes;
+use crate::core::ics23_commitment::commitment::CommitmentProofBytes;
 use crate::Height;
+use flex_error::define_error;
+
+define_error! {
+    #[derive(Debug, PartialEq, Eq)]
+    ProofError {
+        ZeroHeight
+            | _ | { format_args!("proof height cannot be zero") },
+        EmptyProof
+            | _ | { format_args!("proof cannot be empty") },
+    }
+}
 
 /// Structure comprising proofs in a message. Proofs are typically present in messages for
 /// handshake protocols, e.g., ICS3 connection (open) handshake or ICS4 channel (open and close)
@@ -12,7 +23,7 @@ pub struct Proofs {
     client_proof: Option<CommitmentProofBytes>,
     consensus_proof: Option<ConsensusProof>,
     /// Currently used for proof_close for MsgTimeoutOnCLose where object_proof is proof_unreceived
-    pub(crate) other_proof: Option<CommitmentProofBytes>,
+    other_proof: Option<CommitmentProofBytes>,
     /// Height for the commitment root for proving the proofs above.
     /// When creating these proofs, the chain is queried at `height-1`.
     height: Height,
@@ -25,13 +36,9 @@ impl Proofs {
         consensus_proof: Option<ConsensusProof>,
         other_proof: Option<CommitmentProofBytes>,
         height: Height,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, ProofError> {
         if height.is_zero() {
-            return Err("Proofs height cannot be zero".to_string());
-        }
-
-        if object_proof.is_empty() {
-            return Err("Object proof cannot be empty".to_string());
+            return Err(ProofError::zero_height());
         }
 
         Ok(Self {
@@ -64,6 +71,11 @@ impl Proofs {
     pub fn client_proof(&self) -> &Option<CommitmentProofBytes> {
         &self.client_proof
     }
+
+    /// Getter for the other_proof.
+    pub fn other_proof(&self) -> &Option<CommitmentProofBytes> {
+        &self.other_proof
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -76,12 +88,9 @@ impl ConsensusProof {
     pub fn new(
         consensus_proof: CommitmentProofBytes,
         consensus_height: Height,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, ProofError> {
         if consensus_height.is_zero() {
-            return Err("Consensus height cannot be zero".to_string());
-        }
-        if consensus_proof.is_empty() {
-            return Err("Proof cannot be empty".to_string());
+            return Err(ProofError::zero_height());
         }
 
         Ok(Self {
