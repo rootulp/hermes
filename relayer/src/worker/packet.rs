@@ -33,7 +33,6 @@ fn should_clear_packets(
     height: Height,
 ) -> bool {
     if *is_first_run {
-        *is_first_run = false;
         if channel_ordering == Order::Ordered {
             warn!("ordered channel: will clear packets because this is the first run");
             true
@@ -118,6 +117,7 @@ pub fn spawn_packet_cmd_worker<ChainA: ChainHandle, ChainB: ChainHandle>(
     spawn_background_task(span, Some(Duration::from_millis(200)), move || {
         if let Ok(cmd) = cmd_rx.try_recv() {
             retry_with_index(retry_strategy::worker_stubborn_strategy(), |index| {
+                error!(is_first_run, "spawn_background_task");
                 handle_packet_cmd(
                     &mut is_first_run,
                     &link.lock().unwrap(),
@@ -136,9 +136,9 @@ pub fn spawn_packet_cmd_worker<ChainA: ChainHandle, ChainB: ChainHandle>(
 }
 
 /// Receives worker commands, which may be:
-///     - IbcEvent => then it updates schedule
-///     - NewBlock => schedules packet clearing
-///     - Shutdown => exits
+///     - ClearPendingPackets => clear pending packets
+///     - IbcEvent => relays packets for the event batch
+///     - NewBlock => clears pending packets if required (first run or periodic interval)
 ///
 /// Regardless of the incoming command, this method
 /// also refreshes and executes any scheduled operational
@@ -152,84 +152,64 @@ fn handle_packet_cmd<ChainA: ChainHandle, ChainB: ChainHandle>(
     cmd: WorkerCmd,
     index: u64,
 ) -> RetryResult<(), u64> {
-    // this is set to true if `schedule_packet_clearing` is called.
-    let mut scheduled_packet_clearing = false;
-
     trace!("handling command {}", cmd);
     let result = match cmd {
-        WorkerCmd::IbcEvents { batch } => link.a_to_b.update_schedule(batch),
+        WorkerCmd::ClearPendingPackets => link
+            .a_to_b
+            .schedule_packet_clearing(None)
+            .and_then(|_| link.a_to_b.refresh_schedule())
+            .and_then(|_| link.a_to_b.execute_schedule()),
 
-        // Handle the arrival of an event signaling that the
-        // source chain has advanced to a new block.
+        WorkerCmd::IbcEvents { batch } => link
+            .a_to_b
+            .update_schedule(batch)
+            .and_then(|_| link.a_to_b.refresh_schedule())
+            .and_then(|_| link.a_to_b.execute_schedule()),
+
         WorkerCmd::NewBlock {
             height,
             new_block: _,
         } => {
-            // Decide if packet clearing should be scheduled.
-            // Packet clearing may happen once at start,
-            // and then at predefined block intervals.
-            if should_clear_packets(
+            // Handle the arrival of an event signaling that the source chain has advanced
+            // to a new block. Decide if packet clearing should be scheduled.
+            // Packet clearing may happen once at start, and then at predefined block intervals.
+            if !should_clear_packets(
                 is_first_run,
                 clear_on_start,
                 link.a_to_b.channel().ordering,
                 clear_interval,
                 height,
             ) {
-                scheduled_packet_clearing = true;
-                link.a_to_b.schedule_packet_clearing(Some(height))
-            } else {
                 Ok(())
+            } else {
+                let clear_results = link
+                    .a_to_b
+                    .schedule_packet_clearing(Some(height))
+                    .and_then(|_| link.a_to_b.refresh_schedule())
+                    .and_then(|_| link.a_to_b.execute_schedule());
+                if clear_results.is_ok() {
+                    *is_first_run = false;
+                }
+                clear_results
             }
         }
-
-        WorkerCmd::ClearPendingPackets => link.a_to_b.schedule_packet_clearing(None),
     };
 
     if let Err(e) = result {
-        error!(
-            path = %path.short_name(),
-            retry_index = %index,
-            "will retry: handling command encountered error: {}",
-            e
-        );
-
-        return RetryResult::Retry(index);
-    }
-
-    // The calls to refresh_schedule and execute_schedule depends on
-    // earlier calls to update_schedule and schedule_packet_clearing.
-    // Hence they must be retried in the same function body so that
-    // the same WorkerCmd is used for retrying the whole execution.
-    //
-    // The worker for spawn_packet_worker is still needed to handle
-    // the case when no PacketCmd arriving, so that it can still
-    // do the refresh and execute schedule.
-    // This follows the original logic here:
-    // https://github.com/informalsystems/ibc-rs/blob/e7a6403888f48754ddb80e35ebe2281fb7c51c04/relayer/src/worker/packet.rs#L127-L133
-
-    let schedule_result = link
-        .a_to_b
-        .refresh_schedule()
-        .and_then(|_| link.a_to_b.execute_schedule());
-
-    if let Err(e) = schedule_result {
         if e.is_expired_or_frozen_error() {
-            error!("aborting due to expired or frozen client");
+            error!(
+                path = %path.short_name(),
+                retry_index = %index,
+                "aborting due to expired or frozen client"
+            );
             return RetryResult::Err(index);
         } else {
             error!(
+                path = %path.short_name(),
                 retry_index = %index,
                 "will retry: schedule execution encountered error: {}",
                 e,
             );
-
-            // Reset the `is_first_run` flag if `execute_schedule` encountered
-            // any error after `schedule_packet_clearing`. This helps ensure that
-            // packets being cleared will be retried instead of dropped.
-            if scheduled_packet_clearing {
-                *is_first_run = true;
-            }
-
             return RetryResult::Retry(index);
         }
     }
