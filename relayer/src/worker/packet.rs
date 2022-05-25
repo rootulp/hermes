@@ -117,7 +117,6 @@ pub fn spawn_packet_cmd_worker<ChainA: ChainHandle, ChainB: ChainHandle>(
     spawn_background_task(span, Some(Duration::from_millis(200)), move || {
         if let Ok(cmd) = cmd_rx.try_recv() {
             retry_with_index(retry_strategy::worker_stubborn_strategy(), |index| {
-                error!(is_first_run, "spawn_background_task");
                 handle_packet_cmd(
                     &mut is_first_run,
                     &link.lock().unwrap(),
