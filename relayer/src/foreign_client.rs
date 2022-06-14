@@ -432,18 +432,23 @@ impl<DstChain: ChainHandle, SrcChain: ChainHandle> ForeignClient<DstChain, SrcCh
 
     pub fn upgrade(&self) -> Result<Vec<IbcEvent>, ForeignClientError> {
         // Fetch the latest height of the source chain.
-        let src_height = self.src_chain.query_latest_height().map_err(|e| {
-            ForeignClientError::client_upgrade(
-                self.id.clone(),
-                self.src_chain.id(),
-                "failed while querying src chain for latest height".to_string(),
-                e,
-            )
-        })?;
+        // TODO - query_latest_chain_height()
+        let src_height = self
+            .src_chain
+            .query_latest_height()
+            .map_err(|e| {
+                ForeignClientError::client_upgrade(
+                    self.id.clone(),
+                    self.src_chain.id(),
+                    "failed while querying src chain for latest height".to_string(),
+                    e,
+                )
+            })?
+            .increment();
 
         info!("[{}] upgrade Height: {}", self, src_height);
 
-        let mut msgs = self.build_update_client(src_height)?;
+        let mut msgs = self.do_build_update_client_with_trusted(src_height, Height::zero())?;
 
         // Query the host chain for the upgraded client state, consensus state & their proofs.
         let (client_state, proof_upgrade_client) = self
@@ -947,6 +952,14 @@ impl<DstChain: ChainHandle, SrcChain: ChainHandle> ForeignClient<DstChain, SrcCh
         target_height: Height,
         trusted_height: Height,
     ) -> Result<Vec<Any>, ForeignClientError> {
+        self.do_wait_for_app_to_reach_target_height(target_height)?;
+        self.do_build_update_client_with_trusted(target_height, trusted_height)
+    }
+
+    pub fn do_wait_for_app_to_reach_target_height(
+        &self,
+        target_height: Height,
+    ) -> Result<(), ForeignClientError> {
         let src_network_latest_height = || {
             self.src_chain().query_latest_height().map_err(|e| {
                 ForeignClientError::client_create(
@@ -961,7 +974,14 @@ impl<DstChain: ChainHandle, SrcChain: ChainHandle> ForeignClient<DstChain, SrcCh
         while src_network_latest_height()? < target_height {
             thread::sleep(Duration::from_millis(100))
         }
+        Ok(())
+    }
 
+    pub fn do_build_update_client_with_trusted(
+        &self,
+        target_height: Height,
+        trusted_height: Height,
+    ) -> Result<Vec<Any>, ForeignClientError> {
         // Get the latest client state on destination.
         let (client_state, _) = self.validated_client_state()?;
 
