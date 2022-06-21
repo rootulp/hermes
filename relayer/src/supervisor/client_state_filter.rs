@@ -3,7 +3,7 @@ use alloc::collections::BTreeMap as HashMap;
 use flex_error::define_error;
 use tracing::{debug, trace};
 
-use ibc::core::ics02_client::client_state::{AnyClientState, ClientState};
+use ibc::core::ics02_client::client_state::{AnyClientState, ClientState, SomeClientState};
 use ibc::core::ics02_client::trust_threshold::TrustThreshold;
 use ibc::core::ics03_connection::connection::ConnectionEnd;
 use ibc::core::ics04_channel::error::Error as ChannelError;

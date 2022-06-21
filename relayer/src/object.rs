@@ -2,7 +2,10 @@ use flex_error::define_error;
 use serde::{Deserialize, Serialize};
 
 use ibc::core::{
-    ics02_client::{client_state::ClientState, events::UpdateClient},
+    ics02_client::{
+        client_state::{ClientState, SomeClientState},
+        events::UpdateClient,
+    },
     ics03_connection::events::Attributes as ConnectionAttributes,
     ics04_channel::events::{
         Attributes, CloseInit, SendPacket, TimeoutPacket, WriteAcknowledgement,

@@ -7,7 +7,9 @@ use tendermint_proto::Protobuf;
 
 use ibc_proto::ibc::core::client::v1::IdentifiedClientState;
 
-use crate::clients::ics07_tendermint::client_state;
+use crate::clients::ics07_tendermint::client_state::{
+    ClientState as TendermintClientState, UpgradeOptions as TendermintUpgradeOptions,
+};
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
 use crate::core::ics02_client::trust_threshold::TrustThreshold;
@@ -52,22 +54,19 @@ pub trait ClientState: Clone + core::fmt::Debug + Send + Sync {
         upgrade_options: Self::UpgradeOptions,
         chain_id: ChainId,
     ) -> Self;
-
-    /// Wrap into an `AnyClientState`
-    fn wrap_any(self) -> AnyClientState;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum AnyUpgradeOptions {
-    Tendermint(client_state::UpgradeOptions),
+    Tendermint(TendermintUpgradeOptions),
 
     #[cfg(any(test, feature = "mocks"))]
     Mock(()),
 }
 
 impl AnyUpgradeOptions {
-    fn into_tendermint(self) -> client_state::UpgradeOptions {
+    fn into_tendermint(self) -> TendermintUpgradeOptions {
         match self {
             Self::Tendermint(options) => options,
 
@@ -81,144 +80,223 @@ impl AnyUpgradeOptions {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
-pub enum AnyClientState {
-    Tendermint(client_state::ClientState),
+pub enum GenericClientState<Extra> {
+    Tendermint(TendermintClientState),
 
     #[cfg(any(test, feature = "mocks"))]
     Mock(MockClientState),
+
+    Extra(Extra),
 }
 
-impl AnyClientState {
-    pub fn latest_height(&self) -> Height {
-        match self {
-            Self::Tendermint(tm_state) => tm_state.latest_height(),
-
-            #[cfg(any(test, feature = "mocks"))]
-            Self::Mock(mock_state) => mock_state.latest_height(),
-        }
-    }
-
-    pub fn frozen_height(&self) -> Option<Height> {
-        match self {
-            Self::Tendermint(tm_state) => tm_state.frozen_height(),
-
-            #[cfg(any(test, feature = "mocks"))]
-            Self::Mock(mock_state) => mock_state.frozen_height(),
-        }
-    }
-
-    pub fn trust_threshold(&self) -> Option<TrustThreshold> {
-        match self {
-            AnyClientState::Tendermint(state) => Some(state.trust_level),
-
-            #[cfg(any(test, feature = "mocks"))]
-            AnyClientState::Mock(_) => None,
-        }
-    }
-
-    pub fn max_clock_drift(&self) -> Duration {
-        match self {
-            AnyClientState::Tendermint(state) => state.max_clock_drift,
-
-            #[cfg(any(test, feature = "mocks"))]
-            AnyClientState::Mock(_) => Duration::new(0, 0),
-        }
-    }
-
-    pub fn client_type(&self) -> ClientType {
-        match self {
-            Self::Tendermint(state) => state.client_type(),
-
-            #[cfg(any(test, feature = "mocks"))]
-            Self::Mock(state) => state.client_type(),
-        }
-    }
-
-    pub fn refresh_period(&self) -> Option<Duration> {
-        match self {
-            AnyClientState::Tendermint(tm_state) => tm_state.refresh_time(),
-
-            #[cfg(any(test, feature = "mocks"))]
-            AnyClientState::Mock(mock_state) => mock_state.refresh_time(),
-        }
-    }
-
-    pub fn expired(&self, elapsed_since_latest: Duration) -> bool {
-        match self {
-            AnyClientState::Tendermint(tm_state) => tm_state.expired(elapsed_since_latest),
-
-            #[cfg(any(test, feature = "mocks"))]
-            AnyClientState::Mock(mock_state) => mock_state.expired(elapsed_since_latest),
-        }
+impl<Extra> From<TendermintClientState> for GenericClientState<Extra> {
+    fn from(state: TendermintClientState) -> Self {
+        GenericClientState::Tendermint(state)
     }
 }
 
-impl Protobuf<Any> for AnyClientState {}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NoExtra {}
 
-impl TryFrom<Any> for AnyClientState {
+pub type AnyClientState = GenericClientState<NoExtra>;
+
+pub trait SomeClientState {
+    fn trust_threshold(&self) -> Option<TrustThreshold>;
+
+    fn max_clock_drift(&self) -> Duration;
+
+    fn refresh_period(&self) -> Option<Duration>;
+
+    fn expired(&self, elapsed_since_latest: Duration) -> bool;
+}
+
+impl<Extra: SomeClientState> SomeClientState for GenericClientState<Extra> {
+    fn trust_threshold(&self) -> Option<TrustThreshold> {
+        match self {
+            Self::Tendermint(state) => Some(state.trust_level),
+
+            #[cfg(any(test, feature = "mocks"))]
+            Self::Mock(_) => None,
+
+            Self::Extra(extra) => extra.trust_threshold(),
+        }
+    }
+
+    fn max_clock_drift(&self) -> Duration {
+        match self {
+            Self::Tendermint(state) => state.max_clock_drift,
+
+            #[cfg(any(test, feature = "mocks"))]
+            Self::Mock(_) => Duration::new(0, 0),
+
+            Self::Extra(extra) => extra.max_clock_drift(),
+        }
+    }
+
+    fn refresh_period(&self) -> Option<Duration> {
+        match self {
+            Self::Tendermint(tm_state) => tm_state.refresh_time(),
+
+            #[cfg(any(test, feature = "mocks"))]
+            Self::Mock(mock_state) => mock_state.refresh_time(),
+
+            Self::Extra(extra) => extra.refresh_period(),
+        }
+    }
+
+    fn expired(&self, elapsed_since_latest: Duration) -> bool {
+        match self {
+            Self::Tendermint(tm_state) => tm_state.expired(elapsed_since_latest),
+
+            #[cfg(any(test, feature = "mocks"))]
+            Self::Mock(mock_state) => mock_state.expired(elapsed_since_latest),
+
+            Self::Extra(extra) => extra.expired(elapsed_since_latest),
+        }
+    }
+}
+
+impl SomeClientState for NoExtra {
+    fn trust_threshold(&self) -> Option<TrustThreshold> {
+        match *self {}
+    }
+
+    fn max_clock_drift(&self) -> Duration {
+        match *self {}
+    }
+
+    fn refresh_period(&self) -> Option<Duration> {
+        match *self {}
+    }
+
+    fn expired(&self, _elapsed_since_latest: Duration) -> bool {
+        match *self {}
+    }
+}
+
+impl<Extra> Protobuf<Any> for GenericClientState<Extra>
+where
+    Extra: TryFrom<Any, Error = Error>,
+    Extra: Protobuf<Any>,
+    Any: From<Extra>,
+{
+}
+
+impl Protobuf<Any> for NoExtra {}
+
+impl<Extra> TryFrom<Any> for GenericClientState<Extra>
+where
+    Extra: TryFrom<Any, Error = Error>,
+{
     type Error = Error;
 
     fn try_from(raw: Any) -> Result<Self, Self::Error> {
         match raw.type_url.as_str() {
             "" => Err(Error::empty_client_state_response()),
 
-            TENDERMINT_CLIENT_STATE_TYPE_URL => Ok(AnyClientState::Tendermint(
-                client_state::ClientState::decode_vec(&raw.value)
+            TENDERMINT_CLIENT_STATE_TYPE_URL => Ok(GenericClientState::Tendermint(
+                TendermintClientState::decode_vec(&raw.value)
                     .map_err(Error::decode_raw_client_state)?,
             )),
 
             #[cfg(any(test, feature = "mocks"))]
-            MOCK_CLIENT_STATE_TYPE_URL => Ok(AnyClientState::Mock(
+            MOCK_CLIENT_STATE_TYPE_URL => Ok(GenericClientState::Mock(
                 MockClientState::decode_vec(&raw.value).map_err(Error::decode_raw_client_state)?,
             )),
 
-            _ => Err(Error::unknown_client_state_type(raw.type_url)),
+            _ => {
+                let extra = Extra::try_from(raw)?;
+                Ok(GenericClientState::Extra(extra))
+            }
         }
     }
 }
 
-impl From<AnyClientState> for Any {
-    fn from(value: AnyClientState) -> Self {
+impl TryFrom<Any> for NoExtra {
+    type Error = Error;
+    fn try_from(raw: Any) -> Result<Self, Error> {
+        Err(Error::unknown_client_state_type(raw.type_url))
+    }
+}
+
+impl<Extra> From<GenericClientState<Extra>> for Any
+where
+    Any: From<Extra>,
+{
+    fn from(value: GenericClientState<Extra>) -> Self {
         match value {
-            AnyClientState::Tendermint(value) => Any {
+            GenericClientState::Tendermint(value) => Any {
                 type_url: TENDERMINT_CLIENT_STATE_TYPE_URL.to_string(),
                 value: value
                     .encode_vec()
                     .expect("encoding to `Any` from `AnyClientState::Tendermint`"),
             },
             #[cfg(any(test, feature = "mocks"))]
-            AnyClientState::Mock(value) => Any {
+            GenericClientState::Mock(value) => Any {
                 type_url: MOCK_CLIENT_STATE_TYPE_URL.to_string(),
                 value: value
                     .encode_vec()
                     .expect("encoding to `Any` from `AnyClientState::Mock`"),
             },
+            GenericClientState::Extra(extra) => Any::from(extra),
         }
     }
 }
 
-impl ClientState for AnyClientState {
+impl From<NoExtra> for Any {
+    fn from(value: NoExtra) -> Self {
+        match value {}
+    }
+}
+
+impl<Extra> ClientState for GenericClientState<Extra>
+where
+    Extra: ClientState<UpgradeOptions = AnyUpgradeOptions>,
+{
     type UpgradeOptions = AnyUpgradeOptions;
 
     fn chain_id(&self) -> ChainId {
         match self {
-            AnyClientState::Tendermint(tm_state) => tm_state.chain_id(),
+            Self::Tendermint(tm_state) => tm_state.chain_id(),
 
             #[cfg(any(test, feature = "mocks"))]
-            AnyClientState::Mock(mock_state) => mock_state.chain_id(),
+            Self::Mock(mock_state) => mock_state.chain_id(),
+
+            Self::Extra(extra) => extra.chain_id(),
         }
     }
 
     fn client_type(&self) -> ClientType {
-        self.client_type()
+        match self {
+            Self::Tendermint(state) => state.client_type(),
+
+            #[cfg(any(test, feature = "mocks"))]
+            Self::Mock(state) => state.client_type(),
+
+            Self::Extra(extra) => extra.client_type(),
+        }
     }
 
     fn latest_height(&self) -> Height {
-        self.latest_height()
+        match self {
+            Self::Tendermint(tm_state) => tm_state.latest_height(),
+
+            #[cfg(any(test, feature = "mocks"))]
+            Self::Mock(mock_state) => mock_state.latest_height(),
+
+            Self::Extra(extra) => extra.latest_height(),
+        }
     }
 
     fn frozen_height(&self) -> Option<Height> {
-        self.frozen_height()
+        match self {
+            Self::Tendermint(tm_state) => tm_state.frozen_height(),
+
+            #[cfg(any(test, feature = "mocks"))]
+            Self::Mock(mock_state) => mock_state.frozen_height(),
+
+            Self::Extra(extra) => extra.frozen_height(),
+        }
     }
 
     fn upgrade(
@@ -228,19 +306,52 @@ impl ClientState for AnyClientState {
         chain_id: ChainId,
     ) -> Self {
         match self {
-            AnyClientState::Tendermint(tm_state) => tm_state
-                .upgrade(upgrade_height, upgrade_options.into_tendermint(), chain_id)
-                .wrap_any(),
+            GenericClientState::Tendermint(tm_state) => {
+                let upgraded_state =
+                    tm_state.upgrade(upgrade_height, upgrade_options.into_tendermint(), chain_id);
+                GenericClientState::Tendermint(upgraded_state)
+            }
 
             #[cfg(any(test, feature = "mocks"))]
-            AnyClientState::Mock(mock_state) => {
-                mock_state.upgrade(upgrade_height, (), chain_id).wrap_any()
+            GenericClientState::Mock(mock_state) => {
+                let upgraded_state = mock_state.upgrade(upgrade_height, (), chain_id);
+                GenericClientState::Mock(upgraded_state)
+            }
+
+            GenericClientState::Extra(extra) => {
+                let upgraded_state = extra.upgrade(upgrade_height, upgrade_options, chain_id);
+                GenericClientState::Extra(upgraded_state)
             }
         }
     }
+}
 
-    fn wrap_any(self) -> AnyClientState {
-        self
+impl ClientState for NoExtra {
+    type UpgradeOptions = AnyUpgradeOptions;
+
+    fn chain_id(&self) -> ChainId {
+        match *self {}
+    }
+
+    fn client_type(&self) -> ClientType {
+        match *self {}
+    }
+
+    fn latest_height(&self) -> Height {
+        match *self {}
+    }
+
+    fn frozen_height(&self) -> Option<Height> {
+        match *self {}
+    }
+
+    fn upgrade(
+        self,
+        _upgrade_height: Height,
+        _upgrade_options: Self::UpgradeOptions,
+        _chain_id: ChainId,
+    ) -> Self {
+        match self {}
     }
 }
 

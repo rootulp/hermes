@@ -76,7 +76,7 @@ pub trait ChainEndpoint: Sized {
     type ConsensusState: ConsensusState;
 
     /// Type of the client state for this chain
-    type ClientState: ClientState;
+    type ClientState: ClientState + Into<AnyClientState>;
 
     type LightClient: LightClient<Self>;
 

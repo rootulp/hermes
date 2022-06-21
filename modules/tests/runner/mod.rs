@@ -7,7 +7,7 @@ use core::fmt::Debug;
 use core::time::Duration;
 
 use ibc::core::ics02_client::client_consensus::AnyConsensusState;
-use ibc::core::ics02_client::client_state::AnyClientState;
+use ibc::core::ics02_client::client_state::{AnyClientState, ClientState};
 use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics02_client::context::ClientReader;
 use ibc::core::ics02_client::error as client_error;

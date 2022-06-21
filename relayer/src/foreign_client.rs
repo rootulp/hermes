@@ -16,8 +16,7 @@ use flex_error::define_error;
 use ibc::core::ics02_client::client_consensus::{
     AnyConsensusState, AnyConsensusStateWithHeight, ConsensusState, QueryClientEventRequest,
 };
-use ibc::core::ics02_client::client_state::AnyClientState;
-use ibc::core::ics02_client::client_state::ClientState;
+use ibc::core::ics02_client::client_state::{AnyClientState, ClientState, SomeClientState};
 use ibc::core::ics02_client::error::Error as ClientError;
 use ibc::core::ics02_client::events::UpdateClient;
 use ibc::core::ics02_client::header::{AnyHeader, Header};
@@ -601,8 +600,7 @@ impl<DstChain: ChainHandle, SrcChain: ChainHandle> ForeignClient<DstChain, SrcCh
                     "failed when building client state".to_string(),
                     e,
                 )
-            })?
-            .wrap_any();
+            })?;
 
         let consensus_state = self
             .src_chain

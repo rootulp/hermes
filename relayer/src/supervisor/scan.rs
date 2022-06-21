@@ -5,7 +5,7 @@ use itertools::Itertools;
 use tracing::{debug, error, info, info_span, warn};
 
 use ibc::core::{
-    ics02_client::client_state::{ClientState, IdentifiedAnyClientState},
+    ics02_client::client_state::{ClientState, IdentifiedAnyClientState, SomeClientState},
     ics03_connection::connection::{IdentifiedConnectionEnd, State as ConnectionState},
     ics04_channel::{
         channel::{IdentifiedChannelEnd, State as ChannelState},

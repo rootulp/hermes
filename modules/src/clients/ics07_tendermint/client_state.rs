@@ -11,7 +11,6 @@ use ibc_proto::ibc::lightclients::tendermint::v1::ClientState as RawClientState;
 
 use crate::clients::ics07_tendermint::error::Error;
 use crate::clients::ics07_tendermint::header::Header;
-use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics02_client::trust_threshold::TrustThreshold;
@@ -248,10 +247,6 @@ impl crate::core::ics02_client::client_state::ClientState for ClientState {
         self.chain_id = chain_id;
 
         self
-    }
-
-    fn wrap_any(self) -> AnyClientState {
-        AnyClientState::Tendermint(self)
     }
 }
 

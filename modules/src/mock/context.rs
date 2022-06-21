@@ -17,7 +17,7 @@ use tracing::debug;
 
 use crate::clients::ics07_tendermint::client_state::test_util::get_dummy_tendermint_client_state;
 use crate::core::ics02_client::client_consensus::{AnyConsensusState, AnyConsensusStateWithHeight};
-use crate::core::ics02_client::client_state::AnyClientState;
+use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
 use crate::core::ics02_client::error::Error as Ics02Error;

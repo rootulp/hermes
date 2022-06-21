@@ -9,7 +9,7 @@ use ibc::{
     core::{
         ics02_client::{
             client_consensus::{AnyConsensusState, AnyConsensusStateWithHeight, ConsensusState},
-            client_state::{AnyClientState, ClientState, IdentifiedAnyClientState},
+            client_state::{AnyClientState, IdentifiedAnyClientState},
             events::UpdateClient,
             header::{AnyHeader, Header},
             misbehaviour::MisbehaviourEvidence,
@@ -557,7 +557,7 @@ where
         let client_state = self
             .chain
             .build_client_state(height, settings)
-            .map(|cs| cs.wrap_any());
+            .map(Into::into);
 
         reply_to.send(client_state).map_err(Error::send)
     }
@@ -609,8 +609,7 @@ where
             height,
         );
 
-        let result = result
-            .map(|(opt_client_state, proofs)| (opt_client_state.map(|cs| cs.wrap_any()), proofs));
+        let result = result.map(|(opt_client_state, proofs)| (opt_client_state, proofs));
 
         reply_to.send(result).map_err(Error::send)
     }
@@ -642,7 +641,7 @@ where
         let res = self
             .chain
             .query_client_state(request, include_proof)
-            .map(|(cs, proof)| (cs.wrap_any(), proof));
+            .map(|(cs, proof)| (cs, proof));
 
         reply_to.send(res).map_err(Error::send)
     }
@@ -655,7 +654,7 @@ where
         let result = self
             .chain
             .query_upgraded_client_state(request)
-            .map(|(cl, proof)| (cl.wrap_any(), proof));
+            .map(|(cl, proof)| (cl, proof));
 
         reply_to.send(result).map_err(Error::send)
     }

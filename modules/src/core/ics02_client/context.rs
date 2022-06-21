@@ -3,7 +3,7 @@
 //! "ADR 003: IBC protocol implementation" for more details.
 
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
-use crate::core::ics02_client::client_state::AnyClientState;
+use crate::core::ics02_client::client_state::{AnyClientState, ClientState};
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::{Error, ErrorDetail};
 use crate::core::ics02_client::handler::ClientResult::{self, Create, Update, Upgrade};

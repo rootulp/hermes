@@ -113,10 +113,6 @@ impl ClientState for MockClientState {
     fn upgrade(self, _upgrade_height: Height, _upgrade_options: (), _chain_id: ChainId) -> Self {
         todo!()
     }
-
-    fn wrap_any(self) -> AnyClientState {
-        AnyClientState::Mock(self)
-    }
 }
 
 impl From<MockConsensusState> for MockClientState {

@@ -19,7 +19,7 @@ use ibc::{
     },
     core::{
         ics02_client::{
-            client_state::AnyClientState,
+            client_state::{AnyClientState, ClientState},
             client_type::ClientType,
             events::UpdateClient,
             header::{AnyHeader, Header},

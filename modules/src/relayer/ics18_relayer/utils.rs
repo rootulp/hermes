@@ -1,3 +1,4 @@
+use crate::core::ics02_client::client_state::ClientState;
 use crate::core::ics02_client::header::{AnyHeader, Header};
 use crate::core::ics02_client::msgs::update_client::MsgUpdateAnyClient;
 use crate::core::ics02_client::msgs::ClientMsg;
@@ -49,6 +50,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::core::ics02_client::client_state::ClientState;
     use crate::core::ics02_client::client_type::ClientType;
     use crate::core::ics02_client::header::{AnyHeader, Header};
     use crate::core::ics24_host::identifier::{ChainId, ClientId};
