@@ -97,7 +97,7 @@ pub struct CreateChannelCommand {
     )]
     new_client_connection: bool,
 
-    #[clap(long, help = "Skip new_client_connection confirmation")]
+    #[clap(long, help = "Skip new_client_conn confirmation")]
     yes: bool,
 }
 
