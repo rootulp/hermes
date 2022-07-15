@@ -1,16 +1,19 @@
+use crate::alloc::string::ToString;
+
+use ibc_proto::google::protobuf::Any;
+use ibc_proto::ibc::mock::Header as RawMockHeader;
 use serde_derive::{Deserialize, Serialize};
 use tendermint_proto::Protobuf;
-
-use ibc_proto::ibc::mock::Header as RawMockHeader;
 
 use crate::core::ics02_client::client_consensus::AnyConsensusState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::Error;
-use crate::core::ics02_client::header::AnyHeader;
-use crate::core::ics02_client::header::Header;
+use crate::core::ics02_client::header::{AnyHeader, Header};
 use crate::mock::client_state::MockConsensusState;
 use crate::timestamp::Timestamp;
 use crate::Height;
+
+pub const MOCK_HEADER_TYPE_URL: &str = "/ibc.mock.Header";
 
 #[derive(Copy, Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct MockHeader {
@@ -54,6 +57,30 @@ impl From<MockHeader> for RawMockHeader {
     }
 }
 
+impl Protobuf<Any> for MockHeader {}
+
+impl TryFrom<Any> for MockHeader {
+    type Error = Error;
+
+    fn try_from(raw: Any) -> Result<Self, Error> {
+        match raw.type_url.as_str() {
+            MOCK_HEADER_TYPE_URL => <MockHeader as Protobuf<Any>>::decode_vec(&raw.value)
+                .map_err(Error::invalid_raw_header),
+            _ => Err(Error::unknown_header_type(raw.type_url)),
+        }
+    }
+}
+
+impl From<MockHeader> for Any {
+    fn from(value: MockHeader) -> Self {
+        Any {
+            type_url: MOCK_HEADER_TYPE_URL.to_string(),
+            value: <MockHeader as Protobuf<Any>>::encode_vec(&value)
+                .expect("encoding to `Any` from `MockHeader`"),
+        }
+    }
+}
+
 impl MockHeader {
     pub fn height(&self) -> Height {
         self.height
@@ -88,10 +115,6 @@ impl Header for MockHeader {
 
     fn timestamp(&self) -> Timestamp {
         self.timestamp
-    }
-
-    fn wrap_any(self) -> AnyHeader {
-        AnyHeader::Mock(self)
     }
 }
 

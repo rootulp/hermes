@@ -1,6 +1,9 @@
 use core::cmp::Ordering;
+use core::ops::Deref;
 
 use bytes::Buf;
+use ibc_proto::google::protobuf::Any;
+use ibc_proto::ibc::lightclients::tendermint::v1::Header as RawHeader;
 use prost::Message;
 use serde_derive::{Deserialize, Serialize};
 use tendermint::block::signed_header::SignedHeader;
@@ -8,15 +11,14 @@ use tendermint::validator::Set as ValidatorSet;
 use tendermint_proto::Protobuf;
 
 use crate::alloc::string::ToString;
-
-use ibc_proto::ibc::lightclients::tendermint::v1::Header as RawHeader;
-
 use crate::clients::ics07_tendermint::error::Error;
 use crate::core::ics02_client::client_type::ClientType;
-use crate::core::ics02_client::header::AnyHeader;
+use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics24_host::identifier::ChainId;
 use crate::timestamp::Timestamp;
 use crate::Height;
+
+pub const TENDERMINT_HEADER_TYPE_URL: &str = "/ibc.lightclients.tendermint.v1.Header";
 
 /// Tendermint consensus header
 #[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -80,10 +82,6 @@ impl crate::core::ics02_client::header::Header for Header {
     fn timestamp(&self) -> Timestamp {
         self.signed_header.header.time.into()
     }
-
-    fn wrap_any(self) -> AnyHeader {
-        AnyHeader::Tendermint(self)
-    }
 }
 
 impl Protobuf<RawHeader> for Header {}
@@ -136,6 +134,31 @@ impl From<Header> for RawHeader {
             validator_set: Some(value.validator_set.into()),
             trusted_height: Some(value.trusted_height.into()),
             trusted_validators: Some(value.trusted_validator_set.into()),
+        }
+    }
+}
+
+impl Protobuf<Any> for Header {}
+
+impl TryFrom<Any> for Header {
+    type Error = Ics02Error;
+
+    fn try_from(raw: Any) -> Result<Self, Ics02Error> {
+        match raw.type_url.as_str() {
+            TENDERMINT_HEADER_TYPE_URL => {
+                decode_header(raw.value.deref()).map_err(Ics02Error::tendermint)
+            }
+            _ => Err(Ics02Error::unknown_header_type(raw.type_url)),
+        }
+    }
+}
+
+impl From<Header> for Any {
+    fn from(value: Header) -> Self {
+        Any {
+            type_url: TENDERMINT_HEADER_TYPE_URL.to_string(),
+            value: <Header as Protobuf<Any>>::encode_vec(&value)
+                .expect("encoding to `Any` from `TendermintHeader`"),
         }
     }
 }

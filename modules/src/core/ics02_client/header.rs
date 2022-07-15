@@ -18,7 +18,7 @@ pub const TENDERMINT_HEADER_TYPE_URL: &str = "/ibc.lightclients.tendermint.v1.He
 pub const MOCK_HEADER_TYPE_URL: &str = "/ibc.mock.Header";
 
 /// Abstract of consensus state update information
-pub trait Header: Clone + core::fmt::Debug + Send + Sync {
+pub trait Header: Clone + core::fmt::Debug + Send + Sync + Protobuf<Any, Error = Error> {
     /// The type of client (eg. Tendermint)
     fn client_type(&self) -> ClientType;
 
@@ -27,9 +27,6 @@ pub trait Header: Clone + core::fmt::Debug + Send + Sync {
 
     /// The timestamp of the consensus state
     fn timestamp(&self) -> Timestamp;
-
-    /// Wrap into an `AnyHeader`
-    fn wrap_any(self) -> AnyHeader;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -67,10 +64,6 @@ impl Header for AnyHeader {
             Self::Mock(header) => header.timestamp(),
         }
     }
-
-    fn wrap_any(self) -> AnyHeader {
-        self
-    }
 }
 
 impl AnyHeader {
@@ -95,13 +88,13 @@ impl TryFrom<Any> for AnyHeader {
         match raw.type_url.as_str() {
             TENDERMINT_HEADER_TYPE_URL => {
                 let val = decode_header(raw.value.deref()).map_err(Error::tendermint)?;
-
                 Ok(AnyHeader::Tendermint(val))
             }
 
             #[cfg(any(test, feature = "mocks"))]
             MOCK_HEADER_TYPE_URL => Ok(AnyHeader::Mock(
-                MockHeader::decode_vec(&raw.value).map_err(Error::invalid_raw_header)?,
+                <MockHeader as Protobuf<Any>>::decode_vec(&raw.value)
+                    .map_err(Error::invalid_raw_header)?,
             )),
 
             _ => Err(Error::unknown_header_type(raw.type_url)),
@@ -114,15 +107,13 @@ impl From<AnyHeader> for Any {
         match value {
             AnyHeader::Tendermint(header) => Any {
                 type_url: TENDERMINT_HEADER_TYPE_URL.to_string(),
-                value: header
-                    .encode_vec()
+                value: <TendermintHeader as Protobuf<Any>>::encode_vec(&header)
                     .expect("encoding to `Any` from `AnyHeader::Tendermint`"),
             },
             #[cfg(any(test, feature = "mocks"))]
             AnyHeader::Mock(header) => Any {
                 type_url: MOCK_HEADER_TYPE_URL.to_string(),
-                value: header
-                    .encode_vec()
+                value: <MockHeader as Protobuf<Any>>::encode_vec(&header)
                     .expect("encoding to `Any` from `AnyHeader::Mock`"),
             },
         }
