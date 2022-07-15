@@ -33,6 +33,7 @@ use ibc::mock::client_state::{MockClientState, MockConsensusState};
 use ibc::mock::context::MockContext;
 use ibc::mock::header::MockHeader;
 use ibc::mock::host::HostType;
+use ibc::mock::misbehaviour::Misbehaviour;
 use ibc::proofs::{ConsensusProof, Proofs};
 use ibc::relayer::ics18_relayer::context::Ics18Context;
 use ibc::relayer::ics18_relayer::error as relayer_error;
@@ -314,7 +315,7 @@ impl IbcTestRunner {
                     consensus_state: Self::consensus_state(consensus_state),
                     signer: Self::signer(),
                 }));
-                ctx.deliver(msg)
+                ctx.deliver::<Misbehaviour>(msg)
             }
             Action::Ics02UpdateClient {
                 chain_id,
@@ -330,7 +331,7 @@ impl IbcTestRunner {
                     header: Self::header(header),
                     signer: Self::signer(),
                 }));
-                ctx.deliver(msg)
+                ctx.deliver::<Misbehaviour>(msg)
             }
             Action::Ics07UpgradeClient {
                 chain_id,
@@ -349,7 +350,7 @@ impl IbcTestRunner {
                     proof_upgrade_consensus_state: Default::default(),
                     signer: Self::signer(),
                 }));
-                ctx.deliver(msg)
+                ctx.deliver::<Misbehaviour>(msg)
             }
             Action::Ics03ConnectionOpenInit {
                 chain_id,
@@ -370,7 +371,7 @@ impl IbcTestRunner {
                         signer: Self::signer(),
                     },
                 ));
-                ctx.deliver(msg)
+                ctx.deliver::<Misbehaviour>(msg)
             }
             Action::Ics03ConnectionOpenTry {
                 chain_id,
@@ -401,7 +402,7 @@ impl IbcTestRunner {
                         signer: Self::signer(),
                     },
                 )));
-                ctx.deliver(msg)
+                ctx.deliver::<Misbehaviour>(msg)
             }
             Action::Ics03ConnectionOpenAck {
                 chain_id,
@@ -425,7 +426,7 @@ impl IbcTestRunner {
                         signer: Self::signer(),
                     },
                 )));
-                ctx.deliver(msg)
+                ctx.deliver::<Misbehaviour>(msg)
             }
             Action::Ics03ConnectionOpenConfirm {
                 chain_id,
@@ -445,7 +446,7 @@ impl IbcTestRunner {
                         signer: Self::signer(),
                     },
                 ));
-                ctx.deliver(msg)
+                ctx.deliver::<Misbehaviour>(msg)
             }
         }
     }

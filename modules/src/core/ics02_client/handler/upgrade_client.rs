@@ -92,6 +92,7 @@ mod tests {
     use crate::mock::client_state::{MockClientState, MockConsensusState};
     use crate::mock::context::MockContext;
     use crate::mock::header::MockHeader;
+    use crate::mock::misbehaviour::Misbehaviour;
     use crate::test_utils::get_dummy_account_id;
     use crate::Height;
 
@@ -112,7 +113,8 @@ mod tests {
             signer,
         };
 
-        let output = dispatch(&ctx, ClientMsg::UpgradeClient(msg.clone()));
+        let output =
+            dispatch::<MockContext, Misbehaviour>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -159,7 +161,8 @@ mod tests {
             signer,
         };
 
-        let output = dispatch(&ctx, ClientMsg::UpgradeClient(msg.clone()));
+        let output =
+            dispatch::<MockContext, Misbehaviour>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
 
         match output {
             Err(Error(ErrorDetail::ClientNotFound(e), _)) => {
@@ -188,7 +191,8 @@ mod tests {
             signer,
         };
 
-        let output = dispatch(&ctx, ClientMsg::UpgradeClient(msg.clone()));
+        let output =
+            dispatch::<MockContext, Misbehaviour>(&ctx, ClientMsg::UpgradeClient(msg.clone()));
 
         match output {
             Err(Error(ErrorDetail::LowUpgradeHeight(e), _)) => {

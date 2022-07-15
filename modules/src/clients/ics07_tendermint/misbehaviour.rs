@@ -1,14 +1,16 @@
 use crate::prelude::*;
 
-use tendermint_proto::Protobuf;
-
+use ibc_proto::google::protobuf::Any;
 use ibc_proto::ibc::lightclients::tendermint::v1::Misbehaviour as RawMisbehaviour;
+use tendermint_proto::Protobuf;
 
 use crate::clients::ics07_tendermint::error::Error;
 use crate::clients::ics07_tendermint::header::Header;
-use crate::core::ics02_client::misbehaviour::AnyMisbehaviour;
+use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics24_host::identifier::ClientId;
 use crate::Height;
+
+pub const TENDERMINT_MISBEHAVIOR_TYPE_URL: &str = "/ibc.lightclients.tendermint.v1.Misbehaviour";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Misbehaviour {
@@ -24,10 +26,6 @@ impl crate::core::ics02_client::misbehaviour::Misbehaviour for Misbehaviour {
 
     fn height(&self) -> Height {
         self.header1.height()
-    }
-
-    fn wrap_any(self) -> AnyMisbehaviour {
-        AnyMisbehaviour::Tendermint(self)
     }
 }
 
@@ -57,6 +55,30 @@ impl From<Misbehaviour> for RawMisbehaviour {
             client_id: value.client_id.to_string(),
             header_1: Some(value.header1.into()),
             header_2: Some(value.header2.into()),
+        }
+    }
+}
+
+impl Protobuf<Any> for Misbehaviour {}
+
+impl TryFrom<Any> for Misbehaviour {
+    type Error = Ics02Error;
+
+    fn try_from(raw: Any) -> Result<Self, Self::Error> {
+        match raw.type_url.as_str() {
+            TENDERMINT_MISBEHAVIOR_TYPE_URL => <Self as Protobuf<Any>>::decode_vec(&raw.value)
+                .map_err(Ics02Error::decode_raw_misbehaviour),
+            _ => Err(Ics02Error::unknown_misbehaviour_type(raw.type_url)),
+        }
+    }
+}
+
+impl From<Misbehaviour> for Any {
+    fn from(value: Misbehaviour) -> Self {
+        Any {
+            type_url: TENDERMINT_MISBEHAVIOR_TYPE_URL.to_string(),
+            value: <Misbehaviour as Protobuf<Any>>::encode_vec(&value)
+                .expect("encoding to `Any` from `TendermintMisbehavior`"),
         }
     }
 }

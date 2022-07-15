@@ -7,11 +7,11 @@ use crate::relayer::ics18_relayer::error::Error;
 
 /// Builds a `ClientMsg::UpdateClient` for a client with id `client_id` running on the `dest`
 /// context, assuming that the latest header on the source context is `src_header`.
-pub fn build_client_update_datagram<Ctx>(
+pub fn build_client_update_datagram<Ctx, M>(
     dest: &Ctx,
     client_id: &ClientId,
     src_header: AnyHeader,
-) -> Result<ClientMsg, Error>
+) -> Result<ClientMsg<M>, Error>
 where
     Ctx: Ics18Context,
 {
@@ -55,6 +55,7 @@ mod tests {
     use crate::core::ics26_routing::msgs::Ics26Envelope;
     use crate::mock::context::MockContext;
     use crate::mock::host::HostType;
+    use crate::mock::misbehaviour::Misbehaviour;
     use crate::prelude::*;
     use crate::relayer::ics18_relayer::context::Ics18Context;
     use crate::relayer::ics18_relayer::utils::build_client_update_datagram;
@@ -128,7 +129,8 @@ mod tests {
 
             // - send the message to B. We bypass ICS18 interface and call directly into
             // MockContext `recv` method (to avoid additional serialization steps).
-            let dispatch_res_b = ctx_b.deliver(Ics26Envelope::Ics2Msg(client_msg_b));
+            let dispatch_res_b =
+                ctx_b.deliver::<Misbehaviour>(Ics26Envelope::Ics2Msg(client_msg_b));
             let validation_res = ctx_b.validate();
             assert!(
                 validation_res.is_ok(),
@@ -185,7 +187,8 @@ mod tests {
             debug!("client_msg_a = {:?}", client_msg_a);
 
             // - send the message to A
-            let dispatch_res_a = ctx_a.deliver(Ics26Envelope::Ics2Msg(client_msg_a));
+            let dispatch_res_a =
+                ctx_a.deliver::<Misbehaviour>(Ics26Envelope::Ics2Msg(client_msg_a));
             let validation_res = ctx_a.validate();
             assert!(
                 validation_res.is_ok(),

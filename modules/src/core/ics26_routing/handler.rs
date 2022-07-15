@@ -30,12 +30,12 @@ pub struct MsgReceipt {
 /// Mimics the DeliverTx ABCI interface, but for a single message and at a slightly lower level.
 /// No need for authentication info or signature checks here.
 /// Returns a vector of all events that got generated as a byproduct of processing `message`.
-pub fn deliver<Ctx>(ctx: &mut Ctx, message: Any) -> Result<MsgReceipt, Error>
+pub fn deliver<Ctx, M>(ctx: &mut Ctx, message: Any) -> Result<MsgReceipt, Error>
 where
     Ctx: Ics26Context,
 {
     // Decode the proto message into a domain message, creating an ICS26 envelope.
-    let envelope = decode(message)?;
+    let envelope = decode::<M>(message)?;
 
     // Process the envelope, and accumulate any events that were generated.
     let HandlerOutput { log, events, .. } = dispatch(ctx, envelope)?;
@@ -44,7 +44,7 @@ where
 }
 
 /// Attempts to convert a message into a [Ics26Envelope] message
-pub fn decode(message: Any) -> Result<Ics26Envelope, Error> {
+pub fn decode<M>(message: Any) -> Result<Ics26Envelope<M>, Error> {
     message.try_into()
 }
 
@@ -53,7 +53,7 @@ pub fn decode(message: Any) -> Result<Ics26Envelope, Error> {
 /// and events produced after processing the input `msg`.
 /// If this method returns an error, the runtime is expected to rollback all state modifications to
 /// the `Ctx` caused by all messages from the transaction that this `msg` is a part of.
-pub fn dispatch<Ctx>(ctx: &mut Ctx, msg: Ics26Envelope) -> Result<HandlerOutput<()>, Error>
+pub fn dispatch<Ctx, M>(ctx: &mut Ctx, msg: Ics26Envelope<M>) -> Result<HandlerOutput<()>, Error>
 where
     Ctx: Ics26Context,
 {
@@ -177,6 +177,7 @@ mod tests {
     use crate::mock::client_state::{MockClientState, MockConsensusState};
     use crate::mock::context::{MockContext, MockRouterBuilder};
     use crate::mock::header::MockHeader;
+    use crate::mock::misbehaviour::Misbehaviour;
     use crate::test_utils::{get_dummy_account_id, DummyTransferModule};
     use crate::timestamp::Timestamp;
     use crate::Height;
@@ -189,12 +190,12 @@ mod tests {
     fn routing_module_and_keepers() {
         #[derive(Clone, Debug)]
         enum TestMsg {
-            Ics26(Ics26Envelope),
+            Ics26(Ics26Envelope<Misbehaviour>),
             Ics20(MsgTransfer<PrefixedCoin>),
         }
 
-        impl From<Ics26Envelope> for TestMsg {
-            fn from(msg: Ics26Envelope) -> Self {
+        impl From<Ics26Envelope<Misbehaviour>> for TestMsg {
+            fn from(msg: Ics26Envelope<Misbehaviour>) -> Self {
                 Self::Ics26(msg)
             }
         }
@@ -323,7 +324,7 @@ mod tests {
         let msg_recv_packet = MsgRecvPacket::try_from(get_dummy_raw_msg_recv_packet(35)).unwrap();
 
         // First, create a client..
-        let res = dispatch(
+        let res = dispatch::<MockContext, Misbehaviour>(
             &mut ctx,
             Ics26Envelope::Ics2Msg(ClientMsg::CreateClient(create_client_msg.clone())),
         );

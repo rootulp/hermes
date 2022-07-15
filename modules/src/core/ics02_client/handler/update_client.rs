@@ -123,6 +123,7 @@ mod tests {
     use crate::mock::context::MockContext;
     use crate::mock::header::MockHeader;
     use crate::mock::host::HostType;
+    use crate::mock::misbehaviour::Misbehaviour;
     use crate::prelude::*;
     use crate::test_utils::get_dummy_account_id;
     use crate::timestamp::Timestamp;
@@ -144,7 +145,8 @@ mod tests {
             signer,
         };
 
-        let output = dispatch(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output =
+            dispatch::<MockContext, Misbehaviour>(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -192,7 +194,8 @@ mod tests {
             signer,
         };
 
-        let output = dispatch(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output =
+            dispatch::<MockContext, Misbehaviour>(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Err(Error(ErrorDetail::ClientNotFound(e), _)) => {
@@ -228,7 +231,8 @@ mod tests {
                 signer: signer.clone(),
             };
 
-            let output = dispatch(&ctx, ClientMsg::UpdateClient(msg.clone()));
+            let output =
+                dispatch::<MockContext, Misbehaviour>(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
             match output {
                 Ok(HandlerOutput {
@@ -296,7 +300,8 @@ mod tests {
             signer,
         };
 
-        let output = dispatch(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output =
+            dispatch::<MockContext, Misbehaviour>(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -374,7 +379,8 @@ mod tests {
             signer,
         };
 
-        let output = dispatch(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output =
+            dispatch::<MockContext, Misbehaviour>(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -453,7 +459,8 @@ mod tests {
             signer,
         };
 
-        let output = dispatch(&ctx, ClientMsg::UpdateClient(msg.clone()));
+        let output =
+            dispatch::<MockContext, Misbehaviour>(&ctx, ClientMsg::UpdateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -525,7 +532,7 @@ mod tests {
             signer,
         };
 
-        let output = dispatch(&ctx, ClientMsg::UpdateClient(msg));
+        let output = dispatch::<MockContext, Misbehaviour>(&ctx, ClientMsg::UpdateClient(msg));
 
         match output {
             Ok(_) => {
