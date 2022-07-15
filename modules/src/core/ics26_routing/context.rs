@@ -8,6 +8,7 @@ use core::{fmt, str::FromStr};
 use serde::{Deserialize, Serialize};
 
 use crate::core::ics02_client::context::{ClientKeeper, ClientReader};
+use crate::core::ics02_client::misbehaviour::Misbehaviour;
 use crate::core::ics03_connection::context::{ConnectionKeeper, ConnectionReader};
 use crate::core::ics04_channel::channel::{Counterparty, Order};
 use crate::core::ics04_channel::context::{ChannelKeeper, ChannelReader};
@@ -25,7 +26,7 @@ use crate::signer::Signer;
 /// requires to be able to dispatch and process IBC messages. In other words, this is the
 /// representation of a chain from the perspective of the IBC module of that chain.
 pub trait Ics26Context:
-    ClientReader
+    ClientReader<Misbehaviour = <Self as Ics26Context>::Misbehaviour>
     + ClientKeeper
     + ConnectionReader
     + ConnectionKeeper
@@ -34,6 +35,7 @@ pub trait Ics26Context:
     + PortReader
 {
     type Router: Router;
+    type Misbehaviour: Misbehaviour;
 
     fn router(&self) -> &Self::Router;
 

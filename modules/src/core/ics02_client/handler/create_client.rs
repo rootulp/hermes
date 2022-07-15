@@ -28,8 +28,8 @@ pub struct Result {
     pub processed_height: Height,
 }
 
-pub fn process(
-    ctx: &dyn ClientReader,
+pub fn process<Ctx: ClientReader>(
+    ctx: &Ctx,
     msg: MsgCreateAnyClient,
 ) -> HandlerResult<ClientResult, Error> {
     let mut output = HandlerOutput::builder();
@@ -90,7 +90,6 @@ mod tests {
     use crate::mock::client_state::{MockClientState, MockConsensusState};
     use crate::mock::context::MockContext;
     use crate::mock::header::MockHeader;
-    use crate::mock::misbehaviour::Misbehaviour;
     use crate::test_utils::get_dummy_account_id;
     use crate::Height;
 
@@ -107,8 +106,7 @@ mod tests {
         )
         .unwrap();
 
-        let output =
-            dispatch::<MockContext, Misbehaviour>(&ctx, ClientMsg::CreateClient(msg.clone()));
+        let output = dispatch(&ctx, ClientMsg::CreateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {
@@ -178,8 +176,7 @@ mod tests {
         let expected_client_id = ClientId::new(ClientType::Mock, 0).unwrap();
 
         for msg in create_client_msgs {
-            let output =
-                dispatch::<MockContext, Misbehaviour>(&ctx, ClientMsg::CreateClient(msg.clone()));
+            let output = dispatch(&ctx, ClientMsg::CreateClient(msg.clone()));
 
             match output {
                 Ok(HandlerOutput {
@@ -242,8 +239,7 @@ mod tests {
         )
         .unwrap();
 
-        let output =
-            dispatch::<MockContext, Misbehaviour>(&ctx, ClientMsg::CreateClient(msg.clone()));
+        let output = dispatch(&ctx, ClientMsg::CreateClient(msg.clone()));
 
         match output {
             Ok(HandlerOutput {

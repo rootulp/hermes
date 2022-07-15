@@ -46,9 +46,9 @@ impl ClientDef for TendermintClient {
     type ClientState = ClientState;
     type ConsensusState = ConsensusState;
 
-    fn check_header_and_update_state(
+    fn check_header_and_update_state<Ctx: ClientReader>(
         &self,
-        ctx: &dyn ClientReader,
+        ctx: &Ctx,
         client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,

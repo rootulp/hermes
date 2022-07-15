@@ -28,9 +28,9 @@ pub trait ClientDef: Clone {
     type ClientState: ClientState;
     type ConsensusState: ConsensusState;
 
-    fn check_header_and_update_state(
+    fn check_header_and_update_state<Ctx: ClientReader>(
         &self,
-        ctx: &dyn ClientReader,
+        ctx: &Ctx,
         client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,
@@ -194,9 +194,9 @@ impl ClientDef for AnyClient {
     type ConsensusState = AnyConsensusState;
 
     /// Validates an incoming `header` against the latest consensus state of this client.
-    fn check_header_and_update_state(
+    fn check_header_and_update_state<Ctx: ClientReader>(
         &self,
-        ctx: &dyn ClientReader,
+        ctx: &Ctx,
         client_id: ClientId,
         client_state: AnyClientState,
         header: AnyHeader,

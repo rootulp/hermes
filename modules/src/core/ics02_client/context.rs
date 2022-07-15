@@ -7,12 +7,15 @@ use crate::core::ics02_client::client_state::AnyClientState;
 use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::error::{Error, ErrorDetail};
 use crate::core::ics02_client::handler::ClientResult::{self, Create, Update, Upgrade};
+use crate::core::ics02_client::misbehaviour::Misbehaviour;
 use crate::core::ics24_host::identifier::ClientId;
 use crate::timestamp::Timestamp;
 use crate::Height;
 
 /// Defines the read-only part of ICS2 (client functions) context.
 pub trait ClientReader {
+    type Misbehaviour: Misbehaviour;
+
     fn client_type(&self, client_id: &ClientId) -> Result<ClientType, Error>;
     fn client_state(&self, client_id: &ClientId) -> Result<AnyClientState, Error>;
 

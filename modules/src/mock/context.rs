@@ -635,6 +635,7 @@ impl Router for MockRouter {
 
 impl Ics26Context for MockContext {
     type Router = MockRouter;
+    type Misbehaviour = Misbehaviour;
 
     fn router(&self) -> &Self::Router {
         &self.router
@@ -1061,6 +1062,8 @@ impl ConnectionKeeper for MockContext {
 }
 
 impl ClientReader for MockContext {
+    type Misbehaviour = Misbehaviour;
+
     fn client_type(&self, client_id: &ClientId) -> Result<ClientType, Ics02Error> {
         match self.ibc_store.lock().unwrap().clients.get(client_id) {
             Some(client_record) => Ok(client_record.client_type),
@@ -1298,8 +1301,8 @@ impl Ics18Context for MockContext {
         // Forward call to Ics26 delivery method.
         let mut all_events = vec![];
         for msg in msgs {
-            let MsgReceipt { mut events, .. } = deliver::<MockContext, Misbehaviour>(self, msg)
-                .map_err(Ics18Error::transaction_failed)?;
+            let MsgReceipt { mut events, .. } =
+                deliver(self, msg).map_err(Ics18Error::transaction_failed)?;
             all_events.append(&mut events);
         }
         self.advance_host_chain_height(); // Advance chain height

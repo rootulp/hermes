@@ -30,9 +30,9 @@ impl ClientDef for MockClient {
     type ClientState = MockClientState;
     type ConsensusState = MockConsensusState;
 
-    fn check_header_and_update_state(
+    fn check_header_and_update_state<Ctx: ClientReader>(
         &self,
-        _ctx: &dyn ClientReader,
+        _ctx: &Ctx,
         _client_id: ClientId,
         client_state: Self::ClientState,
         header: Self::Header,

@@ -30,12 +30,12 @@ pub struct MsgReceipt {
 /// Mimics the DeliverTx ABCI interface, but for a single message and at a slightly lower level.
 /// No need for authentication info or signature checks here.
 /// Returns a vector of all events that got generated as a byproduct of processing `message`.
-pub fn deliver<Ctx, M>(ctx: &mut Ctx, message: Any) -> Result<MsgReceipt, Error>
+pub fn deliver<Ctx>(ctx: &mut Ctx, message: Any) -> Result<MsgReceipt, Error>
 where
     Ctx: Ics26Context,
 {
     // Decode the proto message into a domain message, creating an ICS26 envelope.
-    let envelope = decode::<M>(message)?;
+    let envelope = decode::<<Ctx as Ics26Context>::Misbehaviour>(message)?;
 
     // Process the envelope, and accumulate any events that were generated.
     let HandlerOutput { log, events, .. } = dispatch(ctx, envelope)?;
@@ -53,7 +53,10 @@ pub fn decode<M>(message: Any) -> Result<Ics26Envelope<M>, Error> {
 /// and events produced after processing the input `msg`.
 /// If this method returns an error, the runtime is expected to rollback all state modifications to
 /// the `Ctx` caused by all messages from the transaction that this `msg` is a part of.
-pub fn dispatch<Ctx, M>(ctx: &mut Ctx, msg: Ics26Envelope<M>) -> Result<HandlerOutput<()>, Error>
+pub fn dispatch<Ctx>(
+    ctx: &mut Ctx,
+    msg: Ics26Envelope<<Ctx as Ics26Context>::Misbehaviour>,
+) -> Result<HandlerOutput<()>, Error>
 where
     Ctx: Ics26Context,
 {
@@ -324,7 +327,7 @@ mod tests {
         let msg_recv_packet = MsgRecvPacket::try_from(get_dummy_raw_msg_recv_packet(35)).unwrap();
 
         // First, create a client..
-        let res = dispatch::<MockContext, Misbehaviour>(
+        let res = dispatch(
             &mut ctx,
             Ics26Envelope::Ics2Msg(ClientMsg::CreateClient(create_client_msg.clone())),
         );
