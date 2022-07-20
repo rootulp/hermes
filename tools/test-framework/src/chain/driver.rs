@@ -48,7 +48,7 @@ pub mod transfer;
 */
 const WAIT_WALLET_AMOUNT_ATTEMPTS: u16 = 60;
 
-const COSMOS_HD_PATH: &str = "m/44'/118'/0'/0/0";
+const COSMOS_HD_PATH: &str = "m/44'/60'/0'/0/0";
 
 /**
     A driver for interacting with a chain full nodes through command line.

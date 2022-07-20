@@ -1642,6 +1642,7 @@ dependencies = [
  "env_logger",
  "eyre",
  "flex-error",
+ "hdpath",
  "hex",
  "http",
  "ibc",

@@ -149,6 +149,9 @@ impl FullNode {
             gas_price: config::GasPrice::new(0.001, "stake".to_string()),
             packet_filter: Default::default(),
             address_type: Default::default(),
+            // address_type: config::AddressType::Ethermint {
+            //     pk_type: "/ethermint.crypto.v1.ethsecp256k1.PubKey".to_string(),
+            // },
             memo_prefix: Default::default(),
             proof_specs: Default::default(),
         })

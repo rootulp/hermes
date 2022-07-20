@@ -54,12 +54,17 @@ pub fn init_test() -> Result<TestConfig, Error> {
         .map(|val| val == "1")
         .unwrap_or(false);
 
+    let bootstrap_with_random_ids = env::var("RANDOM_IDS")
+        .ok()
+        .map(|val| val == "1")
+        .unwrap_or(true);
+
     Ok(TestConfig {
         chain_command_path,
         chain_store_dir,
         account_prefix,
         hang_on_fail,
-        bootstrap_with_random_ids: true,
+        bootstrap_with_random_ids,
     })
 }
 

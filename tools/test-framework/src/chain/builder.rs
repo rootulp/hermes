@@ -85,9 +85,9 @@ impl ChainBuilder {
     */
     pub fn new_chain(&self, prefix: &str, use_random_id: bool) -> Result<ChainDriver, Error> {
         let chain_id = if use_random_id {
-            ChainId::from_string(&format!("ibc-{}-{:x}", prefix, random_u32()))
+            ChainId::from_string(&format!("evmos_9000-{}", prefix))
         } else {
-            ChainId::from_string(&format!("ibc-{}", prefix))
+            ChainId::from_string(&format!("ibc{}", prefix))
         };
 
         let rpc_port = random_unused_tcp_port();
