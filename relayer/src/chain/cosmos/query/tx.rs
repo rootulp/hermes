@@ -9,7 +9,7 @@ use tendermint::abci::Event;
 use tendermint_rpc::endpoint::tx::Response as TxResponse;
 use tendermint_rpc::{Client, HttpClient, Order, Url};
 
-use crate::chain::cosmos::query::{header_query, packet_query, tx_hash_query};
+use crate::chain::cosmos::query::{header_query, tx_hash_query};
 use crate::chain::requests::{
     QueryClientEventRequest, QueryHeight, QueryPacketEventDataRequest, QueryTxHash, QueryTxRequest,
 };
@@ -34,6 +34,7 @@ pub async fn query_txs(
 ) -> Result<Vec<IbcEvent>, Error> {
     crate::time!("query_txs");
     crate::telemetry!(query, chain_id, "query_txs");
+    tracing::warn!(request = ?request, "querying for events");
 
     match request {
         QueryTxRequest::Packet(request) => {
@@ -42,10 +43,18 @@ pub async fn query_txs(
             let mut result: Vec<IbcEvent> = vec![];
 
             for seq in &request.sequences {
+                // let query = packet_query(&request, *seq);
+                use tendermint_rpc::query::Query;
+                let query: Query = "tx.height=4713069 AND send_packet.packet_sequence=127044".parse().unwrap();
+
+                let new_rpc_client = HttpClient::new("https://rpc.cosmos.network/").expect("creating secondary http client specific for rpc.cosmos.network");
+
+
+                tracing::warn!("using this request {:?}", query);
                 // query first (and only) Tx that includes the event specified in the query request
-                let response = rpc_client
+                let response = new_rpc_client
                     .tx_search(
-                        packet_query(&request, *seq),
+                        query,
                         false,
                         1,
                         1, // get only the first Tx matching the query
@@ -58,6 +67,7 @@ pub async fn query_txs(
                     response.txs.len() <= 1,
                     "packet_from_tx_search_response: unexpected number of txs"
                 );
+                tracing::warn!("got this response {:?}", response);
 
                 if response.txs.is_empty() {
                     continue;
