@@ -1,7 +1,12 @@
 use itertools::Itertools;
+use tracing::trace;
 
 use tendermint_light_client::{
-    components::{self, io::AtHeight},
+    components::{
+        self,
+        io::{AtHeight, ProdIo},
+        io::{Io, IoError},
+    },
     light_client::LightClient as TmLightClient,
     state::State as LightClientState,
     store::{memory::MemoryStore, LightStore},
@@ -29,7 +34,6 @@ use ibc::{
     },
     downcast,
 };
-use tracing::trace;
 
 use crate::{chain::cosmos::CosmosSdkChain, config::ChainConfig, error::Error};
 
@@ -38,7 +42,7 @@ use super::Verified;
 pub struct LightClient {
     chain_id: ChainId,
     peer_id: PeerId,
-    io: components::io::ProdIo,
+    io: AnyIo,
 }
 
 impl super::LightClient<CosmosSdkChain> for LightClient {
@@ -167,10 +171,7 @@ impl super::LightClient<CosmosSdkChain> for LightClient {
 
 impl LightClient {
     pub fn from_config(config: &ChainConfig, peer_id: PeerId) -> Result<Self, Error> {
-        let rpc_client = rpc::HttpClient::new(config.rpc_addr.clone())
-            .map_err(|e| Error::rpc(config.rpc_addr.clone(), e))?;
-
-        let io = components::io::ProdIo::new(peer_id, rpc_client, Some(config.rpc_timeout));
+        let io = AnyIo::new(peer_id, config)?;
 
         Ok(Self {
             chain_id: config.id.clone(),
@@ -223,8 +224,6 @@ impl LightClient {
     }
 
     fn fetch_light_block(&self, height: AtHeight) -> Result<LightBlock, Error> {
-        use tendermint_light_client::components::io::Io;
-
         self.io
             .fetch_light_block(height)
             .map_err(|e| Error::light_client_io(self.chain_id.to_string(), e))
@@ -293,5 +292,83 @@ impl LightClient {
         };
 
         Ok((target_header, supporting_headers))
+    }
+}
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone)]
+enum AnyIo {
+    Juno(JunoIo),
+    Prod(ProdIo),
+}
+
+impl AnyIo {
+    fn new(peer_id: PeerId, config: &ChainConfig) -> Result<Self, Error> {
+        let juno = ChainId::new("juno".to_string(), 1);
+
+        if config.id == juno {
+            Ok(AnyIo::Juno(JunoIo::new(peer_id, config)?))
+        } else {
+            let rpc_client = rpc::HttpClient::new(config.rpc_addr.clone())
+                .map_err(|e| Error::rpc(config.rpc_addr.clone(), e))?;
+
+            Ok(AnyIo::Prod(ProdIo::new(
+                peer_id,
+                rpc_client,
+                Some(config.rpc_timeout),
+            )))
+        }
+    }
+}
+
+impl Io for AnyIo {
+    fn fetch_light_block(&self, height: AtHeight) -> Result<LightBlock, IoError> {
+        match self {
+            AnyIo::Juno(io) => io.fetch_light_block(height),
+            AnyIo::Prod(io) => io.fetch_light_block(height),
+        }
+    }
+}
+
+#[derive(Clone)]
+struct JunoIo {
+    live_io: ProdIo,
+    archive_io: ProdIo,
+}
+
+impl JunoIo {
+    const HALT_HEIGHT: u32 = 4136531_u32;
+
+    const ARCHIVE_ADDR: &'static str = "https://rpc-v3-archive.junonetwork.io:443";
+
+    fn new(peer_id: PeerId, config: &ChainConfig) -> Result<Self, Error> {
+        let archive_rpc = rpc::HttpClient::new(Self::ARCHIVE_ADDR)
+            .expect("unable to initialize new http client to use archive juno node"); // FIXME
+
+        let archive_io = ProdIo::new(peer_id, archive_rpc, Some(config.rpc_timeout));
+
+        let live_rpc = rpc::HttpClient::new(config.rpc_addr.clone())
+            .map_err(|e| Error::rpc(config.rpc_addr.clone(), e))?;
+
+        let live_io = ProdIo::new(peer_id, live_rpc, Some(config.rpc_timeout));
+
+        Ok(Self {
+            live_io,
+            archive_io,
+        })
+    }
+}
+
+impl Io for JunoIo {
+    fn fetch_light_block(&self, height: AtHeight) -> Result<LightBlock, IoError> {
+        let halt_height = TMHeight::from(Self::HALT_HEIGHT);
+
+        match height {
+            AtHeight::Highest => self.live_io.fetch_light_block(AtHeight::Highest),
+            AtHeight::At(height) if height <= halt_height => {
+                self.archive_io.fetch_light_block(AtHeight::At(height))
+            }
+            AtHeight::At(height) => self.live_io.fetch_light_block(AtHeight::At(height)),
+        }
     }
 }
