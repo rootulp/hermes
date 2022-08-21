@@ -4,22 +4,22 @@ use crate::events::IbcEvent;
 use crate::prelude::*;
 
 pub trait Handler {
-    /// Message types
-    /// Conversion from raw-type to domain-type encodes stateless validation
-    type RawMessage;
-    type Message: TryFrom<Self::RawMessage, Error = Self::Error>;
-
-    /// Context from host (includes light client related context)
-    type ContextRead;
-    type ContextWrite;
-
     /// Error and (intermediate) results
     type Error;
     type CheckResult;
     type ProcessResult;
 
+    /// Message types
+    /// Conversion from raw-type to domain-type encodes stateless validation
+    type RawMessage;
+    type Message: TryFrom<Self::RawMessage, Error = Self::Error>;
+
     /// Subset of IbcEvents that this handler could emit
     type Event: Into<IbcEvent>;
+
+    /// Context from host (includes light client related context)
+    type ContextRead;
+    type ContextWrite;
 
     /// Stateless validation
     fn validate(&self, msg: Self::RawMessage) -> Result<Self::Message, Self::Error> {
@@ -72,14 +72,14 @@ impl<T: Handler, Event> From<T> for BaseHandler<T, Event> {
 }
 
 impl<T: Handler> Handler for BaseHandler<T, T::Event> {
-    type RawMessage = T::RawMessage;
-    type Message = T::Message;
-    type ContextRead = T::ContextRead;
-    type ContextWrite = T::ContextWrite;
     type Error = T::Error;
     type CheckResult = T::CheckResult;
     type ProcessResult = T::ProcessResult;
+    type RawMessage = T::RawMessage;
+    type Message = T::Message;
     type Event = T::Event;
+    type ContextRead = T::ContextRead;
+    type ContextWrite = T::ContextWrite;
 
     fn check(
         &mut self,
@@ -141,14 +141,14 @@ pub mod update_client {
     impl<CtxRead: ClientReader, CtxWrite: ClientKeeper> Handler
         for UpdateClientHandler<CtxRead, CtxWrite>
     {
-        type RawMessage = RawMsgUpdateClient;
-        type Message = MsgUpdateClient;
-        type ContextRead = CtxRead;
-        type ContextWrite = CtxWrite;
         type Error = Error;
         type CheckResult = UpdateClientCheckResult;
         type ProcessResult = UpdateClientResult;
+        type RawMessage = RawMsgUpdateClient;
+        type Message = MsgUpdateClient;
         type Event = UpdateClientEvent;
+        type ContextRead = CtxRead;
+        type ContextWrite = CtxWrite;
 
         fn check(
             &mut self,
@@ -321,14 +321,14 @@ pub mod ics26 {
     }
 
     impl<CtxRead: Ics26Reader, CtxWrite: Ics26Keeper> Handler for Ics26Handler<CtxRead, CtxWrite> {
-        type RawMessage = Any;
-        type Message = Ics26Envelope;
-        type ContextRead = CtxRead;
-        type ContextWrite = CtxWrite;
         type Error = Error;
         type CheckResult = Ics26CheckResult;
         type ProcessResult = Ics26ProcessResult;
+        type RawMessage = Any;
+        type Message = Ics26Envelope;
         type Event = IbcEvent;
+        type ContextRead = CtxRead;
+        type ContextWrite = CtxWrite;
 
         fn check(
             &mut self,
