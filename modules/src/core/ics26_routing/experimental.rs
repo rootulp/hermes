@@ -3,6 +3,11 @@ use core::default::Default;
 use crate::events::IbcEvent;
 use crate::prelude::*;
 
+pub struct MsgReceipt<Event> {
+    pub events: Vec<Event>,
+    pub log: Vec<String>,
+}
+
 pub trait Handler {
     /// Error and (intermediate) results
     type Error;
@@ -20,6 +25,10 @@ pub trait Handler {
     /// Context from host (includes light client related context)
     type ContextRead;
     type ContextWrite;
+
+    /// Other facilities
+    type Logger: Logger;
+    type EventEmitter: EventEmitter<Event = Self::Event>;
 
     /// Stateless validation
     fn validate(&self, msg: Self::RawMessage) -> Result<Self::Message, Self::Error> {
@@ -42,75 +51,78 @@ pub trait Handler {
 
     /// Write the result
     fn write(
-        &mut self,
+        self,
         ctx: &mut Self::ContextWrite,
         process_result: Self::ProcessResult,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<MsgReceipt<Self::Event>, Self::Error>;
+}
+
+pub trait Logger: Into<Vec<String>> {
+    /// Return the logs generated so-far
+    fn logs(&self) -> &[String];
 
     /// Log a message
-    fn log_message(&mut self, _msg: impl ToString) {}
-
-    /// Emit an event
-    fn emit_event(&mut self, _event: Self::Event) {}
+    fn log_message(&mut self, _msg: impl ToString);
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct BaseHandler<Handler, Event> {
+pub struct DefaultLogger {
     log: Vec<String>,
-    events: Vec<Event>,
-    inner: Handler,
 }
 
-impl<T: Handler, Event> From<T> for BaseHandler<T, Event> {
-    fn from(handler: T) -> Self {
-        Self {
-            log: vec![],
-            events: vec![],
-            inner: handler,
-        }
+impl From<DefaultLogger> for Vec<String> {
+    fn from(logger: DefaultLogger) -> Self {
+        logger.log
     }
 }
 
-impl<T: Handler> Handler for BaseHandler<T, T::Event> {
-    type Error = T::Error;
-    type CheckResult = T::CheckResult;
-    type ProcessResult = T::ProcessResult;
-    type RawMessage = T::RawMessage;
-    type Message = T::Message;
-    type Event = T::Event;
-    type ContextRead = T::ContextRead;
-    type ContextWrite = T::ContextWrite;
-
-    fn check(
-        &mut self,
-        ctx: &Self::ContextRead,
-        msg: Self::Message,
-    ) -> Result<Self::CheckResult, Self::Error> {
-        self.inner.check(ctx, msg)
-    }
-
-    fn process(
-        &mut self,
-        ctx: &Self::ContextRead,
-        check_result: Self::CheckResult,
-    ) -> Result<Self::ProcessResult, Self::Error> {
-        self.inner.process(ctx, check_result)
-    }
-
-    fn write(
-        &mut self,
-        ctx: &mut Self::ContextWrite,
-        process_result: Self::ProcessResult,
-    ) -> Result<(), Self::Error> {
-        self.inner.write(ctx, process_result)
+impl Logger for DefaultLogger {
+    fn logs(&self) -> &[String] {
+        self.log.as_ref()
     }
 
     fn log_message(&mut self, msg: impl ToString) {
-        self.log.push(msg.to_string());
+        self.log.push(msg.to_string())
+    }
+}
+
+pub trait EventEmitter: Into<Vec<Self::Event>> {
+    /// Event type
+    type Event;
+
+    /// Return the events generated so-far
+    fn events(&self) -> &[Self::Event];
+
+    /// Emit an event
+    fn emit_event(&mut self, _event: Self::Event);
+}
+
+#[derive(Clone, Debug)]
+pub struct DefaultEventEmitter<Event> {
+    events: Vec<Event>,
+}
+
+impl<Event> Default for DefaultEventEmitter<Event> {
+    fn default() -> Self {
+        Self { events: vec![] }
+    }
+}
+
+impl<Event> From<DefaultEventEmitter<Event>> for Vec<Event> {
+    fn from(event_emitter: DefaultEventEmitter<Event>) -> Self {
+        event_emitter.events
+    }
+}
+
+impl<Event> EventEmitter for DefaultEventEmitter<Event> {
+    type Event = Event;
+
+    fn events(&self) -> &[Self::Event] {
+        self.events.as_ref()
     }
 
     fn emit_event(&mut self, event: Self::Event) {
-        self.events.push(event);
+        self.events.push(event)
     }
 }
 
@@ -130,16 +142,33 @@ pub mod update_client {
     use crate::core::ics24_host::identifier::ClientId;
 
     #[derive(Clone, Debug)]
-    pub struct UpdateClientHandler<CtxRead, CtxWrite>(PhantomData<(CtxRead, CtxWrite)>);
+    pub struct UpdateClientHandler<
+        CtxRead,
+        CtxWrite,
+        Logger = DefaultLogger,
+        EventEmitter = DefaultEventEmitter<UpdateClientEvent>,
+    > {
+        logger: Logger,
+        event_emitter: EventEmitter,
+        _ctx: PhantomData<(CtxRead, CtxWrite)>,
+    }
 
     impl<CtxRead, CtxWrite> Default for UpdateClientHandler<CtxRead, CtxWrite> {
         fn default() -> Self {
-            Self(Default::default())
+            Self {
+                logger: DefaultLogger::default(),
+                event_emitter: DefaultEventEmitter::default(),
+                _ctx: Default::default(),
+            }
         }
     }
 
-    impl<CtxRead: ClientReader, CtxWrite: ClientKeeper> Handler
-        for UpdateClientHandler<CtxRead, CtxWrite>
+    impl<
+            CtxRead: ClientReader,
+            CtxWrite: ClientKeeper,
+            L: Logger,
+            E: EventEmitter<Event = UpdateClientEvent>,
+        > Handler for UpdateClientHandler<CtxRead, CtxWrite, L, E>
     {
         type Error = Error;
         type CheckResult = UpdateClientCheckResult;
@@ -149,13 +178,15 @@ pub mod update_client {
         type Event = UpdateClientEvent;
         type ContextRead = CtxRead;
         type ContextWrite = CtxWrite;
+        type Logger = L;
+        type EventEmitter = E;
 
         fn check(
             &mut self,
             ctx: &Self::ContextRead,
             msg: Self::Message,
         ) -> Result<Self::CheckResult, Self::Error> {
-            update_client_check(self, |client_id| ctx.client_state(client_id), msg)
+            update_client_check(|client_id| ctx.client_state(client_id), msg)
         }
 
         fn process(
@@ -163,15 +194,19 @@ pub mod update_client {
             ctx: &Self::ContextRead,
             check_result: Self::CheckResult,
         ) -> Result<Self::ProcessResult, Self::Error> {
-            update_client_process(self, ctx, check_result)
+            update_client_process(&mut self.event_emitter, ctx, check_result)
         }
 
         fn write(
-            &mut self,
+            self,
             ctx: &mut Self::ContextWrite,
             process_result: Self::ProcessResult,
-        ) -> Result<(), Self::Error> {
-            update_client_write(self, ctx, process_result)
+        ) -> Result<MsgReceipt<Self::Event>, Self::Error> {
+            update_client_write(ctx, process_result)?;
+            Ok(MsgReceipt {
+                events: self.event_emitter.into(),
+                log: self.logger.into(),
+            })
         }
     }
 
@@ -182,8 +217,7 @@ pub mod update_client {
         header: Any,
     }
 
-    pub fn update_client_check<T /* CtxRead: ClientReader */>(
-        _handler: &T,
+    pub fn update_client_check(
         // ctx: &CtxRead,
         client_state: impl FnOnce(&ClientId) -> Result<Box<dyn ClientState>, Error>,
         msg: MsgUpdateClient,
@@ -206,8 +240,11 @@ pub mod update_client {
         }
     }
 
-    pub fn update_client_process<T: Handler<Event = UpdateClientEvent>, CtxRead: ClientReader>(
-        handler: &mut T,
+    pub fn update_client_process<
+        E: EventEmitter<Event = UpdateClientEvent>,
+        CtxRead: ClientReader,
+    >(
+        event_emitter: &mut E,
         ctx: &CtxRead,
         check_result: UpdateClientCheckResult,
     ) -> Result<UpdateClientResult, Error> {
@@ -224,7 +261,7 @@ pub mod update_client {
             .check_header_and_update_state(ctx, client_id.clone(), header)
             .map_err(|e| Error::header_verification_failure(e.to_string()))?;
 
-        handler.emit_event(UpdateClientEvent::from(Attributes {
+        event_emitter.emit_event(UpdateClientEvent::from(Attributes {
             client_id: client_id.clone(),
             client_type: client_state.client_type(),
             consensus_height: client_state.latest_height(),
@@ -239,8 +276,7 @@ pub mod update_client {
         })
     }
 
-    pub fn update_client_write<T, CtxWrite: ClientKeeper>(
-        _handler: &T,
+    pub fn update_client_write<CtxWrite: ClientKeeper>(
         ctx: &mut CtxWrite,
         process_result: UpdateClientResult,
     ) -> Result<(), Error> {
@@ -292,10 +328,19 @@ pub mod ics26 {
 
     pub trait Ics26Reader: ClientReader + ConnectionReader + ChannelReader + PortReader {}
 
+    impl<T: Ics26Context> Ics26Reader for T {}
+
     pub trait Ics26Keeper: ClientKeeper + ConnectionKeeper + ChannelKeeper {}
 
-    impl<T: Ics26Context> Ics26Reader for T {}
     impl<T: Ics26Context> Ics26Keeper for T {}
+
+    pub enum Ics26CheckResult {
+        ClientUpdate(UpdateClientCheckResult),
+    }
+
+    pub enum Ics26ProcessResult {
+        ClientUpdate(UpdateClientResult),
+    }
 
     pub enum Ics26Handler<CtxRead, CtxWrite> {
         ClientUpdate(UpdateClientHandler<CtxRead, CtxWrite>),
@@ -312,14 +357,6 @@ pub mod ics26 {
         }
     }
 
-    pub enum Ics26CheckResult {
-        ClientUpdate(UpdateClientCheckResult),
-    }
-
-    pub enum Ics26ProcessResult {
-        ClientUpdate(UpdateClientResult),
-    }
-
     impl<CtxRead: Ics26Reader, CtxWrite: Ics26Keeper> Handler for Ics26Handler<CtxRead, CtxWrite> {
         type Error = Error;
         type CheckResult = Ics26CheckResult;
@@ -329,6 +366,8 @@ pub mod ics26 {
         type Event = IbcEvent;
         type ContextRead = CtxRead;
         type ContextWrite = CtxWrite;
+        type Logger = DefaultLogger;
+        type EventEmitter = DefaultEventEmitter<Self::Event>;
 
         fn check(
             &mut self,
@@ -364,11 +403,22 @@ pub mod ics26 {
         }
 
         fn write(
-            &mut self,
-            _ctx: &mut Self::ContextWrite,
-            _process_result: Self::ProcessResult,
-        ) -> Result<(), Self::Error> {
-            todo!()
+            self,
+            ctx: &mut Self::ContextWrite,
+            process_result: Self::ProcessResult,
+        ) -> Result<MsgReceipt<Self::Event>, Self::Error> {
+            match (process_result, self) {
+                (
+                    Ics26ProcessResult::ClientUpdate(process_result),
+                    Ics26Handler::ClientUpdate(handler),
+                ) => handler
+                    .write(ctx, process_result)
+                    .map(|receipt| MsgReceipt {
+                        events: receipt.events.into_iter().map(Into::into).collect(),
+                        log: receipt.log,
+                    })
+                    .map_err(Error::ics02_client),
+            }
         }
     }
 }
@@ -381,7 +431,7 @@ mod test {
     use crate::core::ics02_client::msgs::ClientMsg;
     use crate::core::ics24_host::identifier::{ChainId, ClientId};
     use crate::core::ics26_routing::experimental::ics26::Ics26Handler;
-    use crate::core::ics26_routing::experimental::{BaseHandler, Handler};
+    use crate::core::ics26_routing::experimental::Handler;
     use crate::core::ics26_routing::msgs::Ics26Envelope;
     use crate::mock::context::MockContext;
     use crate::mock::host::HostType;
@@ -394,7 +444,7 @@ mod test {
         let client_height = Height::new(1, 20).unwrap();
         let update_height = Height::new(1, 21).unwrap();
 
-        let ctx = MockContext::new(
+        let mut ctx = MockContext::new(
             ChainId::new("mockgaiaA".to_string(), 1),
             HostType::Mock,
             5,
@@ -424,11 +474,12 @@ mod test {
             header: block.into(),
             signer,
         }));
-        let ics26_handler: Ics26Handler<_, MockContext> = Ics26Handler::new(&msg);
-        let mut ics26_handler = BaseHandler::from(ics26_handler);
-        let check_result = ics26_handler.check(&ctx, msg).unwrap();
-        let _process_result = ics26_handler.process(&ctx, check_result).unwrap();
 
-        assert_eq!(ics26_handler.events.len(), 1);
+        let mut ics26_handler = Ics26Handler::<_, MockContext>::new(&msg);
+        let check_result = ics26_handler.check(&ctx, msg).unwrap();
+        let process_result = ics26_handler.process(&ctx, check_result).unwrap();
+        let receipt = ics26_handler.write(&mut ctx, process_result).unwrap();
+
+        assert_eq!(receipt.events.len(), 1);
     }
 }
