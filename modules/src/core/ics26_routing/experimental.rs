@@ -1,4 +1,7 @@
+use crate::core::ics24_host::identifier::PortId;
 use core::default::Default;
+
+use crate::core::ics26_routing::context::ModuleId;
 
 use crate::events::IbcEvent;
 use crate::prelude::*;
@@ -309,6 +312,64 @@ pub mod update_client {
     }
 }
 
+pub struct ModuleCallbackHandler<Handler> {
+    inner: Handler,
+}
+
+pub struct ModuleCallbackCheckResult<CheckResult> {
+    module_id: ModuleId,
+    inner: CheckResult,
+}
+
+impl<H: Handler> Handler for ModuleCallbackHandler<H> {
+    type Error = H::Error;
+    type CheckResult = ModuleCallbackCheckResult<H::CheckResult>;
+    type ProcessResult = H::ProcessResult;
+    type RawMessage = H::RawMessage;
+    type Message = H::Message;
+    type Event = IbcEvent;
+    type ContextRead = H::ContextRead;
+    type ContextWrite = H::ContextWrite;
+    type Logger = H::Logger;
+    type EventEmitter = DefaultEventEmitter<IbcEvent>;
+
+    fn check(
+        &mut self,
+        ctx: &Self::ContextRead,
+        msg: Self::Message,
+    ) -> Result<Self::CheckResult, Self::Error> {
+        let module_id = ModuleId::new(format!("module{}", PortId::default()).into()).unwrap();
+        self.inner
+            .check(ctx, msg)
+            .map(|check_result| ModuleCallbackCheckResult {
+                module_id,
+                inner: check_result,
+            })
+    }
+
+    fn process(
+        &mut self,
+        ctx: &Self::ContextRead,
+        check_result: Self::CheckResult,
+    ) -> Result<Self::ProcessResult, Self::Error> {
+        let _ = check_result.module_id;
+        self.inner.process(ctx, check_result.inner)
+    }
+
+    fn write(
+        self,
+        ctx: &mut Self::ContextWrite,
+        process_result: Self::ProcessResult,
+    ) -> Result<MsgReceipt<Self::Event>, Self::Error> {
+        self.inner
+            .write(ctx, process_result)
+            .map(|receipt| MsgReceipt {
+                events: receipt.events.into_iter().map(Into::into).collect(),
+                log: receipt.log,
+            })
+    }
+}
+
 pub mod ics26 {
     use ibc_proto::google::protobuf::Any;
 
@@ -475,7 +536,7 @@ mod test {
             signer,
         }));
 
-        let mut ics26_handler = Ics26Handler::<_, MockContext>::new(&msg);
+        let mut ics26_handler = Ics26Handler::new(&msg);
         let check_result = ics26_handler.check(&ctx, msg).unwrap();
         let process_result = ics26_handler.process(&ctx, check_result).unwrap();
         let receipt = ics26_handler.write(&mut ctx, process_result).unwrap();
