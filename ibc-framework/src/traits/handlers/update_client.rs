@@ -1,40 +1,40 @@
-use core::marker::PhantomData;
-
 use crate::aliases::client::{
     AnyClientHeader, AnyClientState, AnyConsensusState, ClientHeader, ClientState, ConsensusState,
 };
-use crate::traits::chain::{ChainTypes, ClientReaderContext, HasAnyClient};
-use crate::traits::client::{AnyClientTypes, ClientTypes};
+use crate::aliases::ibc::ClientId;
+use crate::traits::client::{ClientTypes, HasAnyClient};
+use crate::traits::error::HasError;
+use crate::traits::ibc::HasIbcTypes;
+use crate::traits::sync::Async;
 
-pub trait AnyClientUpdateVerifier<Chain>
+pub trait AnyClientUpdateHandler<Context>: Async
 where
-    Chain: HasAnyClient,
+    Context: HasIbcTypes + HasAnyClient + HasError,
 {
     fn check_header_and_update_state(
-        chain: &Chain,
-        client_id: &Chain::ClientId,
-        new_client_header: &AnyClientHeader<Chain::AnyClient>,
+        context: &Context,
+        client_id: &ClientId<Context::IbcTypes>,
+        new_client_header: &AnyClientHeader<Context::AnyClient>,
     ) -> Result<
         (
-            AnyClientState<Chain::AnyClient>,
-            AnyConsensusState<Chain::AnyClient>,
+            AnyClientState<Context::AnyClient>,
+            AnyConsensusState<Context::AnyClient>,
         ),
-        Chain::Error,
+        Context::Error,
     >;
 }
 
-pub trait ClientUpdateVerifier<Chain, Client>
+pub trait ClientUpdateHandler<Context>
 where
-    Chain: ChainTypes,
-    Client: ClientTypes,
+    Context: HasIbcTypes + HasError,
 {
-    type ClientTag;
+    type Client: ClientTypes;
 
-    fn try_update_client_state(
-        chain: &Chain,
-        client_id: &Chain::ClientId,
-        new_client_header: &Client::ClientHeader,
-    ) -> Result<(Client::ClientState, Client::ConsensusState), Chain::Error>;
+    fn check_header_and_update_state(
+        chain: &Context,
+        client_id: &ClientId<Context::IbcTypes>,
+        new_client_header: &ClientHeader<Self::Client>,
+    ) -> Result<(ClientState<Self::Client>, ConsensusState<Self::Client>), Context::Error>;
 }
 
 // pub struct MismatchClientHeaderFormat<ClientType> {

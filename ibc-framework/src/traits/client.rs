@@ -1,23 +1,35 @@
-pub trait ClientTypes {
-    type ClientState;
+use crate::traits::sync::Async;
 
-    type ConsensusState;
+pub trait ClientTypes: Async {
+    type ClientState: Async;
 
-    type ClientHeader;
+    type ConsensusState: Async;
 
-    type Misbehavior;
+    type ClientHeader: Async;
+
+    type Misbehavior: Async;
 }
 
-pub trait AnyClientTypes {
-    type ClientType: Eq;
+pub trait AnyClientTypes: Async {
+    type ClientType: Eq + Async;
 
-    type AnyClientState;
+    type AnyClientState: Async;
 
-    type AnyConsensusState;
+    type AnyConsensusState: Async;
 
-    type AnyClientHeader;
+    type AnyClientHeader: Async;
 
-    type AnyMisbehavior;
+    type AnyMisbehavior: Async;
+}
+
+pub trait HasAnyClient: Async {
+    type Client: ClientTypes;
+
+    type AnyClient: HasClient<Self::Client>;
+}
+
+pub trait AnyClientMethods: AnyClientTypes {
+    fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType;
 }
 
 pub trait HasClient<Client>: AnyClientTypes
