@@ -50,9 +50,11 @@ where
         consensus_state: &Self::AnyConsensusState,
     ) -> Option<&Client::ConsensusState>;
 
-    fn to_any_client_header(header: Client::ClientHeader) -> Self::AnyClientHeader;
+    fn to_any_client_header(client_header: Client::ClientHeader) -> Self::AnyClientHeader;
 
-    fn try_from_any_client_header(header: &Self::AnyClientHeader) -> Option<&Client::ClientHeader>;
+    fn try_from_any_client_header(
+        client_header: &Self::AnyClientHeader,
+    ) -> Option<&Client::ClientHeader>;
 
     fn to_any_misbehavior(misbehavior: Client::Misbehavior) -> Self::AnyMisbehavior;
 

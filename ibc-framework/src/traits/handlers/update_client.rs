@@ -7,7 +7,7 @@ use crate::traits::error::HasError;
 use crate::traits::ibc::HasIbcTypes;
 use crate::traits::sync::Async;
 
-pub trait AnyClientUpdateHandler<Context>: Async
+pub trait AnyUpdateClientHandler<Context>: Async
 where
     Context: HasIbcTypes + HasAnyClient + HasError,
 {
@@ -24,7 +24,7 @@ where
     >;
 }
 
-pub trait ClientUpdateHandler<Context>
+pub trait UpdateClientHandler<Context>
 where
     Context: HasIbcTypes + HasError,
 {
