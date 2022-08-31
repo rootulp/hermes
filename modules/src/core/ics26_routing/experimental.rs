@@ -305,11 +305,7 @@ pub mod update_client {
             client_state.latest_height(),
             processed_time,
         )?;
-        ctx.store_update_height(
-            client_id.clone(),
-            client_state.latest_height(),
-            processed_height,
-        )?;
+        ctx.store_update_height(client_id, client_state.latest_height(), processed_height)?;
 
         Ok(())
     }
@@ -534,7 +530,7 @@ mod test {
         block.set_trusted_height(client_height);
 
         let msg = Ics26Envelope::Ics2Msg(ClientMsg::UpdateClient(MsgUpdateClient {
-            client_id: client_id.clone(),
+            client_id,
             header: block.into(),
             signer,
         }));
