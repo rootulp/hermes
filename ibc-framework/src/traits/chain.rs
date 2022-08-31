@@ -1,7 +1,7 @@
 use crate::aliases::client::{AnyClientState, AnyConsensusState, ClientType, ConsensusState};
-use crate::traits::client::{AnyClientContext, ClientContext};
+use crate::traits::client::{ClientTypes, HasClient};
 
-pub trait ChainContext {
+pub trait ChainTypes {
     type Error;
 
     type Height;
@@ -15,36 +15,34 @@ pub trait ChainContext {
     type MerkleProof;
 }
 
-pub trait HasClient: ChainContext {
-    type ClientTag;
+pub trait HasAnyClient: ChainTypes {
+    type Client: ClientTypes;
 
-    type ClientContext: ClientContext<Self::ClientTag>;
+    type AnyClient: HasClient<Self::Client>;
 
-    fn error_from_client(err: <Self::ClientContext as AnyClientContext>::Error) -> Self::Error;
-
-    fn host_consensus_state(&self) -> ConsensusState<Self::ClientContext, Self::ClientTag>;
+    fn host_consensus_state(&self) -> ConsensusState<Self::Client>;
 }
 
-pub trait HostContext: ChainContext {
+pub trait HostContext: ChainTypes {
     fn host_height(&self) -> Self::Height;
 
     fn host_timestamp(&self) -> Self::Timestamp;
 }
 
-pub trait ClientReaderContext: HasClient {
+pub trait ClientReaderContext: HasAnyClient {
     fn get_client_type(
         &self,
         client_id: &Self::ClientId,
-    ) -> Result<ClientType<Self::ClientContext>, Self::Error>;
+    ) -> Result<ClientType<Self::AnyClient>, Self::Error>;
 
     fn get_client_state(
         &self,
         client_id: &Self::ClientId,
-    ) -> Result<AnyClientState<Self::ClientContext>, Self::Error>;
+    ) -> Result<AnyClientState<Self::AnyClient>, Self::Error>;
 
     fn get_consensus_state(
         &self,
         client_id: &Self::ClientId,
         height: &Self::Height,
-    ) -> Result<AnyConsensusState<Self::ClientContext>, Self::Error>;
+    ) -> Result<AnyConsensusState<Self::AnyClient>, Self::Error>;
 }

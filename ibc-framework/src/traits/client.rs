@@ -1,6 +1,14 @@
-pub trait AnyClientContext {
-    type Error;
+pub trait ClientTypes {
+    type ClientState;
 
+    type ConsensusState;
+
+    type ClientHeader;
+
+    type Misbehavior;
+}
+
+pub trait AnyClientTypes {
     type ClientType: Eq;
 
     type AnyClientState;
@@ -12,33 +20,30 @@ pub trait AnyClientContext {
     type AnyMisbehavior;
 }
 
-pub trait ClientContext<ClientTag>: AnyClientContext {
+pub trait HasClient<Client>: AnyClientTypes
+where
+    Client: ClientTypes,
+{
     const CLIENT_TYPE: Self::ClientType;
 
-    type ClientState;
+    fn to_any_client_state(client_state: Client::ClientState) -> Self::AnyClientState;
 
-    type ConsensusState;
+    fn try_from_any_client_state(
+        client_state: &Self::AnyClientState,
+    ) -> Option<&Client::ClientState>;
 
-    type ClientHeader;
-
-    type Misbehavior;
-
-    fn to_any_client_state(client_state: Self::ClientState) -> Self::AnyClientState;
-
-    fn try_from_any_client_state(client_state: &Self::AnyClientState)
-        -> Option<&Self::ClientState>;
-
-    fn to_any_consensus_state(consensus_state: Self::ConsensusState) -> Self::AnyConsensusState;
+    fn to_any_consensus_state(consensus_state: Client::ConsensusState) -> Self::AnyConsensusState;
 
     fn try_from_any_consensus_state(
         consensus_state: &Self::AnyConsensusState,
-    ) -> Option<&Self::ConsensusState>;
+    ) -> Option<&Client::ConsensusState>;
 
-    fn to_any_client_header(header: Self::ClientHeader) -> Self::AnyClientHeader;
+    fn to_any_client_header(header: Client::ClientHeader) -> Self::AnyClientHeader;
 
-    fn try_from_any_client_header(header: &Self::AnyClientHeader) -> Option<&Self::ClientHeader>;
+    fn try_from_any_client_header(header: &Self::AnyClientHeader) -> Option<&Client::ClientHeader>;
 
-    fn to_any_misbehavior(misbehavior: Self::Misbehavior) -> Self::AnyMisbehavior;
+    fn to_any_misbehavior(misbehavior: Client::Misbehavior) -> Self::AnyMisbehavior;
 
-    fn try_from_any_misbehavior(misbehavior: &Self::AnyMisbehavior) -> Option<&Self::Misbehavior>;
+    fn try_from_any_misbehavior(misbehavior: &Self::AnyMisbehavior)
+        -> Option<&Client::Misbehavior>;
 }
