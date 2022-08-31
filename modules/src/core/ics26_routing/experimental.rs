@@ -1,8 +1,11 @@
-use crate::core::ics24_host::identifier::PortId;
 use core::default::Default;
+use core::fmt::Debug;
 
+use crate::core::ics02_client::client_type::ClientType;
+use crate::core::ics04_channel::commitment::PacketCommitment;
+use crate::core::ics24_host::identifier::PortId;
+use crate::core::ics24_host::path::{ClientTypePath, CommitmentsPath, Path as IbcPath};
 use crate::core::ics26_routing::context::ModuleId;
-
 use crate::events::IbcEvent;
 use crate::prelude::*;
 
@@ -542,5 +545,165 @@ mod test {
         let receipt = ics26_handler.write(&mut ctx, process_result).unwrap();
 
         assert_eq!(receipt.events.len(), 1);
+    }
+}
+
+// pub trait Store {
+//     type Error;
+//     type Key;
+//     type Value;
+//
+//     fn set(
+//         &mut self,
+//         key: Self::Key,
+//         value: Self::Value,
+//     ) -> Result<Option<Self::Value>, Self::Error>;
+//
+//     fn get(&self, key: &Self::Key) -> Result<Option<Self::Value>, Self::Error>;
+//
+//     fn delete(&mut self, key: &Self::Key) -> Result<(), Self::Error>;
+// }
+//
+// pub struct IbcStore<S> {
+//     inner: S,
+// }
+//
+// impl<S> Store for IbcStore<S>
+// where
+//     S: Store,
+//     S::Key: ValueForPath,
+//     S::Value: From<<<S as Store>::Key as ValueForPath>::StoredValue>,
+// {
+//     type Error = S::Error;
+//     type Key = S::Key;
+//     type Value = S::Value;
+//
+//     fn set(
+//         &mut self,
+//         key: Self::Key,
+//         value: Self::Value,
+//     ) -> Result<Option<Self::Value>, Self::Error> {
+//         self.inner.set(key, value)
+//     }
+//
+//     fn get(&self, key: &Self::Key) -> Result<Option<Self::Value>, Self::Error> {
+//         self.inner.get(key)
+//     }
+//
+//     fn delete(&mut self, key: &Self::Key) -> Result<(), Self::Error> {
+//         self.inner.delete(key)
+//     }
+// }
+
+#[derive(Clone)]
+pub enum IbcValue {
+    ClientType(ClientType),
+    CommitmentsPath(PacketCommitment),
+}
+
+impl From<ClientType> for IbcValue {
+    fn from(client_type: ClientType) -> Self {
+        Self::ClientType(client_type)
+    }
+}
+
+impl TryFrom<IbcValue> for ClientType {
+    type Error = ();
+
+    fn try_from(_value: IbcValue) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+impl From<PacketCommitment> for IbcValue {
+    fn from(commitment: PacketCommitment) -> Self {
+        Self::CommitmentsPath(commitment)
+    }
+}
+
+impl TryFrom<IbcValue> for PacketCommitment {
+    type Error = ();
+
+    fn try_from(_value: IbcValue) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+pub trait ValueForPath {
+    type StoredValue;
+}
+
+impl ValueForPath for ClientTypePath {
+    type StoredValue = ClientType;
+}
+
+impl ValueForPath for CommitmentsPath {
+    type StoredValue = PacketCommitment;
+}
+
+pub trait IbcStore<K, V>
+where
+    K: Into<IbcPath> + ValueForPath<StoredValue = V>,
+{
+    type Error;
+
+    fn set(&mut self, key: K, value: V) -> Result<Option<V>, Self::Error>;
+
+    fn get(&self, key: K) -> Result<Option<V>, Self::Error>;
+
+    fn delete(&mut self, key: K) -> Result<(), Self::Error>;
+}
+
+#[cfg(test)]
+mod tests {
+    use alloc::collections::BTreeMap;
+
+    use super::*;
+    use crate::core::ics24_host::identifier::ClientId;
+    use crate::core::ics24_host::Path as IbcPath;
+
+    #[test]
+    fn test_store() {
+        #[derive(Default)]
+        struct KvFoo(BTreeMap<IbcPath, IbcValue>);
+
+        impl<K, V> IbcStore<K, V> for KvFoo
+        where
+            K: Into<IbcPath> + ValueForPath<StoredValue = V>,
+            V: Into<IbcValue> + TryFrom<IbcValue, Error = ()>,
+        {
+            type Error = ();
+
+            fn set(&mut self, key: K, value: V) -> Result<Option<V>, Self::Error> {
+                if let Some(result) = self.0.insert(key.into(), value.into()) {
+                    Ok(Some(result.try_into()?))
+                } else {
+                    Ok(None)
+                }
+            }
+
+            fn get(&self, key: K) -> Result<Option<V>, Self::Error> {
+                if let Some(result) = self.0.get(&key.into()) {
+                    Ok(Some(result.clone().try_into()?))
+                } else {
+                    Ok(None)
+                }
+            }
+
+            fn delete(&mut self, _key: K) -> Result<(), Self::Error> {
+                todo!()
+            }
+        }
+
+        let mut store = KvFoo::default();
+        let _client_type = store.get(ClientTypePath(ClientId::default()));
+        let _commitment = store.set(
+            CommitmentsPath {
+                port_id: Default::default(),
+                channel_id: Default::default(),
+                sequence: Default::default(),
+            },
+            PacketCommitment::from(vec![]),
+        );
     }
 }
