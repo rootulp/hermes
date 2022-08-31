@@ -4,7 +4,7 @@ use ibc::clients::ics07_tendermint::header::Header as TendermintClientHeader;
 use ibc::clients::ics07_tendermint::misbehaviour::Misbehaviour as TendermintMisbehavior;
 use ibc::core::ics02_client::client_type::ClientType;
 
-use crate::traits::client::{AnyClientTypes, ClientTypes, HasClient};
+use crate::core::traits::client::{AnyClientTypes, ClientTypes, HasClient};
 
 pub struct TendermintClient;
 

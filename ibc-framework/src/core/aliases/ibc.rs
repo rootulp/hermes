@@ -1,4 +1,4 @@
-use crate::traits::ibc::IbcTypes;
+use crate::core::traits::ibc::IbcTypes;
 
 pub type Height<Context> = <Context as IbcTypes>::Height;
 

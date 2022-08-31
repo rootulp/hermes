@@ -8,8 +8,8 @@ use ibc::core::ics02_client::consensus_state::ConsensusState;
 use ibc::core::ics02_client::header::Header as ClientHeader;
 use ibc::core::ics02_client::misbehaviour::Misbehaviour;
 
-use crate::impls::clients::tendermint::TendermintClient;
-use crate::traits::client::{AnyClientTypes, HasClient};
+use crate::core::impls::clients::tendermint::TendermintClient;
+use crate::core::traits::client::{AnyClientTypes, HasClient};
 
 pub struct DynamicClient;
 

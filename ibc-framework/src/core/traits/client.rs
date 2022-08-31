@@ -1,4 +1,4 @@
-use crate::traits::sync::Async;
+use crate::core::traits::sync::Async;
 
 pub trait ClientTypes: Async {
     type ClientState: Async;

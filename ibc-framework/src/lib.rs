@@ -1,3 +1,1 @@
-pub mod aliases;
-pub mod impls;
-pub mod traits;
+pub mod core;

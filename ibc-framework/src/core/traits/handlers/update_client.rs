@@ -1,11 +1,11 @@
-use crate::aliases::client::{
+use crate::core::aliases::client::{
     AnyClientHeader, AnyClientState, AnyConsensusState, ClientHeader, ClientState, ConsensusState,
 };
-use crate::aliases::ibc::ClientId;
-use crate::traits::client::{ClientTypes, HasAnyClient};
-use crate::traits::error::HasError;
-use crate::traits::ibc::HasIbcTypes;
-use crate::traits::sync::Async;
+use crate::core::aliases::ibc::ClientId;
+use crate::core::traits::client::{ClientTypes, HasAnyClient};
+use crate::core::traits::error::HasError;
+use crate::core::traits::ibc::HasIbcTypes;
+use crate::core::traits::sync::Async;
 
 pub trait AnyUpdateClientHandler<Context>: Async
 where

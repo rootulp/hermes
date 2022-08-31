@@ -1,8 +1,8 @@
-use crate::aliases::client::{AnyClientState, AnyConsensusState, ClientType};
-use crate::aliases::ibc::{ClientId, Height};
-use crate::traits::client::HasAnyClient;
-use crate::traits::error::HasError;
-use crate::traits::ibc::HasIbcTypes;
+use crate::core::aliases::client::{AnyClientState, AnyConsensusState, ClientType};
+use crate::core::aliases::ibc::{ClientId, Height};
+use crate::core::traits::client::HasAnyClient;
+use crate::core::traits::error::HasError;
+use crate::core::traits::ibc::HasIbcTypes;
 
 pub trait ClientReader: HasAnyClient + HasIbcTypes + HasError {
     fn get_client_type(

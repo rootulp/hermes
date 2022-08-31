@@ -1,4 +1,4 @@
-use crate::traits::client::{AnyClientTypes, ClientTypes};
+use crate::core::traits::client::{AnyClientTypes, ClientTypes};
 
 pub type ClientType<Context> = <Context as AnyClientTypes>::ClientType;
 
