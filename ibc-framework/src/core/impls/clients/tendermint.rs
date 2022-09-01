@@ -1,6 +1,7 @@
 use ibc::core::ics02_client::client_type::ClientType;
 
 use crate::core::traits::client::{ContainsClient, HasAnyClientTypes, HasClientTypes};
+use crate::core::traits::prism::Prism;
 
 pub use ibc::clients::ics07_tendermint::client_state::ClientState as TendermintClientState;
 pub use ibc::clients::ics07_tendermint::consensus_state::ConsensusState as TendermintConsensusState;
@@ -31,48 +32,16 @@ impl HasAnyClientTypes for TendermintClient {
     type AnyMisbehavior = TendermintMisbehavior;
 }
 
+impl<T> Prism<T, T> for TendermintClient {
+    fn into(subdata: T) -> T {
+        subdata
+    }
+
+    fn try_from_ref(data: &T) -> Option<&T> {
+        Some(data)
+    }
+}
+
 impl ContainsClient<TendermintClient> for TendermintClient {
     const CLIENT_TYPE: ClientType = ClientType::Tendermint;
-
-    fn to_any_client_state(client_state: TendermintClientState) -> TendermintClientState {
-        client_state
-    }
-
-    fn try_from_any_client_state(
-        client_state: &TendermintClientState,
-    ) -> Option<&TendermintClientState> {
-        Some(client_state)
-    }
-
-    fn to_any_consensus_state(
-        consensus_state: TendermintConsensusState,
-    ) -> TendermintConsensusState {
-        consensus_state
-    }
-
-    fn try_from_any_consensus_state(
-        consensus_state: &TendermintConsensusState,
-    ) -> Option<&TendermintConsensusState> {
-        Some(consensus_state)
-    }
-
-    fn to_any_client_header(client_header: TendermintClientHeader) -> TendermintClientHeader {
-        client_header
-    }
-
-    fn try_from_any_client_header(
-        client_header: &TendermintClientHeader,
-    ) -> Option<&TendermintClientHeader> {
-        Some(client_header)
-    }
-
-    fn to_any_misbehavior(misbehavior: TendermintMisbehavior) -> TendermintMisbehavior {
-        misbehavior
-    }
-
-    fn try_from_any_misbehavior(
-        misbehavior: &TendermintMisbehavior,
-    ) -> Option<&TendermintMisbehavior> {
-        Some(misbehavior)
-    }
 }

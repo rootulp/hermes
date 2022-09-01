@@ -10,6 +10,7 @@ use ibc::core::ics02_client::misbehaviour::Misbehaviour;
 
 use crate::core::impls::clients::tendermint::TendermintClient;
 use crate::core::traits::client::{ContainsClient, HasAnyClientTypes};
+use crate::core::traits::prism::Prism;
 
 pub struct DynamicClient;
 
@@ -41,44 +42,48 @@ impl HasAnyClientTypes for DynamicClient {
     type AnyMisbehavior = DynMisbehavior;
 }
 
-impl ContainsClient<TendermintClient> for DynamicClient {
-    const CLIENT_TYPE: ClientType = ClientType::Tendermint;
-
-    fn to_any_client_state(client_state: TendermintClientState) -> DynClientState {
+impl Prism<DynClientState, TendermintClientState> for DynamicClient {
+    fn into(client_state: TendermintClientState) -> DynClientState {
         DynClientState::new(client_state)
     }
 
-    fn try_from_any_client_state(client_state: &DynClientState) -> Option<&TendermintClientState> {
+    fn try_from_ref(client_state: &DynClientState) -> Option<&TendermintClientState> {
         client_state.client_state.as_any().downcast_ref()
     }
+}
 
-    fn to_any_consensus_state(consensus_state: TendermintConsensusState) -> DynConsensusState {
+impl Prism<DynConsensusState, TendermintConsensusState> for DynamicClient {
+    fn into(consensus_state: TendermintConsensusState) -> DynConsensusState {
         DynConsensusState::new(consensus_state)
     }
 
-    fn try_from_any_consensus_state(
-        consensus_state: &DynConsensusState,
-    ) -> Option<&TendermintConsensusState> {
+    fn try_from_ref(consensus_state: &DynConsensusState) -> Option<&TendermintConsensusState> {
         consensus_state.consensus_state.as_any().downcast_ref()
     }
+}
 
-    fn to_any_client_header(header: TendermintClientHeader) -> DynClientHeader {
-        DynClientHeader::new(header)
+impl Prism<DynClientHeader, TendermintClientHeader> for DynamicClient {
+    fn into(client_header: TendermintClientHeader) -> DynClientHeader {
+        DynClientHeader::new(client_header)
     }
 
-    fn try_from_any_client_header(
-        client_header: &DynClientHeader,
-    ) -> Option<&TendermintClientHeader> {
+    fn try_from_ref(client_header: &DynClientHeader) -> Option<&TendermintClientHeader> {
         client_header.client_header.as_any().downcast_ref()
     }
+}
 
-    fn to_any_misbehavior(misbehavior: TendermintMisbehavior) -> DynMisbehavior {
+impl Prism<DynMisbehavior, TendermintMisbehavior> for DynamicClient {
+    fn into(misbehavior: TendermintMisbehavior) -> DynMisbehavior {
         DynMisbehavior::new(misbehavior)
     }
 
-    fn try_from_any_misbehavior(misbehavior: &DynMisbehavior) -> Option<&TendermintMisbehavior> {
+    fn try_from_ref(misbehavior: &DynMisbehavior) -> Option<&TendermintMisbehavior> {
         misbehavior.misbehavior.as_any().downcast_ref()
     }
+}
+
+impl ContainsClient<TendermintClient> for DynamicClient {
+    const CLIENT_TYPE: ClientType = ClientType::Tendermint;
 }
 
 impl DynClientState {

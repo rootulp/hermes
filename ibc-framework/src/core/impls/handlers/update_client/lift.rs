@@ -46,8 +46,8 @@ where
         )?;
 
         Ok((
-            Context::to_any_client_state(new_client_state),
-            Context::to_any_consensus_state(new_consensus_state),
+            Context::into_any_client_state(new_client_state),
+            Context::into_any_consensus_state(new_consensus_state),
         ))
     }
 }
