@@ -107,7 +107,7 @@ pub trait UpdateClientExecutionContext {
 pub trait TypedStore<K, V> {
     type Error;
 
-    fn set(&mut self, key: K, value: V) -> Result<V, Self::Error>;
+    fn set(&mut self, key: K, value: V) -> Result<(), Self::Error>;
 
     // with height for data availability
     fn get(&self, key: K) -> Result<Option<V>, Self::Error>;
