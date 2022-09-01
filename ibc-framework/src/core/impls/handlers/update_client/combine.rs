@@ -6,7 +6,7 @@ use crate::core::impls::handlers::update_client::lift::{
     LiftClientUpdateHandler, MismatchClientHeaderFormat,
 };
 use crate::core::traits::client::{ClientTypes, HasAnyClient, HasClient};
-use crate::core::traits::client_reader::ClientReader;
+use crate::core::traits::client_reader::AnyClientReader;
 use crate::core::traits::handlers::update_client::{AnyUpdateClientHandler, UpdateClientHandler};
 
 pub struct CombineClientUpdateHandler<Handler, NextHandlers>(
@@ -16,7 +16,7 @@ pub struct CombineClientUpdateHandler<Handler, NextHandlers>(
 impl<Context, Handler, NextHandlers, Client, AnyClient> AnyUpdateClientHandler<Context>
     for CombineClientUpdateHandler<Handler, NextHandlers>
 where
-    Context: ClientReader,
+    Context: AnyClientReader,
     Context: HasAnyClient<AnyClient = AnyClient>,
     AnyClient: HasClient<Client>,
     Client: ClientTypes,
@@ -27,6 +27,7 @@ where
     fn check_header_and_update_state(
         context: &Context,
         client_id: &ClientId<Context::IbcTypes>,
+        client_state: &AnyClientState<Context::AnyClient>,
         new_client_header: &AnyClientHeader<Context::AnyClient>,
     ) -> Result<
         (
@@ -41,10 +42,16 @@ where
             <LiftClientUpdateHandler<Handler>>::check_header_and_update_state(
                 context,
                 client_id,
+                client_state,
                 new_client_header,
             )
         } else {
-            NextHandlers::check_header_and_update_state(context, client_id, new_client_header)
+            NextHandlers::check_header_and_update_state(
+                context,
+                client_id,
+                client_state,
+                new_client_header,
+            )
         }
     }
 }

@@ -18,6 +18,7 @@ where
     fn check_header_and_update_state(
         context: &Context,
         client_id: &ClientId<Context::IbcTypes>,
+        client_state: &AnyClientState<Context::AnyClient>,
         new_client_header: &AnyClientHeader<Context::AnyClient>,
     ) -> Result<
         (
@@ -37,6 +38,7 @@ where
     fn check_header_and_update_state(
         chain: &Context,
         client_id: &ClientId<Context::IbcTypes>,
+        client_state: &ClientState<Self::Client>,
         new_client_header: &ClientHeader<Self::Client>,
     ) -> Result<(ClientState<Self::Client>, ConsensusState<Self::Client>), Context::Error>;
 }

@@ -26,6 +26,7 @@ where
     fn check_header_and_update_state(
         context: &Context,
         client_id: &ClientId<Context::IbcTypes>,
+        client_state: &AnyClientState<Context::AnyClient>,
         new_client_header: &AnyClientHeader<Context::AnyClient>,
     ) -> Result<
         (
@@ -34,22 +35,29 @@ where
         ),
         Context::Error,
     > {
-        let m_client_header = AnyClient::try_from_any_client_header(new_client_header);
-
-        match m_client_header {
-            Some(in_client_header) => {
-                let (new_client_state, new_consensus_state) =
-                    Handler::check_header_and_update_state(context, client_id, in_client_header)?;
-
-                Ok((
-                    AnyClient::to_any_client_state(new_client_state),
-                    AnyClient::to_any_consensus_state(new_consensus_state),
-                ))
-            }
-            None => Err(MismatchClientHeaderFormat {
+        let client_state = AnyClient::try_from_any_client_state(client_state).ok_or_else(|| {
+            MismatchClientHeaderFormat {
                 expected_client_type: AnyClient::CLIENT_TYPE,
             }
-            .into()),
-        }
+        })?;
+
+        let client_header =
+            AnyClient::try_from_any_client_header(new_client_header).ok_or_else(|| {
+                MismatchClientHeaderFormat {
+                    expected_client_type: AnyClient::CLIENT_TYPE,
+                }
+            })?;
+
+        let (new_client_state, new_consensus_state) = Handler::check_header_and_update_state(
+            context,
+            client_id,
+            client_state,
+            client_header,
+        )?;
+
+        Ok((
+            AnyClient::to_any_client_state(new_client_state),
+            AnyClient::to_any_consensus_state(new_consensus_state),
+        ))
     }
 }

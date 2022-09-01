@@ -4,7 +4,7 @@ use crate::core::traits::client::HasAnyClient;
 use crate::core::traits::error::HasError;
 use crate::core::traits::ibc::HasIbcTypes;
 
-pub trait ClientReader: HasAnyClient + HasIbcTypes + HasError {
+pub trait AnyClientReader: HasAnyClient + HasIbcTypes + HasError {
     fn get_client_type(
         &self,
         client_id: &ClientId<Self::IbcTypes>,
