@@ -7,10 +7,10 @@ use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics02_client::consensus_state::ConsensusState;
 use ibc::core::ics02_client::header::Header as ClientHeader;
 use ibc::core::ics02_client::misbehaviour::Misbehaviour;
+use ibc_framework::core::traits::client::{ContainsClient, HasAnyClientTypes};
+use ibc_framework::core::traits::prism::Prism;
 
-use crate::core::impls::clients::tendermint::TendermintClient;
-use crate::core::traits::client::{ContainsClient, HasAnyClientTypes};
-use crate::core::traits::prism::Prism;
+use crate::clients::tendermint::client::TendermintClient;
 
 pub struct DynamicClient;
 

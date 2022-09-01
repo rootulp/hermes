@@ -1,8 +1,9 @@
-use crate::all_for_one::traits::base::AfoContext;
-use crate::core::impls::clients::dynamic::{
+use ibc_framework::all_for_one::traits::base::AfoContext;
+
+use crate::clients::dynamic::client::{
     DynClientHeader, DynClientState, DynConsensusState, DynMisbehavior,
 };
-use crate::core::impls::clients::tendermint::TendermintClient;
+use crate::clients::tendermint::client::TendermintClient;
 
 pub trait AfoDynamicTendermintContext:
     AfoContext<

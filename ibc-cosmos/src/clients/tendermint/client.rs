@@ -1,7 +1,6 @@
 use ibc::core::ics02_client::client_type::ClientType;
-
-use crate::core::traits::client::{ContainsClient, HasAnyClientTypes, HasClientTypes};
-use crate::core::traits::prism::Prism;
+use ibc_framework::core::traits::client::{ContainsClient, HasAnyClientTypes, HasClientTypes};
+use ibc_framework::core::traits::prism::Prism;
 
 pub use ibc::clients::ics07_tendermint::client_state::ClientState as TendermintClientState;
 pub use ibc::clients::ics07_tendermint::consensus_state::ConsensusState as TendermintConsensusState;

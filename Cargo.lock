@@ -1511,6 +1511,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ibc-cosmos"
+version = "0.19.0"
+dependencies = [
+ "async-trait",
+ "ibc",
+ "ibc-framework",
+ "ibc-proto",
+]
+
+[[package]]
+name = "ibc-framework"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+]
+
+[[package]]
 name = "ibc-integration-test"
 version = "0.19.0"
 dependencies = [
@@ -1643,15 +1660,6 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "ibc-relayer-framework"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "ibc",
- "ibc-proto",
 ]
 
 [[package]]
