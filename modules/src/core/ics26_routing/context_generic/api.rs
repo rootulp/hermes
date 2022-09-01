@@ -80,6 +80,8 @@ pub trait Host {
 
     fn store(&self) -> &Self::KvStore;
 
+    fn store_mut(&mut self) -> &mut Self::KvStore;
+
     // events - commitment?
 }
 
@@ -123,5 +125,102 @@ impl<H: Host> UpdateClientValidationContext for IbcHost<H> {
 
     fn host_height(&self) -> Height<Self::IbcTypes> {
         self.host.current_height()
+    }
+}
+
+impl<H: Host> UpdateClientExecutionContext for IbcHost<H> {
+    type AnyClientContext = DynClientContext;
+    type IbcTypes = DefaultIbcTypes;
+    type Error = H::Error;
+
+    fn client_state(
+        &self,
+        client_id: ClientId<Self::IbcTypes>,
+    ) -> Result<AnyClientState<Self::AnyClientContext>, Self::Error> {
+        self.host
+            .store()
+            .get(ClientStatePath(client_id))?
+            .ok_or_else(Self::Error::path_not_found)
+    }
+
+    fn consensus_state(
+        &self,
+        client_id: ClientId<Self::IbcTypes>,
+        height: Height<Self::IbcTypes>,
+    ) -> Result<AnyConsensusState<Self::AnyClientContext>, Self::Error> {
+        self.host
+            .store()
+            .get(ClientConsensusStatePath {
+                client_id,
+                epoch: height.revision_number(),
+                height: height.revision_height(),
+            })?
+            .ok_or_else(Self::Error::path_not_found)
+    }
+
+    fn host_timestamp(&self) -> Timestamp<Self::IbcTypes> {
+        self.host.current_timestamp()
+    }
+
+    fn host_height(&self) -> Height<Self::IbcTypes> {
+        self.host.current_height()
+    }
+
+    fn store_client_type(
+        &mut self,
+        client_id: ClientId<Self::IbcTypes>,
+        client_type: ClientType<Self::IbcTypes>,
+    ) -> Result<(), Self::Error> {
+        self.host
+            .store_mut()
+            .set(ClientTypePath(client_id), client_type)
+    }
+
+    fn store_client_state(
+        &mut self,
+        client_id: ClientId<Self::IbcTypes>,
+        client_state: AnyClientState<Self::AnyClientContext>,
+    ) -> Result<(), Self::Error> {
+        self.host
+            .store_mut()
+            .set(ClientStatePath(client_id), client_state)
+    }
+
+    fn store_consensus_state(
+        &mut self,
+        client_id: ClientId<Self::IbcTypes>,
+        height: Height<Self::IbcTypes>,
+        consensus_state: AnyConsensusState<Self::AnyClientContext>,
+    ) -> Result<(), Self::Error> {
+        self.host.store_mut().set(
+            ClientConsensusStatePath {
+                client_id,
+                epoch: height.revision_number(),
+                height: height.revision_height(),
+            },
+            consensus_state,
+        )
+    }
+
+    fn increase_client_counter(&mut self) {
+        todo!()
+    }
+
+    fn store_update_time(
+        &mut self,
+        _client_id: ClientId<Self::IbcTypes>,
+        _height: Height<Self::IbcTypes>,
+        _timestamp: Timestamp<Self::IbcTypes>,
+    ) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    fn store_update_height(
+        &mut self,
+        _client_id: ClientId<Self::IbcTypes>,
+        _height: Height<Self::IbcTypes>,
+        _host_height: Height<Self::IbcTypes>,
+    ) -> Result<(), Self::Error> {
+        todo!()
     }
 }
