@@ -9,7 +9,11 @@ pub trait AnyClientContext {
     type AnyClientState;
     type AnyConsensusState;
     type AnyClientHeader;
-    type AnyMisbehavior;
+    type AnyMisbehaviour;
+}
+
+pub trait HasAnyClientContext {
+    type AnyClientContext: AnyClientContext;
 }
 
 pub trait IbcTypes {
@@ -17,6 +21,10 @@ pub trait IbcTypes {
     type ClientId;
     type Height;
     type Timestamp;
+}
+
+pub trait HasIbcTypes {
+    type IbcTypes: IbcTypes;
 }
 
 pub trait UpdateClientValidationContext {
@@ -94,4 +102,19 @@ pub trait UpdateClientExecutionContext {
         height: Height<Self::IbcTypes>,
         host_height: Height<Self::IbcTypes>,
     ) -> Result<(), Self::Error>;
+}
+
+pub trait TypedStore<K, V> {
+    type Error;
+
+    fn set(&mut self, key: K, value: V) -> Result<V, Self::Error>;
+
+    // with height for data availability
+    fn get(&self, key: K) -> Result<Option<V>, Self::Error>;
+
+    fn delete(&mut self, key: K) -> Result<(), Self::Error>;
+}
+
+pub trait HasStore {
+    type KvStore;
 }
