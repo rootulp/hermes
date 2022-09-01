@@ -34,12 +34,12 @@ pub trait UpdateClientValidationContext {
 
     fn client_state(
         &self,
-        client_id: &ClientId<Self::IbcTypes>,
+        client_id: ClientId<Self::IbcTypes>,
     ) -> Result<AnyClientState<Self::AnyClientContext>, Self::Error>;
 
     fn consensus_state(
         &self,
-        client_id: &ClientId<Self::IbcTypes>,
+        client_id: ClientId<Self::IbcTypes>,
         height: Height<Self::IbcTypes>,
     ) -> Result<AnyConsensusState<Self::AnyClientContext>, Self::Error>;
 
@@ -55,12 +55,12 @@ pub trait UpdateClientExecutionContext {
 
     fn client_state(
         &self,
-        client_id: &ClientId<Self::IbcTypes>,
+        client_id: ClientId<Self::IbcTypes>,
     ) -> Result<AnyClientState<Self::AnyClientContext>, Self::Error>;
 
     fn consensus_state(
         &self,
-        client_id: &ClientId<Self::IbcTypes>,
+        client_id: ClientId<Self::IbcTypes>,
         height: Height<Self::IbcTypes>,
     ) -> Result<AnyConsensusState<Self::AnyClientContext>, Self::Error>;
 
