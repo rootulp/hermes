@@ -15,6 +15,18 @@ pub trait AnyClientReader: HasAnyClientTypes + HasIbcTypes + HasError {
         client_id: &Self::ClientId,
         height: &Self::Height,
     ) -> Result<Option<Self::AnyConsensusState>, Self::Error>;
+
+    fn get_any_consensus_state_after_height(
+        &self,
+        client_id: &Self::ClientId,
+        height: &Self::Height,
+    ) -> Result<Option<Self::AnyConsensusState>, Self::Error>;
+
+    fn get_any_consensus_state_before_height(
+        &self,
+        client_id: &Self::ClientId,
+        height: &Self::Height,
+    ) -> Result<Option<Self::AnyConsensusState>, Self::Error>;
 }
 
 pub struct MismatchClientFormat<ClientType> {
@@ -31,6 +43,18 @@ where
     ) -> Result<Client::ClientState, Self::Error>;
 
     fn get_consensus_state_at_height(
+        &self,
+        client_id: &Self::ClientId,
+        height: &Self::Height,
+    ) -> Result<Option<Client::ConsensusState>, Self::Error>;
+
+    fn get_consensus_state_after_height(
+        &self,
+        client_id: &Self::ClientId,
+        height: &Self::Height,
+    ) -> Result<Option<Client::ConsensusState>, Self::Error>;
+
+    fn get_consensus_state_before_height(
         &self,
         client_id: &Self::ClientId,
         height: &Self::Height,
@@ -64,6 +88,46 @@ where
         height: &Self::Height,
     ) -> Result<Option<Client::ConsensusState>, Self::Error> {
         let m_consensus_state = self.get_any_consensus_state_at_height(client_id, height)?;
+
+        match m_consensus_state {
+            Some(any_consensus_state) => {
+                let consensus_state = Self::try_from_any_consensus_state(any_consensus_state)
+                    .ok_or_else(|| MismatchClientFormat {
+                        expected_client_type: Self::CLIENT_TYPE,
+                    })?;
+
+                Ok(Some(consensus_state))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn get_consensus_state_after_height(
+        &self,
+        client_id: &Self::ClientId,
+        height: &Self::Height,
+    ) -> Result<Option<Client::ConsensusState>, Self::Error> {
+        let m_consensus_state = self.get_any_consensus_state_after_height(client_id, height)?;
+
+        match m_consensus_state {
+            Some(any_consensus_state) => {
+                let consensus_state = Self::try_from_any_consensus_state(any_consensus_state)
+                    .ok_or_else(|| MismatchClientFormat {
+                        expected_client_type: Self::CLIENT_TYPE,
+                    })?;
+
+                Ok(Some(consensus_state))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn get_consensus_state_before_height(
+        &self,
+        client_id: &Self::ClientId,
+        height: &Self::Height,
+    ) -> Result<Option<Client::ConsensusState>, Self::Error> {
+        let m_consensus_state = self.get_any_consensus_state_before_height(client_id, height)?;
 
         match m_consensus_state {
             Some(any_consensus_state) => {
