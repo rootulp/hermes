@@ -7,7 +7,7 @@ use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics02_client::consensus_state::ConsensusState;
 use ibc::core::ics02_client::header::Header as ClientHeader;
 use ibc::core::ics02_client::misbehaviour::Misbehaviour;
-use ibc_framework::core::traits::client::{ContainsClient, HasAnyClientTypes};
+use ibc_framework::core::traits::client::{HasAnyClientTypes, HasClientTypeFor};
 use ibc_framework::core::traits::prism::Prism;
 
 use crate::clients::tendermint::client::TendermintClient;
@@ -98,7 +98,7 @@ impl Prism<DynMisbehavior, TendermintMisbehavior> for DynamicClient {
     }
 }
 
-impl ContainsClient<TendermintClient> for DynamicClient {
+impl HasClientTypeFor<TendermintClient> for DynamicClient {
     const CLIENT_TYPE: ClientType = ClientType::Tendermint;
 }
 

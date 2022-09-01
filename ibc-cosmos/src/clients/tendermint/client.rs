@@ -1,5 +1,5 @@
 use ibc::core::ics02_client::client_type::ClientType;
-use ibc_framework::core::traits::client::{ContainsClient, HasAnyClientTypes, HasClientTypes};
+use ibc_framework::core::traits::client::{HasAnyClientTypes, HasClientTypeFor, HasClientTypes};
 use ibc_framework::core::traits::prism::Prism;
 
 pub use ibc::clients::ics07_tendermint::client_state::ClientState as TendermintClientState;
@@ -45,6 +45,6 @@ impl<T> Prism<T, T> for TendermintClient {
     }
 }
 
-impl ContainsClient<TendermintClient> for TendermintClient {
+impl HasClientTypeFor<TendermintClient> for TendermintClient {
     const CLIENT_TYPE: ClientType = ClientType::Tendermint;
 }

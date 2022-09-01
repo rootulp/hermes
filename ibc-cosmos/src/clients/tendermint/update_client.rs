@@ -2,7 +2,7 @@ use ibc::timestamp::Timestamp;
 use ibc::Height;
 use ibc_framework::core::traits::client::ContainsClient;
 use ibc_framework::core::traits::client_reader::ClientReader;
-use ibc_framework::core::traits::error::HasError;
+use ibc_framework::core::traits::error::{HasError, InjectError};
 use ibc_framework::core::traits::handlers::update_client::UpdateClientHandler;
 use ibc_framework::core::traits::host::ChainHost;
 use ibc_framework::core::traits::ibc::HasIbcTypes;
@@ -51,7 +51,7 @@ where
     Context: ClientReader<TendermintClient>,
     Context: ContainsClient<TendermintClient>,
     Context: ChainHost,
-    Context::Error: From<Error>,
+    Context: InjectError<Error>,
 {
     type Client = TendermintClient;
 
@@ -67,11 +67,10 @@ where
         let update_revision = new_client_header.height().revision_number();
 
         if current_revision != update_revision {
-            return Err(Error::MismatchRevision {
+            return Err(Context::inject_error(Error::MismatchRevision {
                 current_revision,
                 update_revision,
-            }
-            .into());
+            }));
         }
 
         let new_consensus_state = TendermintConsensusState::from(new_client_header.clone());
@@ -87,17 +86,19 @@ where
 
         let trusted_consensus_state = context
             .get_consensus_state_at_height(client_id, &trusted_height)?
-            .ok_or_else(|| Error::ConsensusStateNotFound {
-                height: trusted_height,
+            .ok_or_else(|| {
+                Context::inject_error(Error::ConsensusStateNotFound {
+                    height: trusted_height,
+                })
             })?;
 
         let trusted_revision_height = trusted_height.revision_height();
 
         let trusted_block_height =
             BlockHeight::try_from(trusted_revision_height).map_err(|_| {
-                Error::RevisionHeightOverflow {
+                Context::inject_error(Error::RevisionHeightOverflow {
                     height: trusted_revision_height,
-                }
+                })
             })?;
 
         let trusted_state = TrustedBlockState {
@@ -127,12 +128,13 @@ where
         match verdict {
             Verdict::Success => {}
             Verdict::NotEnoughTrust(voting_power_tally) => {
-                return Err(Error::NotEnoughTrust {
+                return Err(Context::inject_error(Error::NotEnoughTrust {
                     tally: voting_power_tally,
-                }
-                .into());
+                }));
             }
-            Verdict::Invalid(detail) => return Err(Error::VerificationError { detail }.into()),
+            Verdict::Invalid(detail) => {
+                return Err(Context::inject_error(Error::VerificationError { detail }))
+            }
         }
 
         // If the header has verified, but its corresponding consensus state
@@ -159,11 +161,10 @@ where
                 // New (untrusted) header timestamp cannot occur after next
                 // consensus state's height
                 if new_client_header.signed_header.header().time > next_cs.timestamp {
-                    return Err(Error::HeaderTimestampTooHigh {
+                    return Err(Context::inject_error(Error::HeaderTimestampTooHigh {
                         actual: new_client_header.signed_header.header().time.into(),
                         max: next_cs.timestamp.into(),
-                    }
-                    .into());
+                    }));
                 }
             }
         }
@@ -177,11 +178,10 @@ where
                 // New (untrusted) header timestamp cannot occur before the
                 // previous consensus state's height
                 if new_client_header.signed_header.header().time < prev_cs.timestamp {
-                    return Err(Error::HeaderTimestampTooLow {
+                    return Err(Context::inject_error(Error::HeaderTimestampTooLow {
                         actual: new_client_header.signed_header.header().time.into(),
                         max: prev_cs.timestamp.into(),
-                    }
-                    .into());
+                    }));
                 }
             }
         }
@@ -190,7 +190,7 @@ where
             client_state.latest_height.revision_number(),
             new_client_header.signed_header.header.height.into(),
         )
-        .map_err(|_| Error::InvalidHeight)?;
+        .map_err(|_| Context::inject_error(Error::InvalidHeight))?;
 
         let mut new_client_state = client_state.clone();
 

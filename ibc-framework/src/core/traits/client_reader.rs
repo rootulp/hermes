@@ -1,4 +1,6 @@
-use crate::core::traits::client::{ContainsClient, HasAnyClientTypes, HasClientTypes};
+use crate::core::traits::client::{
+    ContainsClient, HasAnyClientTypes, HasClientTypeFor, HasClientTypes,
+};
 use crate::core::traits::error::HasError;
 use crate::core::traits::ibc::HasIbcTypes;
 
@@ -64,8 +66,7 @@ where
 impl<Context, Client> ClientReader<Client> for Context
 where
     Client: HasClientTypes,
-    Context: AnyClientReader + ContainsClient<Client>,
-    Context::Error: From<MismatchClientFormat<Context::ClientType>>,
+    Context: AnyClientReader + ContainsClient<Client> + HasClientTypeFor<Client>,
 {
     fn get_client_state(
         &self,
@@ -73,11 +74,7 @@ where
     ) -> Result<Client::ClientState, Self::Error> {
         let any_client_state = self.get_any_client_state(client_id)?;
 
-        let client_state = Self::try_from_any_client_state(any_client_state).ok_or_else(|| {
-            MismatchClientFormat {
-                expected_client_type: Self::CLIENT_TYPE,
-            }
-        })?;
+        let client_state = Self::try_from_any_client_state(any_client_state)?;
 
         Ok(client_state)
     }
@@ -91,10 +88,7 @@ where
 
         match m_consensus_state {
             Some(any_consensus_state) => {
-                let consensus_state = Self::try_from_any_consensus_state(any_consensus_state)
-                    .ok_or_else(|| MismatchClientFormat {
-                        expected_client_type: Self::CLIENT_TYPE,
-                    })?;
+                let consensus_state = Self::try_from_any_consensus_state(any_consensus_state)?;
 
                 Ok(Some(consensus_state))
             }
@@ -111,10 +105,7 @@ where
 
         match m_consensus_state {
             Some(any_consensus_state) => {
-                let consensus_state = Self::try_from_any_consensus_state(any_consensus_state)
-                    .ok_or_else(|| MismatchClientFormat {
-                        expected_client_type: Self::CLIENT_TYPE,
-                    })?;
+                let consensus_state = Self::try_from_any_consensus_state(any_consensus_state)?;
 
                 Ok(Some(consensus_state))
             }
@@ -131,10 +122,7 @@ where
 
         match m_consensus_state {
             Some(any_consensus_state) => {
-                let consensus_state = Self::try_from_any_consensus_state(any_consensus_state)
-                    .ok_or_else(|| MismatchClientFormat {
-                        expected_client_type: Self::CLIENT_TYPE,
-                    })?;
+                let consensus_state = Self::try_from_any_consensus_state(any_consensus_state)?;
 
                 Ok(Some(consensus_state))
             }

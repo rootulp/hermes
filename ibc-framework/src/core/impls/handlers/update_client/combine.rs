@@ -1,8 +1,6 @@
 use core::marker::PhantomData;
 
-use crate::core::impls::handlers::update_client::lift::{
-    LiftClientUpdateHandler, MismatchClientHeaderFormat,
-};
+use crate::core::impls::handlers::update_client::lift::LiftClientUpdateHandler;
 use crate::core::traits::client::{ContainsClient, HasClientTypes};
 use crate::core::traits::client_reader::AnyClientReader;
 use crate::core::traits::handlers::update_client::{AnyUpdateClientHandler, UpdateClientHandler};
@@ -19,7 +17,6 @@ where
     Client: HasClientTypes,
     Handler: UpdateClientHandler<Context, Client = Client>,
     NextHandlers: AnyUpdateClientHandler<Context>,
-    Context::Error: From<MismatchClientHeaderFormat<Context::ClientType>>,
 {
     fn check_header_and_update_state(
         context: &Context,

@@ -1,3 +1,4 @@
+use crate::core::traits::error::{HasError, InjectError};
 use crate::core::traits::prism::Prism;
 use crate::core::traits::sync::Async;
 
@@ -32,11 +33,20 @@ pub trait HasClientHandler: HasClientTypes + ContainsClient<Self::ClientHandler>
     >;
 }
 
+pub trait HasClientTypeFor<Client>: HasAnyClientTypes {
+    const CLIENT_TYPE: Self::ClientType;
+}
+
+pub struct MismatchClientHeaderFormat<ClientType> {
+    pub expected_client_type: ClientType,
+}
+
 pub trait HasClientPrisms<AnyClient, Client>:
     Prism<AnyClient::AnyClientState, Client::ClientState>
     + Prism<AnyClient::AnyConsensusState, Client::ConsensusState>
     + Prism<AnyClient::AnyClientHeader, Client::ClientHeader>
     + Prism<AnyClient::AnyMisbehavior, Client::Misbehavior>
+    + HasError
 where
     AnyClient: HasAnyClientTypes,
     Client: HasClientTypes,
@@ -45,11 +55,11 @@ where
 
     fn try_from_any_client_state(
         client_state: AnyClient::AnyClientState,
-    ) -> Option<Client::ClientState>;
+    ) -> Result<Client::ClientState, Self::Error>;
 
     fn try_from_any_client_state_ref(
         client_state: &AnyClient::AnyClientState,
-    ) -> Option<&Client::ClientState>;
+    ) -> Result<&Client::ClientState, Self::Error>;
 
     fn into_any_consensus_state(
         consensus_state: Client::ConsensusState,
@@ -57,37 +67,38 @@ where
 
     fn try_from_any_consensus_state(
         consensus_state: AnyClient::AnyConsensusState,
-    ) -> Option<Client::ConsensusState>;
+    ) -> Result<Client::ConsensusState, Self::Error>;
 
     fn try_from_any_consensus_state_ref(
         consensus_state: &AnyClient::AnyConsensusState,
-    ) -> Option<&Client::ConsensusState>;
+    ) -> Result<&Client::ConsensusState, Self::Error>;
 
     fn into_any_client_header(client_header: Client::ClientHeader) -> AnyClient::AnyClientHeader;
 
     fn try_from_any_client_header(
         client_header: AnyClient::AnyClientHeader,
-    ) -> Option<Client::ClientHeader>;
+    ) -> Result<Client::ClientHeader, Self::Error>;
 
     fn try_from_any_client_header_ref(
         client_header: &AnyClient::AnyClientHeader,
-    ) -> Option<&Client::ClientHeader>;
+    ) -> Result<&Client::ClientHeader, Self::Error>;
 
     fn into_any_misbehavior(misbehavior: Client::Misbehavior) -> AnyClient::AnyMisbehavior;
 
     fn try_from_any_misbehavior(
         misbehavior: AnyClient::AnyMisbehavior,
-    ) -> Option<Client::Misbehavior>;
+    ) -> Result<Client::Misbehavior, Self::Error>;
 
     fn try_from_any_misbehavior_ref(
         misbehavior: &AnyClient::AnyMisbehavior,
-    ) -> Option<&Client::Misbehavior>;
+    ) -> Result<&Client::Misbehavior, Self::Error>;
 }
 
 impl<Context, AnyClient, Client> HasClientPrisms<AnyClient, Client> for Context
 where
-    AnyClient: HasAnyClientTypes,
+    AnyClient: HasClientTypeFor<Client>,
     Client: HasClientTypes,
+    Context: InjectError<MismatchClientHeaderFormat<AnyClient::ClientType>>,
     Context: Prism<AnyClient::AnyClientState, Client::ClientState>
         + Prism<AnyClient::AnyConsensusState, Client::ConsensusState>
         + Prism<AnyClient::AnyClientHeader, Client::ClientHeader>
@@ -99,14 +110,22 @@ where
 
     fn try_from_any_client_state(
         client_state: AnyClient::AnyClientState,
-    ) -> Option<Client::ClientState> {
-        Context::try_from(client_state)
+    ) -> Result<Client::ClientState, Context::Error> {
+        Context::try_from(client_state).ok_or_else(|| {
+            Context::inject_error(MismatchClientHeaderFormat {
+                expected_client_type: AnyClient::CLIENT_TYPE,
+            })
+        })
     }
 
     fn try_from_any_client_state_ref(
         client_state: &AnyClient::AnyClientState,
-    ) -> Option<&Client::ClientState> {
-        Context::try_from_ref(client_state)
+    ) -> Result<&Client::ClientState, Context::Error> {
+        Context::try_from_ref(client_state).ok_or_else(|| {
+            Context::inject_error(MismatchClientHeaderFormat {
+                expected_client_type: AnyClient::CLIENT_TYPE,
+            })
+        })
     }
 
     fn into_any_consensus_state(
@@ -117,14 +136,22 @@ where
 
     fn try_from_any_consensus_state(
         consensus_state: AnyClient::AnyConsensusState,
-    ) -> Option<Client::ConsensusState> {
-        Context::try_from(consensus_state)
+    ) -> Result<Client::ConsensusState, Context::Error> {
+        Context::try_from(consensus_state).ok_or_else(|| {
+            Context::inject_error(MismatchClientHeaderFormat {
+                expected_client_type: AnyClient::CLIENT_TYPE,
+            })
+        })
     }
 
     fn try_from_any_consensus_state_ref(
         consensus_state: &AnyClient::AnyConsensusState,
-    ) -> Option<&Client::ConsensusState> {
-        Context::try_from_ref(consensus_state)
+    ) -> Result<&Client::ConsensusState, Context::Error> {
+        Context::try_from_ref(consensus_state).ok_or_else(|| {
+            Context::inject_error(MismatchClientHeaderFormat {
+                expected_client_type: AnyClient::CLIENT_TYPE,
+            })
+        })
     }
 
     fn into_any_client_header(client_header: Client::ClientHeader) -> AnyClient::AnyClientHeader {
@@ -133,14 +160,22 @@ where
 
     fn try_from_any_client_header(
         client_header: AnyClient::AnyClientHeader,
-    ) -> Option<Client::ClientHeader> {
-        Context::try_from(client_header)
+    ) -> Result<Client::ClientHeader, Context::Error> {
+        Context::try_from(client_header).ok_or_else(|| {
+            Context::inject_error(MismatchClientHeaderFormat {
+                expected_client_type: AnyClient::CLIENT_TYPE,
+            })
+        })
     }
 
     fn try_from_any_client_header_ref(
         client_header: &AnyClient::AnyClientHeader,
-    ) -> Option<&Client::ClientHeader> {
-        Context::try_from_ref(client_header)
+    ) -> Result<&Client::ClientHeader, Context::Error> {
+        Context::try_from_ref(client_header).ok_or_else(|| {
+            Context::inject_error(MismatchClientHeaderFormat {
+                expected_client_type: AnyClient::CLIENT_TYPE,
+            })
+        })
     }
 
     fn into_any_misbehavior(misbehavior: Client::Misbehavior) -> AnyClient::AnyMisbehavior {
@@ -149,14 +184,22 @@ where
 
     fn try_from_any_misbehavior(
         misbehavior: AnyClient::AnyMisbehavior,
-    ) -> Option<Client::Misbehavior> {
-        Context::try_from(misbehavior)
+    ) -> Result<Client::Misbehavior, Context::Error> {
+        Context::try_from(misbehavior).ok_or_else(|| {
+            Context::inject_error(MismatchClientHeaderFormat {
+                expected_client_type: AnyClient::CLIENT_TYPE,
+            })
+        })
     }
 
     fn try_from_any_misbehavior_ref(
         misbehavior: &AnyClient::AnyMisbehavior,
-    ) -> Option<&Client::Misbehavior> {
-        Context::try_from_ref(misbehavior)
+    ) -> Result<&Client::Misbehavior, Context::Error> {
+        Context::try_from_ref(misbehavior).ok_or_else(|| {
+            Context::inject_error(MismatchClientHeaderFormat {
+                expected_client_type: AnyClient::CLIENT_TYPE,
+            })
+        })
     }
 }
 
@@ -164,9 +207,16 @@ pub trait AnyClientMethods: HasAnyClientTypes {
     fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType;
 }
 
-pub trait ContainsClient<Client>: HasAnyClientTypes + HasClientPrisms<Self, Client>
+pub trait ContainsClient<Client>:
+    HasAnyClientTypes + HasClientPrisms<Self, Client> + HasClientTypeFor<Client>
 where
     Client: HasClientTypes,
 {
-    const CLIENT_TYPE: Self::ClientType;
+}
+
+impl<Context, Client> ContainsClient<Client> for Context
+where
+    Client: HasClientTypes,
+    Context: HasAnyClientTypes + HasClientPrisms<Context, Client> + HasClientTypeFor<Client>,
+{
 }
