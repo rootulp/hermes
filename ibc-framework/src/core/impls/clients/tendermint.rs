@@ -1,14 +1,15 @@
-use ibc::clients::ics07_tendermint::client_state::ClientState as TendermintClientState;
-use ibc::clients::ics07_tendermint::consensus_state::ConsensusState as TendermintConsensusState;
-use ibc::clients::ics07_tendermint::header::Header as TendermintClientHeader;
-use ibc::clients::ics07_tendermint::misbehaviour::Misbehaviour as TendermintMisbehavior;
 use ibc::core::ics02_client::client_type::ClientType;
 
-use crate::core::traits::client::{AnyClientTypes, ClientTypes, HasClient};
+use crate::core::traits::client::{ContainsClient, HasAnyClientTypes, HasClientTypes};
+
+pub use ibc::clients::ics07_tendermint::client_state::ClientState as TendermintClientState;
+pub use ibc::clients::ics07_tendermint::consensus_state::ConsensusState as TendermintConsensusState;
+pub use ibc::clients::ics07_tendermint::header::Header as TendermintClientHeader;
+pub use ibc::clients::ics07_tendermint::misbehaviour::Misbehaviour as TendermintMisbehavior;
 
 pub struct TendermintClient;
 
-impl ClientTypes for TendermintClient {
+impl HasClientTypes for TendermintClient {
     type ClientState = TendermintClientState;
 
     type ConsensusState = TendermintConsensusState;
@@ -18,7 +19,7 @@ impl ClientTypes for TendermintClient {
     type Misbehavior = TendermintMisbehavior;
 }
 
-impl AnyClientTypes for TendermintClient {
+impl HasAnyClientTypes for TendermintClient {
     type ClientType = ClientType;
 
     type AnyClientState = TendermintClientState;
@@ -30,7 +31,7 @@ impl AnyClientTypes for TendermintClient {
     type AnyMisbehavior = TendermintMisbehavior;
 }
 
-impl HasClient<TendermintClient> for TendermintClient {
+impl ContainsClient<TendermintClient> for TendermintClient {
     const CLIENT_TYPE: ClientType = ClientType::Tendermint;
 
     fn to_any_client_state(client_state: TendermintClientState) -> TendermintClientState {

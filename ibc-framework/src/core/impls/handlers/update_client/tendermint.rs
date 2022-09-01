@@ -1,16 +1,13 @@
-use core::marker::PhantomData;
 use ibc::clients::ics07_tendermint::client_state::ClientState as TendermintClientState;
 use ibc::clients::ics07_tendermint::consensus_state::ConsensusState as TendermintConsensusState;
 use ibc::clients::ics07_tendermint::header::Header as TendermintClientHeader;
 use ibc::Height;
 
-use crate::core::aliases::client::{AnyClientHeader, AnyClientState, AnyConsensusState};
-use crate::core::aliases::ibc::ClientId;
 use crate::core::impls::clients::tendermint::TendermintClient;
-use crate::core::traits::client::{AnyClientTypes, ClientTypes, HasAnyClient, HasClient};
+use crate::core::traits::client::ContainsClient;
 use crate::core::traits::client_reader::AnyClientReader;
 use crate::core::traits::error::HasError;
-use crate::core::traits::handlers::update_client::{AnyUpdateClientHandler, UpdateClientHandler};
+use crate::core::traits::handlers::update_client::UpdateClientHandler;
 use crate::core::traits::ibc::HasIbcTypes;
 
 pub enum UpdateTendermintClientError {
@@ -22,18 +19,17 @@ pub enum UpdateTendermintClientError {
 
 pub struct UpdateTendermintClient;
 
-impl<Context, AnyClient, Error, AnyConsensusState> UpdateClientHandler<Context>
-    for UpdateTendermintClient
+impl<Context, Error> UpdateClientHandler<Context> for UpdateTendermintClient
 where
     Context: HasError<Error = Error>,
     Context: HasIbcTypes<Height = Height>,
-    Context: AnyClientReader<Client = AnyClient>,
-    AnyClient: AnyClientTypes<AnyConsensusState = AnyConsensusState>,
-    AnyClient: HasClient<TendermintClient, AnyConsensusState = AnyConsensusState>,
+    Context: AnyClientReader,
+    Context: ContainsClient<TendermintClient>,
     Error: From<UpdateTendermintClientError>,
 {
     type Client = TendermintClient;
 
+    #[allow(unused_variables)]
     fn check_header_and_update_state(
         context: &Context,
         client_id: &Context::ClientId,
@@ -53,13 +49,15 @@ where
             .into());
         }
 
-        // let current_any_client_consensus_state: AnyConsensusState = Context::get_consensus_state(context, client_id, &new_height)?;
+        let current_any_client_consensus_state =
+            context.get_consensus_state(client_id, &new_height)?;
 
-        // let current_client_consensus_state = <AnyClient as HasClient<TendermintClient>>::try_from_any_consensus_state(&current_any_client_consensus_state);
+        let current_client_consensus_state =
+            Context::try_from_any_consensus_state(&current_any_client_consensus_state).unwrap();
 
-        // let new_consensus_state = TendermintConsensusState::from(new_client_header.clone());
+        let new_consensus_state = TendermintConsensusState::from(new_client_header.clone());
 
-        // let any_consensus_state = context.get_consensus_state(client_id, height)?;
+        let any_consensus_state = context.get_consensus_state(client_id, &new_height)?;
 
         todo!()
     }

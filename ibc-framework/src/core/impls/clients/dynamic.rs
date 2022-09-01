@@ -9,7 +9,7 @@ use ibc::core::ics02_client::header::Header as ClientHeader;
 use ibc::core::ics02_client::misbehaviour::Misbehaviour;
 
 use crate::core::impls::clients::tendermint::TendermintClient;
-use crate::core::traits::client::{AnyClientTypes, HasClient};
+use crate::core::traits::client::{ContainsClient, HasAnyClientTypes};
 
 pub struct DynamicClient;
 
@@ -29,7 +29,7 @@ pub struct DynMisbehavior {
     pub misbehavior: Box<dyn Misbehaviour>,
 }
 
-impl AnyClientTypes for DynamicClient {
+impl HasAnyClientTypes for DynamicClient {
     type ClientType = ClientType;
 
     type AnyClientState = DynClientState;
@@ -41,7 +41,7 @@ impl AnyClientTypes for DynamicClient {
     type AnyMisbehavior = DynMisbehavior;
 }
 
-impl HasClient<TendermintClient> for DynamicClient {
+impl ContainsClient<TendermintClient> for DynamicClient {
     const CLIENT_TYPE: ClientType = ClientType::Tendermint;
 
     fn to_any_client_state(client_state: TendermintClientState) -> DynClientState {

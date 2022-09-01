@@ -1,6 +1,6 @@
 use crate::core::traits::sync::Async;
 
-pub trait ClientTypes: Async {
+pub trait HasClientTypes: Async {
     type ClientState: Async;
 
     type ConsensusState: Async;
@@ -10,7 +10,7 @@ pub trait ClientTypes: Async {
     type Misbehavior: Async;
 }
 
-pub trait AnyClientTypes: Async {
+pub trait HasAnyClientTypes: Async {
     type ClientType: Eq + Async;
 
     type AnyClientState: Async;
@@ -22,19 +22,22 @@ pub trait AnyClientTypes: Async {
     type AnyMisbehavior: Async;
 }
 
-pub trait HasAnyClient: Async {
-    type Client: ClientTypes;
-
-    type AnyClient: HasClient<Self::Client>;
+pub trait HasClientHandler: HasClientTypes + ContainsClient<Self::ClientHandler> {
+    type ClientHandler: HasClientTypes<
+        ClientState = Self::ClientState,
+        ConsensusState = Self::ConsensusState,
+        ClientHeader = Self::ClientHeader,
+        Misbehavior = Self::Misbehavior,
+    >;
 }
 
-pub trait AnyClientMethods: AnyClientTypes {
+pub trait AnyClientMethods: HasAnyClientTypes {
     fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType;
 }
 
-pub trait HasClient<Client>: AnyClientTypes
+pub trait ContainsClient<Client>: HasAnyClientTypes
 where
-    Client: ClientTypes,
+    Client: HasClientTypes,
 {
     const CLIENT_TYPE: Self::ClientType;
 

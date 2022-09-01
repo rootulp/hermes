@@ -1,10 +1,9 @@
 use core::marker::PhantomData;
 
-use crate::core::aliases::client::{AnyClientHeader, AnyClientState, AnyConsensusState};
 use crate::core::impls::handlers::update_client::lift::{
     LiftClientUpdateHandler, MismatchClientHeaderFormat,
 };
-use crate::core::traits::client::{ClientTypes, HasAnyClient, HasClient};
+use crate::core::traits::client::{ContainsClient, HasClientTypes};
 use crate::core::traits::client_reader::AnyClientReader;
 use crate::core::traits::handlers::update_client::{AnyUpdateClientHandler, UpdateClientHandler};
 
@@ -12,32 +11,25 @@ pub struct CombineClientUpdateHandler<Handler, NextHandlers>(
     pub PhantomData<(Handler, NextHandlers)>,
 );
 
-impl<Context, Handler, NextHandlers, Client, AnyClient> AnyUpdateClientHandler<Context>
+impl<Context, Handler, NextHandlers, Client> AnyUpdateClientHandler<Context>
     for CombineClientUpdateHandler<Handler, NextHandlers>
 where
     Context: AnyClientReader,
-    Context: HasAnyClient<AnyClient = AnyClient>,
-    AnyClient: HasClient<Client>,
-    Client: ClientTypes,
+    Context: ContainsClient<Client>,
+    Client: HasClientTypes,
     Handler: UpdateClientHandler<Context, Client = Client>,
     NextHandlers: AnyUpdateClientHandler<Context>,
-    Context::Error: From<MismatchClientHeaderFormat<AnyClient::ClientType>>,
+    Context::Error: From<MismatchClientHeaderFormat<Context::ClientType>>,
 {
     fn check_header_and_update_state(
         context: &Context,
         client_id: &Context::ClientId,
-        client_state: &AnyClientState<Context::AnyClient>,
-        new_client_header: &AnyClientHeader<Context::AnyClient>,
-    ) -> Result<
-        (
-            AnyClientState<Context::AnyClient>,
-            AnyConsensusState<Context::AnyClient>,
-        ),
-        Context::Error,
-    > {
+        client_state: &Context::AnyClientState,
+        new_client_header: &Context::AnyClientHeader,
+    ) -> Result<(Context::AnyClientState, Context::AnyConsensusState), Context::Error> {
         let client_type = context.get_client_type(client_id)?;
 
-        if client_type == AnyClient::CLIENT_TYPE {
+        if client_type == Context::CLIENT_TYPE {
             <LiftClientUpdateHandler<Handler>>::check_header_and_update_state(
                 context,
                 client_id,
