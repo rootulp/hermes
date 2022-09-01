@@ -109,8 +109,13 @@ pub trait TypedStore<K, V> {
 
     fn set(&mut self, key: K, value: V) -> Result<(), Self::Error>;
 
-    // with height for data availability
     fn get(&self, key: K) -> Result<Option<V>, Self::Error>;
+
+    fn get_pre(&self, _key: K) -> Result<Option<V>, Self::Error> {
+        /// Optional: only required for certain host types, for e.g. hosts with validity predicate
+        /// based execution model
+        unimplemented!()
+    }
 
     fn delete(&mut self, key: K) -> Result<(), Self::Error>;
 }

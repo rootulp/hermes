@@ -100,7 +100,7 @@ impl<H: Host> UpdateClientValidationContext for IbcHost<H> {
     ) -> Result<AnyClientState<Self::AnyClientContext>, Self::Error> {
         self.host
             .store()
-            .get(ClientStatePath(client_id))?
+            .get_pre(ClientStatePath(client_id))?
             .ok_or_else(Self::Error::path_not_found)
     }
 
@@ -111,7 +111,7 @@ impl<H: Host> UpdateClientValidationContext for IbcHost<H> {
     ) -> Result<AnyConsensusState<Self::AnyClientContext>, Self::Error> {
         self.host
             .store()
-            .get(ClientConsensusStatePath {
+            .get_pre(ClientConsensusStatePath {
                 client_id,
                 epoch: height.revision_number(),
                 height: height.revision_height(),
