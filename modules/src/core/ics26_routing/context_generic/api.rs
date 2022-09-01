@@ -6,10 +6,10 @@ use crate::core::ics02_client::consensus_state::ConsensusState;
 use crate::core::ics02_client::header::Header;
 use crate::core::ics02_client::misbehaviour::Misbehaviour;
 use crate::core::ics24_host::identifier::ClientId as IbcClientId;
-use crate::core::ics24_host::path::{ClientStatePath, ClientTypePath};
+use crate::core::ics24_host::path::{ClientConsensusStatePath, ClientStatePath, ClientTypePath};
 use crate::core::ics26_routing::context_generic::framework::{
-    AnyClientContext, AnyClientState, AnyConsensusState, ClientId, ClientType, HasIbcTypes, HasStore, Height, IbcTypes, Timestamp, TypedStore, UpdateClientExecutionContext,
-    UpdateClientValidationContext,
+    AnyClientContext, AnyClientState, AnyConsensusState, ClientId, ClientType, Height, IbcTypes,
+    Timestamp, TypedStore, UpdateClientExecutionContext, UpdateClientValidationContext,
 };
 use crate::prelude::Box;
 use crate::{timestamp::Timestamp as IbcTimestamp, Height as IbcHeight};
@@ -46,29 +46,33 @@ impl IbcTypes for DefaultIbcTypes {
     type Timestamp = IbcTimestamp;
 }
 
-pub trait IbcStore<Context, Types>:
-    TypedStore<ClientTypePath, ClientType<Types>>
-    + TypedStore<ClientStatePath, AnyClientState<Context>>
-    + TypedStore<ClientStatePath, AnyConsensusState<Context>>
+pub trait IbcStore<Context, Types, Error>:
+    TypedStore<ClientTypePath, ClientType<Types>, Error = Error>
+    + TypedStore<ClientStatePath, AnyClientState<Context>, Error = Error>
+    + TypedStore<ClientConsensusStatePath, AnyConsensusState<Context>, Error = Error>
 where
     Context: AnyClientContext,
     Types: IbcTypes,
 {
 }
 
-impl<S, Context, Types> IbcStore<Context, Types> for S
+impl<S, Context, Types, Error> IbcStore<Context, Types, Error> for S
 where
     Context: AnyClientContext,
     Types: IbcTypes,
-    S: TypedStore<ClientTypePath, ClientType<Types>>
-        + TypedStore<ClientStatePath, AnyClientState<Context>>
-        + TypedStore<ClientStatePath, AnyConsensusState<Context>>,
+    S: TypedStore<ClientTypePath, ClientType<Types>, Error = Error>
+        + TypedStore<ClientStatePath, AnyClientState<Context>, Error = Error>
+        + TypedStore<ClientConsensusStatePath, AnyConsensusState<Context>, Error = Error>,
 {
+}
+
+pub trait StoreError {
+    fn path_not_found() -> Self;
 }
 
 pub trait Host {
-    type Error;
-    type KvStore: IbcStore<DynClientContext, DefaultIbcTypes>;
+    type Error: StoreError;
+    type KvStore: IbcStore<DynClientContext, DefaultIbcTypes, Self::Error>;
 
     fn current_timestamp(&self) -> IbcTimestamp;
 
@@ -77,4 +81,47 @@ pub trait Host {
     fn store(&self) -> &Self::KvStore;
 
     // events - commitment?
+}
+
+pub struct IbcHost<H> {
+    host: H,
+}
+
+impl<H: Host> UpdateClientValidationContext for IbcHost<H> {
+    type AnyClientContext = DynClientContext;
+    type IbcTypes = DefaultIbcTypes;
+    type Error = H::Error;
+
+    fn client_state(
+        &self,
+        client_id: ClientId<Self::IbcTypes>,
+    ) -> Result<AnyClientState<Self::AnyClientContext>, Self::Error> {
+        self.host
+            .store()
+            .get(ClientStatePath(client_id))?
+            .ok_or_else(Self::Error::path_not_found)
+    }
+
+    fn consensus_state(
+        &self,
+        client_id: ClientId<Self::IbcTypes>,
+        height: Height<Self::IbcTypes>,
+    ) -> Result<AnyConsensusState<Self::AnyClientContext>, Self::Error> {
+        self.host
+            .store()
+            .get(ClientConsensusStatePath {
+                client_id,
+                epoch: height.revision_number(),
+                height: height.revision_height(),
+            })?
+            .ok_or_else(Self::Error::path_not_found)
+    }
+
+    fn host_timestamp(&self) -> Timestamp<Self::IbcTypes> {
+        self.host.current_timestamp()
+    }
+
+    fn host_height(&self) -> Height<Self::IbcTypes> {
+        self.host.current_height()
+    }
 }
