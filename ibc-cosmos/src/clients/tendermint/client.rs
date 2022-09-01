@@ -36,6 +36,10 @@ impl<T> Prism<T, T> for TendermintClient {
         subdata
     }
 
+    fn try_from(data: T) -> Option<T> {
+        Some(data)
+    }
+
     fn try_from_ref(data: &T) -> Option<&T> {
         Some(data)
     }

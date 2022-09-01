@@ -1518,6 +1518,9 @@ dependencies = [
  "ibc",
  "ibc-framework",
  "ibc-proto",
+ "tendermint",
+ "tendermint-light-client-verifier",
+ "tendermint-proto",
 ]
 
 [[package]]

@@ -47,6 +47,10 @@ impl Prism<DynClientState, TendermintClientState> for DynamicClient {
         DynClientState::new(client_state)
     }
 
+    fn try_from(client_state: DynClientState) -> Option<TendermintClientState> {
+        Self::try_from_ref(&client_state).cloned()
+    }
+
     fn try_from_ref(client_state: &DynClientState) -> Option<&TendermintClientState> {
         client_state.client_state.as_any().downcast_ref()
     }
@@ -55,6 +59,10 @@ impl Prism<DynClientState, TendermintClientState> for DynamicClient {
 impl Prism<DynConsensusState, TendermintConsensusState> for DynamicClient {
     fn into(consensus_state: TendermintConsensusState) -> DynConsensusState {
         DynConsensusState::new(consensus_state)
+    }
+
+    fn try_from(consensus_state: DynConsensusState) -> Option<TendermintConsensusState> {
+        Self::try_from_ref(&consensus_state).cloned()
     }
 
     fn try_from_ref(consensus_state: &DynConsensusState) -> Option<&TendermintConsensusState> {
@@ -67,6 +75,10 @@ impl Prism<DynClientHeader, TendermintClientHeader> for DynamicClient {
         DynClientHeader::new(client_header)
     }
 
+    fn try_from(client_header: DynClientHeader) -> Option<TendermintClientHeader> {
+        Self::try_from_ref(&client_header).cloned()
+    }
+
     fn try_from_ref(client_header: &DynClientHeader) -> Option<&TendermintClientHeader> {
         client_header.client_header.as_any().downcast_ref()
     }
@@ -75,6 +87,10 @@ impl Prism<DynClientHeader, TendermintClientHeader> for DynamicClient {
 impl Prism<DynMisbehavior, TendermintMisbehavior> for DynamicClient {
     fn into(misbehavior: TendermintMisbehavior) -> DynMisbehavior {
         DynMisbehavior::new(misbehavior)
+    }
+
+    fn try_from(misbehavior: DynMisbehavior) -> Option<TendermintMisbehavior> {
+        Self::try_from_ref(&misbehavior).cloned()
     }
 
     fn try_from_ref(misbehavior: &DynMisbehavior) -> Option<&TendermintMisbehavior> {

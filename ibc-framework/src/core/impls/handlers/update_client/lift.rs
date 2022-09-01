@@ -25,14 +25,15 @@ where
         client_state: &Context::AnyClientState,
         new_client_header: &Context::AnyClientHeader,
     ) -> Result<(Context::AnyClientState, Context::AnyConsensusState), Context::Error> {
-        let client_state = Context::try_from_any_client_state(client_state).ok_or_else(|| {
-            MismatchClientHeaderFormat {
-                expected_client_type: Context::CLIENT_TYPE,
-            }
-        })?;
+        let client_state =
+            Context::try_from_any_client_state_ref(client_state).ok_or_else(|| {
+                MismatchClientHeaderFormat {
+                    expected_client_type: Context::CLIENT_TYPE,
+                }
+            })?;
 
         let client_header =
-            Context::try_from_any_client_header(new_client_header).ok_or_else(|| {
+            Context::try_from_any_client_header_ref(new_client_header).ok_or_else(|| {
                 MismatchClientHeaderFormat {
                     expected_client_type: Context::CLIENT_TYPE,
                 }

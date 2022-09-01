@@ -44,6 +44,10 @@ where
     fn into_any_client_state(client_state: Client::ClientState) -> AnyClient::AnyClientState;
 
     fn try_from_any_client_state(
+        client_state: AnyClient::AnyClientState,
+    ) -> Option<Client::ClientState>;
+
+    fn try_from_any_client_state_ref(
         client_state: &AnyClient::AnyClientState,
     ) -> Option<&Client::ClientState>;
 
@@ -52,18 +56,30 @@ where
     ) -> AnyClient::AnyConsensusState;
 
     fn try_from_any_consensus_state(
+        consensus_state: AnyClient::AnyConsensusState,
+    ) -> Option<Client::ConsensusState>;
+
+    fn try_from_any_consensus_state_ref(
         consensus_state: &AnyClient::AnyConsensusState,
     ) -> Option<&Client::ConsensusState>;
 
     fn into_any_client_header(client_header: Client::ClientHeader) -> AnyClient::AnyClientHeader;
 
     fn try_from_any_client_header(
+        client_header: AnyClient::AnyClientHeader,
+    ) -> Option<Client::ClientHeader>;
+
+    fn try_from_any_client_header_ref(
         client_header: &AnyClient::AnyClientHeader,
     ) -> Option<&Client::ClientHeader>;
 
     fn into_any_misbehavior(misbehavior: Client::Misbehavior) -> AnyClient::AnyMisbehavior;
 
     fn try_from_any_misbehavior(
+        misbehavior: AnyClient::AnyMisbehavior,
+    ) -> Option<Client::Misbehavior>;
+
+    fn try_from_any_misbehavior_ref(
         misbehavior: &AnyClient::AnyMisbehavior,
     ) -> Option<&Client::Misbehavior>;
 }
@@ -82,6 +98,12 @@ where
     }
 
     fn try_from_any_client_state(
+        client_state: AnyClient::AnyClientState,
+    ) -> Option<Client::ClientState> {
+        Context::try_from(client_state)
+    }
+
+    fn try_from_any_client_state_ref(
         client_state: &AnyClient::AnyClientState,
     ) -> Option<&Client::ClientState> {
         Context::try_from_ref(client_state)
@@ -94,6 +116,12 @@ where
     }
 
     fn try_from_any_consensus_state(
+        consensus_state: AnyClient::AnyConsensusState,
+    ) -> Option<Client::ConsensusState> {
+        Context::try_from(consensus_state)
+    }
+
+    fn try_from_any_consensus_state_ref(
         consensus_state: &AnyClient::AnyConsensusState,
     ) -> Option<&Client::ConsensusState> {
         Context::try_from_ref(consensus_state)
@@ -104,6 +132,12 @@ where
     }
 
     fn try_from_any_client_header(
+        client_header: AnyClient::AnyClientHeader,
+    ) -> Option<Client::ClientHeader> {
+        Context::try_from(client_header)
+    }
+
+    fn try_from_any_client_header_ref(
         client_header: &AnyClient::AnyClientHeader,
     ) -> Option<&Client::ClientHeader> {
         Context::try_from_ref(client_header)
@@ -114,6 +148,12 @@ where
     }
 
     fn try_from_any_misbehavior(
+        misbehavior: AnyClient::AnyMisbehavior,
+    ) -> Option<Client::Misbehavior> {
+        Context::try_from(misbehavior)
+    }
+
+    fn try_from_any_misbehavior_ref(
         misbehavior: &AnyClient::AnyMisbehavior,
     ) -> Option<&Client::Misbehavior> {
         Context::try_from_ref(misbehavior)
