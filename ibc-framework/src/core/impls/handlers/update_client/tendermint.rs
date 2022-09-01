@@ -11,7 +11,7 @@ use crate::core::traits::client::{AnyClientTypes, ClientTypes, HasAnyClient, Has
 use crate::core::traits::client_reader::AnyClientReader;
 use crate::core::traits::error::HasError;
 use crate::core::traits::handlers::update_client::{AnyUpdateClientHandler, UpdateClientHandler};
-use crate::core::traits::ibc::{HasIbcTypes, IbcTypes};
+use crate::core::traits::ibc::HasIbcTypes;
 
 pub enum UpdateTendermintClientError {
     MismatchRevision {
@@ -22,13 +22,12 @@ pub enum UpdateTendermintClientError {
 
 pub struct UpdateTendermintClient;
 
-impl<Context, Ibc, AnyClient, Error, AnyConsensusState> UpdateClientHandler<Context>
+impl<Context, AnyClient, Error, AnyConsensusState> UpdateClientHandler<Context>
     for UpdateTendermintClient
 where
     Context: HasError<Error = Error>,
-    Context: HasIbcTypes<IbcTypes = Ibc>,
+    Context: HasIbcTypes<Height = Height>,
     Context: AnyClientReader<Client = AnyClient>,
-    Ibc: IbcTypes<Height = Height>,
     AnyClient: AnyClientTypes<AnyConsensusState = AnyConsensusState>,
     AnyClient: HasClient<TendermintClient, AnyConsensusState = AnyConsensusState>,
     Error: From<UpdateTendermintClientError>,
@@ -37,7 +36,7 @@ where
 
     fn check_header_and_update_state(
         context: &Context,
-        client_id: &Ibc::ClientId,
+        client_id: &Context::ClientId,
         client_state: &TendermintClientState,
         new_client_header: &TendermintClientHeader,
     ) -> Result<(TendermintClientState, TendermintConsensusState), Context::Error> {

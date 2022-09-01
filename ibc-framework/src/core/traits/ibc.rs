@@ -1,6 +1,6 @@
 use crate::core::traits::sync::Async;
 
-pub trait IbcTypes: Async {
+pub trait HasIbcTypes: Async {
     type Height: Async;
 
     type Timestamp: Async;
@@ -10,8 +10,4 @@ pub trait IbcTypes: Async {
     type ClientId: Async;
 
     type MerkleProof: Async;
-}
-
-pub trait HasIbcTypes: Async {
-    type IbcTypes: IbcTypes;
 }

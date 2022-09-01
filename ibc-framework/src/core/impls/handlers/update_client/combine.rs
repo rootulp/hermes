@@ -1,7 +1,6 @@
 use core::marker::PhantomData;
 
 use crate::core::aliases::client::{AnyClientHeader, AnyClientState, AnyConsensusState};
-use crate::core::aliases::ibc::ClientId;
 use crate::core::impls::handlers::update_client::lift::{
     LiftClientUpdateHandler, MismatchClientHeaderFormat,
 };
@@ -26,7 +25,7 @@ where
 {
     fn check_header_and_update_state(
         context: &Context,
-        client_id: &ClientId<Context::IbcTypes>,
+        client_id: &Context::ClientId,
         client_state: &AnyClientState<Context::AnyClient>,
         new_client_header: &AnyClientHeader<Context::AnyClient>,
     ) -> Result<
