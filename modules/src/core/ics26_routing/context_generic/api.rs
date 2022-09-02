@@ -89,6 +89,27 @@ pub struct IbcHost<H> {
     host: H,
 }
 
+impl<H: Host> Host for IbcHost<H> {
+    type Error = H::Error;
+    type KvStore = H::KvStore;
+
+    fn current_timestamp(&self) -> IbcTimestamp {
+        self.host.current_timestamp()
+    }
+
+    fn current_height(&self) -> IbcHeight {
+        self.host.current_height()
+    }
+
+    fn store(&self) -> &Self::KvStore {
+        self.host.store()
+    }
+
+    fn store_mut(&mut self) -> &mut Self::KvStore {
+        self.host.store_mut()
+    }
+}
+
 impl<H: Host> UpdateClientValidationContext for IbcHost<H> {
     type AnyClientContext = DynClientContext;
     type IbcTypes = DefaultIbcTypes;
