@@ -111,9 +111,9 @@ pub trait TypedStore<K, V> {
 
     fn get(&self, key: K) -> Result<Option<V>, Self::Error>;
 
+    /// Optional: only required for certain host types, for e.g. hosts with validity predicate
+    /// based execution model
     fn get_pre(&self, _key: K) -> Result<Option<V>, Self::Error> {
-        /// Optional: only required for certain host types, for e.g. hosts with validity predicate
-        /// based execution model
         unimplemented!()
     }
 
