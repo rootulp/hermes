@@ -223,6 +223,14 @@ pub fn update_client_handler() -> PhantomData<impl Phase> {
         fn store_mut(&mut self) -> &mut Self::KvStore {
             todo!()
         }
+
+        fn event_emitter(&self) -> &Self::EventEmitter {
+            todo!()
+        }
+
+        fn event_emitter_mut(&mut self) -> &mut Self::EventEmitter {
+            todo!()
+        }
     }
 
     impl StoreError for Ics02Error {

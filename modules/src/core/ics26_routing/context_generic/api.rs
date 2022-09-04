@@ -8,8 +8,8 @@ use crate::core::ics02_client::misbehaviour::Misbehaviour;
 use crate::core::ics24_host::identifier::ClientId as IbcClientId;
 use crate::core::ics24_host::path::{ClientConsensusStatePath, ClientStatePath, ClientTypePath};
 use crate::core::ics26_routing::context_generic::framework::{
-    AnyClientContext, AnyClientState, AnyConsensusState, ClientId, ClientType, Height, IbcTypes,
-    Timestamp, TypedStore, UpdateClientExecutionContext, UpdateClientValidationContext,
+    AnyClientContext, AnyClientState, AnyConsensusState, ClientId, ClientType, Event, Height,
+    IbcTypes, Timestamp, TypedStore, UpdateClientExecutionContext, UpdateClientValidationContext,
 };
 use crate::events::IbcEvent;
 use crate::prelude::Box;
@@ -75,7 +75,7 @@ pub trait StoreError {
 pub trait Host {
     type Error: StoreError;
     type KvStore: IbcStore<DynClientContext, DefaultIbcTypes, Self::Error>;
-    type EventEmitter: EventEmitter<Event = <DefaultIbcTypes as IbcTypes>::Event>;
+    type EventEmitter: EventEmitter<Event = Event<DefaultIbcTypes>>;
 
     fn current_timestamp(&self) -> IbcTimestamp;
 
@@ -84,6 +84,10 @@ pub trait Host {
     fn store(&self) -> &Self::KvStore;
 
     fn store_mut(&mut self) -> &mut Self::KvStore;
+
+    fn event_emitter(&self) -> &Self::EventEmitter;
+
+    fn event_emitter_mut(&mut self) -> &mut Self::EventEmitter;
 }
 
 pub trait EventEmitter {
@@ -120,6 +124,14 @@ impl<H: Host> Host for IbcHost<H> {
 
     fn store_mut(&mut self) -> &mut Self::KvStore {
         self.host.store_mut()
+    }
+
+    fn event_emitter(&self) -> &Self::EventEmitter {
+        self.host.event_emitter()
+    }
+
+    fn event_emitter_mut(&mut self) -> &mut Self::EventEmitter {
+        self.host.event_emitter_mut()
     }
 }
 
@@ -159,6 +171,10 @@ impl<H: Host> UpdateClientValidationContext for IbcHost<H> {
 
     fn host_height(&self) -> Height<Self::IbcTypes> {
         self.host.current_height()
+    }
+
+    fn emit_event(&mut self, event: Event<Self::IbcTypes>) {
+        self.event_emitter_mut().emit_event(event)
     }
 }
 
@@ -256,5 +272,9 @@ impl<H: Host> UpdateClientExecutionContext for IbcHost<H> {
         _host_height: Height<Self::IbcTypes>,
     ) -> Result<(), Self::Error> {
         todo!()
+    }
+
+    fn emit_event(&mut self, event: Event<Self::IbcTypes>) {
+        self.event_emitter_mut().emit_event(event)
     }
 }
