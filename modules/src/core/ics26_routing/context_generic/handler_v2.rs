@@ -11,7 +11,9 @@ use crate::core::ics02_client::height::Height;
 use crate::core::ics02_client::msgs::update_client::MsgUpdateClient;
 use crate::core::ics24_host::identifier::ClientId;
 use crate::core::ics26_routing::context_generic::api::{DefaultIbcTypes, DynClientContext};
-use crate::core::ics26_routing::context_generic::framework::UpdateClientValidationContext;
+use crate::core::ics26_routing::context_generic::framework::{
+    UpdateClientExecutionContext, UpdateClientValidationContext,
+};
 use crate::events::IbcEvent;
 use crate::prelude::*;
 use crate::timestamp::Timestamp;
@@ -102,6 +104,170 @@ where
 impl<T> ClientReader for Validator<T>
 where
     T: UpdateClientValidationContext<
+        AnyClientContext = DynClientContext,
+        IbcTypes = DefaultIbcTypes,
+        Error = Error,
+    >,
+{
+    fn client_type(&self, _client_id: &ClientId) -> Result<ClientType, Error> {
+        todo!()
+    }
+
+    fn client_state(&self, _client_id: &ClientId) -> Result<Box<dyn ClientState>, Error> {
+        todo!()
+    }
+
+    fn decode_client_state(&self, _client_state: Any) -> Result<Box<dyn ClientState>, Error> {
+        todo!()
+    }
+
+    fn consensus_state(
+        &self,
+        _client_id: &ClientId,
+        _height: crate::Height,
+    ) -> Result<Box<dyn ConsensusState>, Error> {
+        todo!()
+    }
+
+    fn next_consensus_state(
+        &self,
+        _client_id: &ClientId,
+        _height: crate::Height,
+    ) -> Result<Option<Box<dyn ConsensusState>>, Error> {
+        todo!()
+    }
+
+    fn prev_consensus_state(
+        &self,
+        _client_id: &ClientId,
+        _height: crate::Height,
+    ) -> Result<Option<Box<dyn ConsensusState>>, Error> {
+        todo!()
+    }
+
+    fn host_height(&self) -> crate::Height {
+        todo!()
+    }
+
+    fn host_consensus_state(
+        &self,
+        _height: crate::Height,
+    ) -> Result<Box<dyn ConsensusState>, Error> {
+        todo!()
+    }
+
+    fn pending_host_consensus_state(&self) -> Result<Box<dyn ConsensusState>, Error> {
+        todo!()
+    }
+
+    fn client_counter(&self) -> Result<u64, Error> {
+        todo!()
+    }
+}
+
+pub struct Executor<T> {
+    pub context: T,
+}
+
+impl<T> Executor<T>
+where
+    T: UpdateClientExecutionContext<
+        AnyClientContext = DynClientContext,
+        IbcTypes = DefaultIbcTypes,
+        Error = Error,
+    >,
+{
+    pub fn execute(&mut self, msg: RawMsgUpdateClient) -> Result<(), Error> {
+        let msg = msg.try_into()?;
+        let check_result = check(self, msg)?;
+        let process_result = process(self, check_result)?;
+        write(self, process_result)
+    }
+}
+
+impl<T> Check for Executor<T>
+where
+    T: UpdateClientExecutionContext<
+        AnyClientContext = DynClientContext,
+        IbcTypes = DefaultIbcTypes,
+        Error = Error,
+    >,
+{
+    fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, Error> {
+        self.context.client_state(client_id.clone())
+    }
+}
+
+impl<T> Process for Executor<T>
+where
+    T: UpdateClientExecutionContext<
+        AnyClientContext = DynClientContext,
+        IbcTypes = DefaultIbcTypes,
+        Error = Error,
+    >,
+{
+    fn host_height(&self) -> Height {
+        self.context.host_height()
+    }
+
+    fn host_timestamp(&self) -> Timestamp {
+        self.context.host_timestamp()
+    }
+}
+
+impl<T> Write for Executor<T>
+where
+    T: UpdateClientExecutionContext<
+        AnyClientContext = DynClientContext,
+        IbcTypes = DefaultIbcTypes,
+        Error = Error,
+    >,
+{
+    fn emit_event(&mut self, event: IbcEvent) {
+        self.context.emit_event(event)
+    }
+
+    fn store_client_state(
+        &mut self,
+        client_id: ClientId,
+        client_state: Box<dyn ClientState>,
+    ) -> Result<(), Error> {
+        self.context.store_client_state(client_id, client_state)
+    }
+
+    fn store_consensus_state(
+        &mut self,
+        client_id: ClientId,
+        height: Height,
+        consensus_state: Box<dyn ConsensusState>,
+    ) -> Result<(), Error> {
+        self.context
+            .store_consensus_state(client_id, height, consensus_state)
+    }
+
+    fn store_update_time(
+        &mut self,
+        client_id: ClientId,
+        height: Height,
+        timestamp: Timestamp,
+    ) -> Result<(), Error> {
+        self.context.store_update_time(client_id, height, timestamp)
+    }
+
+    fn store_update_height(
+        &mut self,
+        client_id: ClientId,
+        height: Height,
+        host_height: Height,
+    ) -> Result<(), Error> {
+        self.context
+            .store_update_height(client_id, height, host_height)
+    }
+}
+
+impl<T> ClientReader for Executor<T>
+where
+    T: UpdateClientExecutionContext<
         AnyClientContext = DynClientContext,
         IbcTypes = DefaultIbcTypes,
         Error = Error,
@@ -330,8 +496,11 @@ where
         consensus_state,
         processed_time,
         processed_height,
+        event,
         ..
     } = process_result;
+
+    ctx.emit_event(event.into());
 
     ctx.store_client_state(client_id.clone(), client_state.clone())?;
     ctx.store_consensus_state(

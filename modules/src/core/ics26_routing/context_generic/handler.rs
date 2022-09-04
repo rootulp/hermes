@@ -151,7 +151,7 @@ pub mod test {
     use crate::core::ics26_routing::context_generic::api::EventEmitter;
     use crate::core::ics26_routing::context_generic::api::{Host, IbcHost, StoreError};
     use crate::core::ics26_routing::context_generic::framework::TypedStore;
-    use crate::core::ics26_routing::context_generic::handler_v2::Validator;
+    use crate::core::ics26_routing::context_generic::handler_v2::{Executor, Validator};
     use crate::events::IbcEvent;
 
     struct Nul<H>(PhantomData<H>);
@@ -259,6 +259,18 @@ pub mod test {
             context: IbcHost::new(DummyHost),
         };
         let _ = validator.validate(RawMsgUpdateClient {
+            client_id: "07-tendermint-1".to_string(),
+            header: None,
+            signer: "".to_string(),
+        });
+    }
+
+    #[test]
+    fn test_executor() {
+        let mut executor = Executor {
+            context: IbcHost::new(DummyHost),
+        };
+        let _ = executor.execute(RawMsgUpdateClient {
             client_id: "07-tendermint-1".to_string(),
             header: None,
             signer: "".to_string(),
