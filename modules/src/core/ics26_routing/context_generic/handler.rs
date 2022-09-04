@@ -1,10 +1,8 @@
 use alloc::boxed::Box;
 use alloc::string::ToString;
-use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 use ibc_proto::google::protobuf::Any;
-use ibc_proto::ibc::core::client::v1::MsgUpdateClient as RawMsgUpdateClient;
 
 use crate::core::ics02_client::client_state::{ClientState, UpdatedState};
 use crate::core::ics02_client::consensus_state::ConsensusState;
@@ -12,13 +10,8 @@ use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics02_client::msgs::update_client::MsgUpdateClient;
 use crate::core::ics24_host::identifier::ClientId;
-use crate::core::ics26_routing::context_generic::api::{
-    DefaultIbcTypes, DynClientContext, EventEmitter, Host, IbcHost, StoreError,
-};
-use crate::core::ics26_routing::context_generic::framework::{
-    TypedStore, UpdateClientValidationContext,
-};
-use crate::events::IbcEvent;
+use crate::core::ics26_routing::context_generic::api::{DefaultIbcTypes, DynClientContext};
+use crate::core::ics26_routing::context_generic::framework::UpdateClientValidationContext;
 use crate::timestamp::Timestamp;
 use crate::Height;
 
@@ -148,24 +141,36 @@ where
     }
 }
 
-struct Nul<H>(PhantomData<H>);
+#[cfg(test)]
+pub mod test {
+    use alloc::vec::Vec;
 
-impl<H> Phase for Nul<H> {
-    type Error = Ics02Error;
-    type Input = CheckResult;
-    type Output = ();
-    type Context = IbcHost<H>;
+    use ibc_proto::ibc::core::client::v1::MsgUpdateClient as RawMsgUpdateClient;
 
-    fn run(
-        &self,
-        _context: Self::Context,
-        _input: Self::Input,
-    ) -> Result<Self::Output, Self::Error> {
-        todo!()
+    use super::*;
+    use crate::core::ics26_routing::context_generic::api::EventEmitter;
+    use crate::core::ics26_routing::context_generic::api::{Host, IbcHost, StoreError};
+    use crate::core::ics26_routing::context_generic::framework::TypedStore;
+    use crate::core::ics26_routing::context_generic::handler_v2::Validator;
+    use crate::events::IbcEvent;
+
+    struct Nul<H>(PhantomData<H>);
+
+    impl<H> Phase for Nul<H> {
+        type Error = Ics02Error;
+        type Input = CheckResult;
+        type Output = ();
+        type Context = IbcHost<H>;
+
+        fn run(
+            &self,
+            _context: Self::Context,
+            _input: Self::Input,
+        ) -> Result<Self::Output, Self::Error> {
+            todo!()
+        }
     }
-}
 
-pub fn update_client_handler() -> PhantomData<impl Phase> {
     struct DummyStore;
 
     impl<K, V> TypedStore<K, V> for DummyStore {
@@ -239,5 +244,24 @@ pub fn update_client_handler() -> PhantomData<impl Phase> {
         }
     }
 
-    PhantomData::<Decode<RawMsgUpdateClient, MsgUpdateClient, Check<Nul<IbcHost<DummyHost>>>>>
+    fn update_client_handler() -> PhantomData<impl Phase> {
+        PhantomData::<Decode<RawMsgUpdateClient, MsgUpdateClient, Check<Nul<IbcHost<DummyHost>>>>>
+    }
+
+    #[test]
+    fn compile_update_client_handler() {
+        let _ = update_client_handler();
+    }
+
+    #[test]
+    fn test_validator() {
+        let validator = Validator {
+            context: IbcHost::new(DummyHost),
+        };
+        let _ = validator.validate(RawMsgUpdateClient {
+            client_id: "07-tendermint-1".to_string(),
+            header: None,
+            signer: "".to_string(),
+        });
+    }
 }
