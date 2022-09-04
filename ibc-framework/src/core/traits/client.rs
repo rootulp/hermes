@@ -1,4 +1,4 @@
-use crate::core::traits::error::{HasError, InjectError};
+use crate::core::traits::error::{HasError, InjectError, MismatchClientType};
 use crate::core::traits::prism::Prism;
 use crate::core::traits::sync::Async;
 
@@ -39,10 +39,6 @@ pub trait HasClientTypes: Async {
 
 pub trait HasClientTypeFor<Client>: HasAnyClientTypes {
     const CLIENT_TYPE: Self::ClientType;
-}
-
-pub struct MismatchClientType<ClientType> {
-    pub expected_client_type: ClientType,
 }
 
 pub trait HasClientPrisms<AnyClient, Client>:

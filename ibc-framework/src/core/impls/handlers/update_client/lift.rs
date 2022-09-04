@@ -1,9 +1,7 @@
 use core::marker::PhantomData;
 
-use crate::core::traits::client::{
-    ContainsClient, HasAnyClientMethods, HasClientTypes, MismatchClientType,
-};
-use crate::core::traits::error::{HasError, InjectError};
+use crate::core::traits::client::{ContainsClient, HasAnyClientMethods, HasClientTypes};
+use crate::core::traits::error::{HasError, InjectError, MismatchClientType};
 use crate::core::traits::handlers::update_client::{AnyUpdateClientHandler, UpdateClientHandler};
 use crate::core::traits::ibc::HasIbcTypes;
 

@@ -1,6 +1,6 @@
-use crate::core::traits::client::{HasAnyClientMethods, HasOwnClient, MismatchClientType};
+use crate::core::traits::client::{HasAnyClientMethods, HasOwnClient};
 use crate::core::traits::client_reader::AnyClientReader;
-use crate::core::traits::error::{HasError, InjectError};
+use crate::core::traits::error::{HasError, InjectError, MismatchClientType};
 use crate::core::traits::handlers::update_client::HasAnyUpdateClientHandler;
 use crate::core::traits::host::HasHostMethods;
 use crate::core::traits::ibc::HasIbcTypes;

@@ -4,5 +4,7 @@ pub mod error;
 pub mod handlers;
 pub mod host;
 pub mod ibc;
+pub mod message_handler;
+pub mod messages;
 pub mod prism;
 pub mod sync;
