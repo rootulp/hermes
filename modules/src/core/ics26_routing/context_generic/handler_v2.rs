@@ -16,14 +16,6 @@ use crate::events::IbcEvent;
 use crate::prelude::*;
 use crate::timestamp::Timestamp;
 
-pub fn validate(msg: RawMsgUpdateClient) -> Result<MsgUpdateClient, Error> {
-    msg.try_into()
-}
-
-pub trait Check {
-    fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, Error>;
-}
-
 pub struct Validator<T> {
     pub context: T,
 }
@@ -169,6 +161,14 @@ where
     fn client_counter(&self) -> Result<u64, Error> {
         todo!()
     }
+}
+
+pub fn validate(msg: RawMsgUpdateClient) -> Result<MsgUpdateClient, Error> {
+    msg.try_into()
+}
+
+pub trait Check {
+    fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, Error>;
 }
 
 pub struct CheckResult {
