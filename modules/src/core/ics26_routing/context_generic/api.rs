@@ -48,23 +48,17 @@ impl IbcTypes for DefaultIbcTypes {
     type Event = IbcEvent;
 }
 
-pub trait IbcStore<Context, Types, Error>:
-    TypedStore<ClientTypePath, ClientType<Types>, Error = Error>
-    + TypedStore<ClientStatePath, AnyClientState<Context>, Error = Error>
-    + TypedStore<ClientConsensusStatePath, AnyConsensusState<Context>, Error = Error>
-where
-    Context: AnyClientContext,
-    Types: IbcTypes,
+pub trait IbcStore<Error>:
+    TypedStore<ClientTypePath, ClientType<DefaultIbcTypes>, Error = Error>
+    + TypedStore<ClientStatePath, AnyClientState<DynClientContext>, Error = Error>
+    + TypedStore<ClientConsensusStatePath, AnyConsensusState<DynClientContext>, Error = Error>
 {
 }
 
-impl<S, Context, Types, Error> IbcStore<Context, Types, Error> for S
-where
-    Context: AnyClientContext,
-    Types: IbcTypes,
-    S: TypedStore<ClientTypePath, ClientType<Types>, Error = Error>
-        + TypedStore<ClientStatePath, AnyClientState<Context>, Error = Error>
-        + TypedStore<ClientConsensusStatePath, AnyConsensusState<Context>, Error = Error>,
+impl<S, Error> IbcStore<Error> for S where
+    S: TypedStore<ClientTypePath, ClientType<DefaultIbcTypes>, Error = Error>
+        + TypedStore<ClientStatePath, AnyClientState<DynClientContext>, Error = Error>
+        + TypedStore<ClientConsensusStatePath, AnyConsensusState<DynClientContext>, Error = Error>
 {
 }
 
@@ -74,7 +68,7 @@ pub trait StoreError {
 
 pub trait Host {
     type Error: StoreError;
-    type KvStore: IbcStore<DynClientContext, DefaultIbcTypes, Self::Error>;
+    type KvStore: IbcStore<Self::Error>;
     type EventEmitter: EventEmitter<Event = Event<DefaultIbcTypes>>;
 
     fn current_timestamp(&self) -> IbcTimestamp;
@@ -103,6 +97,12 @@ pub trait EventEmitter {
 
 pub struct IbcHost<H> {
     host: H,
+}
+
+impl<H> IbcHost<H> {
+    pub fn new(host: H) -> Self {
+        Self { host }
+    }
 }
 
 impl<H: Host> Host for IbcHost<H> {
@@ -172,16 +172,16 @@ impl<H: Host> UpdateClientValidationContext for IbcHost<H> {
     fn host_height(&self) -> Height<Self::IbcTypes> {
         self.host.current_height()
     }
-
-    fn emit_event(&mut self, event: Event<Self::IbcTypes>) {
-        self.event_emitter_mut().emit_event(event)
-    }
 }
 
 impl<H: Host> UpdateClientExecutionContext for IbcHost<H> {
     type AnyClientContext = DynClientContext;
     type IbcTypes = DefaultIbcTypes;
     type Error = H::Error;
+
+    fn emit_event(&mut self, event: Event<Self::IbcTypes>) {
+        self.event_emitter_mut().emit_event(event)
+    }
 
     fn client_state(
         &self,
@@ -272,9 +272,5 @@ impl<H: Host> UpdateClientExecutionContext for IbcHost<H> {
         _host_height: Height<Self::IbcTypes>,
     ) -> Result<(), Self::Error> {
         todo!()
-    }
-
-    fn emit_event(&mut self, event: Event<Self::IbcTypes>) {
-        self.event_emitter_mut().emit_event(event)
     }
 }
