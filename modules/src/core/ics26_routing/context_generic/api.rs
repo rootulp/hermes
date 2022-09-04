@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use ibc_proto::google::protobuf::Any;
 
 use crate::core::ics02_client::client_state::ClientState;
@@ -84,6 +86,42 @@ mod private {
     impl Sealed for ClientTypePath {}
     impl Sealed for ClientStatePath {}
     impl Sealed for ClientConsensusStatePath {}
+}
+
+pub trait IbcSerde {
+    fn serialize(self) -> Vec<u8>;
+
+    fn deserialize(value: &[u8]) -> Self;
+}
+
+impl IbcSerde for IbcClientType {
+    fn serialize(self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn deserialize(_value: &[u8]) -> Self {
+        todo!()
+    }
+}
+
+impl IbcSerde for Box<dyn ClientState> {
+    fn serialize(self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn deserialize(_value: &[u8]) -> Self {
+        todo!()
+    }
+}
+
+impl IbcSerde for Box<dyn ConsensusState> {
+    fn serialize(self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn deserialize(_value: &[u8]) -> Self {
+        todo!()
+    }
 }
 
 pub trait IbcValueForPath: private::Sealed {
