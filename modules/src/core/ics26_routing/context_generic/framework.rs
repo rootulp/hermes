@@ -48,14 +48,14 @@ pub trait UpdateClientValidationContext {
     fn host_timestamp(&self) -> Timestamp<Self::IbcTypes>;
 
     fn host_height(&self) -> Height<Self::IbcTypes>;
-
-    fn emit_event(&mut self, event: Event<Self::IbcTypes>);
 }
 
 pub trait UpdateClientExecutionContext {
     type AnyClientContext: AnyClientContext;
     type IbcTypes: IbcTypes;
     type Error;
+
+    fn emit_event(&mut self, event: Event<Self::IbcTypes>);
 
     fn client_state(
         &self,
@@ -106,8 +106,6 @@ pub trait UpdateClientExecutionContext {
         height: Height<Self::IbcTypes>,
         host_height: Height<Self::IbcTypes>,
     ) -> Result<(), Self::Error>;
-
-    fn emit_event(&mut self, event: Event<Self::IbcTypes>);
 }
 
 pub trait TypedStore<K, V> {
