@@ -4,7 +4,7 @@ use ibc_framework::core::traits::client::ContainsClient;
 use ibc_framework::core::traits::client_reader::ClientReader;
 use ibc_framework::core::traits::error::{HasError, InjectError};
 use ibc_framework::core::traits::handlers::update_client::UpdateClientHandler;
-use ibc_framework::core::traits::host::ChainHost;
+use ibc_framework::core::traits::host::HasHostMethods;
 use ibc_framework::core::traits::ibc::HasIbcTypes;
 use tendermint::block::Height as BlockHeight;
 use tendermint_light_client_verifier::errors::VerificationErrorDetail;
@@ -50,7 +50,7 @@ where
     Context: HasIbcTypes<Height = Height, Timestamp = Timestamp>,
     Context: ClientReader<TendermintClient>,
     Context: ContainsClient<TendermintClient>,
-    Context: ChainHost,
+    Context: HasHostMethods,
     Context: InjectError<Error>,
 {
     type Client = TendermintClient;

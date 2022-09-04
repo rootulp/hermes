@@ -1,7 +1,9 @@
 use core::marker::PhantomData;
 
-use crate::core::traits::client::{ContainsClient, HasClientTypes};
-use crate::core::traits::error::HasError;
+use crate::core::traits::client::{
+    ContainsClient, HasAnyClientMethods, HasClientTypes, MismatchClientType,
+};
+use crate::core::traits::error::{HasError, InjectError};
 use crate::core::traits::handlers::update_client::{AnyUpdateClientHandler, UpdateClientHandler};
 use crate::core::traits::ibc::HasIbcTypes;
 
@@ -9,10 +11,11 @@ pub struct LiftClientUpdateHandler<Handler>(pub PhantomData<Handler>);
 
 impl<Context, Handler, Client> AnyUpdateClientHandler<Context> for LiftClientUpdateHandler<Handler>
 where
-    Context: HasError + HasIbcTypes,
+    Context: HasError + HasIbcTypes + HasAnyClientMethods,
     Context: ContainsClient<Client>,
     Client: HasClientTypes,
     Handler: UpdateClientHandler<Context, Client = Client>,
+    Context: InjectError<MismatchClientType<Context::ClientType>>,
 {
     fn check_header_and_update_state(
         context: &Context,
@@ -20,6 +23,10 @@ where
         client_state: &Context::AnyClientState,
         new_client_header: &Context::AnyClientHeader,
     ) -> Result<(Context::AnyClientState, Context::AnyConsensusState), Context::Error> {
+        let client_type = Context::client_state_type(client_state);
+
+        if client_type != Context::CLIENT_TYPE {}
+
         let client_state = Context::try_from_any_client_state_ref(client_state)?;
 
         let client_header = Context::try_from_any_client_header_ref(new_client_header)?;

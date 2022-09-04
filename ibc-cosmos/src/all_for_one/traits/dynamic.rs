@@ -1,17 +1,59 @@
-use ibc_framework::all_for_one::traits::base::AfoContext;
+use ibc::core::ics23_commitment::merkle::MerkleProof;
+use ibc::core::ics24_host::identifier::ClientId;
+use ibc::timestamp::Timestamp;
+use ibc::Height;
+use ibc_framework::all_for_one::traits::base::AfoChainContext;
+use ibc_framework::core::traits::client::ContainsClient;
+use ibc_framework::core::traits::error::InjectError;
+use ibc_proto::google::protobuf::Any;
 
 use crate::clients::dynamic::client::{
     DynClientHeader, DynClientState, DynConsensusState, DynMisbehavior,
 };
-use crate::clients::tendermint::client::TendermintClient;
+use crate::clients::tendermint::client::{
+    TendermintClient, TendermintClientHeader, TendermintClientState, TendermintConsensusState,
+    TendermintMisbehavior,
+};
+use crate::clients::tendermint::update_client::Error as UpdateTendermintClientError;
 
-pub trait AfoDynamicTendermintContext:
-    AfoContext<
-    ClientHandler = TendermintClient,
-    ClientState = DynClientState,
-    ConsensusState = DynConsensusState,
-    ClientHeader = DynClientHeader,
-    Misbehavior = DynMisbehavior,
->
+pub trait AfoDynamicTendermintChainContext:
+    AfoChainContext<
+        OwnClient = TendermintClient,
+        Height = Height,
+        Timestamp = Timestamp,
+        Message = Any,
+        ClientId = ClientId,
+        MerkleProof = MerkleProof,
+        ClientState = TendermintClientState,
+        ConsensusState = TendermintConsensusState,
+        ClientHeader = TendermintClientHeader,
+        Misbehavior = TendermintMisbehavior,
+        AnyClientState = DynClientState,
+        AnyConsensusState = DynConsensusState,
+        AnyClientHeader = DynClientHeader,
+        AnyMisbehavior = DynMisbehavior,
+    > + InjectError<UpdateTendermintClientError>
+    + ContainsClient<TendermintClient>
+{
+}
+
+impl<Context> AfoDynamicTendermintChainContext for Context where
+    Context: AfoChainContext<
+            OwnClient = TendermintClient,
+            Height = Height,
+            Timestamp = Timestamp,
+            Message = Any,
+            ClientId = ClientId,
+            MerkleProof = MerkleProof,
+            ClientState = TendermintClientState,
+            ConsensusState = TendermintConsensusState,
+            ClientHeader = TendermintClientHeader,
+            Misbehavior = TendermintMisbehavior,
+            AnyClientState = DynClientState,
+            AnyConsensusState = DynConsensusState,
+            AnyClientHeader = DynClientHeader,
+            AnyMisbehavior = DynMisbehavior,
+        > + InjectError<UpdateTendermintClientError>
+        + ContainsClient<TendermintClient>
 {
 }

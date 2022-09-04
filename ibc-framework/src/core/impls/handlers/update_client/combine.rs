@@ -17,6 +17,7 @@ where
     Client: HasClientTypes,
     Handler: UpdateClientHandler<Context, Client = Client>,
     NextHandlers: AnyUpdateClientHandler<Context>,
+    LiftClientUpdateHandler<Handler>: AnyUpdateClientHandler<Context>,
 {
     fn check_header_and_update_state(
         context: &Context,

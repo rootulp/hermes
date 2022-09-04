@@ -1,11 +1,30 @@
-use crate::core::traits::client::HasClientHandler;
+use crate::core::traits::client::{HasAnyClientMethods, HasOwnClient, MismatchClientType};
 use crate::core::traits::client_reader::AnyClientReader;
-use crate::core::traits::error::HasError;
+use crate::core::traits::error::{HasError, InjectError};
+use crate::core::traits::handlers::update_client::HasAnyUpdateClientHandler;
+use crate::core::traits::host::HasHostMethods;
 use crate::core::traits::ibc::HasIbcTypes;
 
-pub trait AfoContext: HasError + HasIbcTypes + HasClientHandler + AnyClientReader {}
+pub trait AfoChainContext:
+    HasError
+    + HasIbcTypes
+    + HasOwnClient
+    + HasAnyClientMethods
+    + AnyClientReader
+    + HasAnyUpdateClientHandler
+    + HasHostMethods
+    + InjectError<MismatchClientType<Self::ClientType>>
+{
+}
 
-impl<Context> AfoContext for Context where
-    Context: HasError + HasIbcTypes + HasClientHandler + AnyClientReader
+impl<Context> AfoChainContext for Context where
+    Context: HasError
+        + HasIbcTypes
+        + HasOwnClient
+        + HasAnyClientMethods
+        + AnyClientReader
+        + HasAnyUpdateClientHandler
+        + HasHostMethods
+        + InjectError<MismatchClientType<Self::ClientType>>
 {
 }
