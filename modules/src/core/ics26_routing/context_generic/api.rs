@@ -49,17 +49,57 @@ impl IbcTypes for DefaultIbcTypes {
 }
 
 pub trait IbcStore<Error>:
-    TypedStore<ClientTypePath, ClientType<DefaultIbcTypes>, Error = Error>
-    + TypedStore<ClientStatePath, AnyClientState<DynClientContext>, Error = Error>
-    + TypedStore<ClientConsensusStatePath, AnyConsensusState<DynClientContext>, Error = Error>
+    IbcTypedStore<ClientTypePath, Error>
+    + IbcTypedStore<ClientStatePath, Error>
+    + IbcTypedStore<ClientConsensusStatePath, Error>
 {
 }
 
 impl<S, Error> IbcStore<Error> for S where
-    S: TypedStore<ClientTypePath, ClientType<DefaultIbcTypes>, Error = Error>
-        + TypedStore<ClientStatePath, AnyClientState<DynClientContext>, Error = Error>
-        + TypedStore<ClientConsensusStatePath, AnyConsensusState<DynClientContext>, Error = Error>
+    S: IbcTypedStore<ClientTypePath, Error>
+        + IbcTypedStore<ClientStatePath, Error>
+        + IbcTypedStore<ClientConsensusStatePath, Error>
 {
+}
+
+pub trait IbcTypedStore<Path, Error>:
+    TypedStore<Path, <Path as IbcStoreValue>::Value, Error = Error>
+where
+    Path: IbcStoreValue,
+{
+}
+
+impl<Path, Value, Error, T> IbcTypedStore<Path, Error> for T
+where
+    T: TypedStore<Path, Value, Error = Error>,
+    Path: IbcStoreValue<Value = Value>,
+{
+}
+
+mod private {
+    use super::*;
+
+    pub trait Sealed {}
+
+    impl Sealed for ClientTypePath {}
+    impl Sealed for ClientStatePath {}
+    impl Sealed for ClientConsensusStatePath {}
+}
+
+pub trait IbcStoreValue: private::Sealed {
+    type Value;
+}
+
+impl IbcStoreValue for ClientTypePath {
+    type Value = IbcClientType;
+}
+
+impl IbcStoreValue for ClientStatePath {
+    type Value = Box<dyn ClientState>;
+}
+
+impl IbcStoreValue for ClientConsensusStatePath {
+    type Value = Box<dyn ConsensusState>;
 }
 
 pub trait StoreError {

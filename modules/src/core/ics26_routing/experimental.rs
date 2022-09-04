@@ -133,7 +133,7 @@ impl<Event> EventEmitter for DefaultEventEmitter<Event> {
 }
 
 pub mod update_client {
-    use std::marker::PhantomData;
+    use core::marker::PhantomData;
 
     use ibc_proto::google::protobuf::Any;
     use ibc_proto::ibc::core::client::v1::MsgUpdateClient as RawMsgUpdateClient;
