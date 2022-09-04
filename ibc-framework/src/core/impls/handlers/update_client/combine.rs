@@ -19,7 +19,7 @@ where
     NextHandlers: AnyUpdateClientHandler<Context>,
     LiftClientUpdateHandler<Handler>: AnyUpdateClientHandler<Context>,
 {
-    fn check_header_and_update_state(
+    fn check_client_header_and_update_state(
         context: &Context,
         client_id: &Context::ClientId,
         client_state: &Context::AnyClientState,
@@ -28,14 +28,14 @@ where
         let client_type = context.get_client_type(client_id)?;
 
         if client_type == Context::CLIENT_TYPE {
-            <LiftClientUpdateHandler<Handler>>::check_header_and_update_state(
+            <LiftClientUpdateHandler<Handler>>::check_client_header_and_update_state(
                 context,
                 client_id,
                 client_state,
                 new_client_header,
             )
         } else {
-            NextHandlers::check_header_and_update_state(
+            NextHandlers::check_client_header_and_update_state(
                 context,
                 client_id,
                 client_state,

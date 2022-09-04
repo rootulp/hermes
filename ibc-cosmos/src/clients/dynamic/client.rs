@@ -108,6 +108,10 @@ impl HasAnyClientMethods for DynamicClient {
     fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType {
         client_state.client_state.client_type()
     }
+
+    fn client_state_is_frozen(client_state: &Self::AnyClientState) -> bool {
+        client_state.client_state.is_frozen()
+    }
 }
 
 impl DynClientState {

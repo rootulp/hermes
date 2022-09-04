@@ -14,4 +14,6 @@ pub trait HasIbcTypes: Async {
     type MessageType: Eq + Async;
 
     type Signer: Async;
+
+    fn message_type(message: &Self::Message) -> Self::MessageType;
 }

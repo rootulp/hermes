@@ -16,6 +16,12 @@ pub trait HasAnyClientTypes: Async {
 
 pub trait HasAnyClientMethods: HasAnyClientTypes {
     fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType;
+
+    fn client_state_is_frozen(client_state: &Self::AnyClientState) -> bool;
+
+    // fn client_state_trusting_period(client_state: &Self::AnyClientState) -> Duration;
+
+    // fn consensus_state_timestamp(consensus_state: &Self::AnyConsensusState) -> Self::Timestamp;
 }
 
 pub trait HasOwnClient: HasClientTypes + HasClientTypeFor<Self::OwnClient> {

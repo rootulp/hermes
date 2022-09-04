@@ -12,6 +12,11 @@ pub trait AnyClientReader: HasAnyClientTypes + HasIbcTypes + HasError {
         client_id: &Self::ClientId,
     ) -> Result<Self::AnyClientState, Self::Error>;
 
+    fn get_latest_any_consensus_state(
+        &self,
+        client_id: &Self::ClientId,
+    ) -> Result<Self::AnyConsensusState, Self::Error>;
+
     fn get_any_consensus_state_at_height(
         &self,
         client_id: &Self::ClientId,

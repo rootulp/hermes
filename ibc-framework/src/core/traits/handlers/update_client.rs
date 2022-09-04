@@ -6,13 +6,27 @@ use crate::core::traits::sync::Async;
 
 pub trait HasAnyUpdateClientHandler: HasIbcTypes + HasAnyClientTypes + HasError {
     type AnyUpdateClientHandler: AnyUpdateClientHandler<Self>;
+
+    fn check_client_header_and_update_state(
+        &self,
+        client_id: &Self::ClientId,
+        client_state: &Self::AnyClientState,
+        new_client_header: &Self::AnyClientHeader,
+    ) -> Result<(Self::AnyClientState, Self::AnyConsensusState), Self::Error> {
+        Self::AnyUpdateClientHandler::check_client_header_and_update_state(
+            self,
+            client_id,
+            client_state,
+            new_client_header,
+        )
+    }
 }
 
 pub trait AnyUpdateClientHandler<Context>: Async
 where
     Context: HasIbcTypes + HasAnyClientTypes + HasError,
 {
-    fn check_header_and_update_state(
+    fn check_client_header_and_update_state(
         context: &Context,
         client_id: &Context::ClientId,
         client_state: &Context::AnyClientState,
@@ -26,7 +40,7 @@ where
 {
     type Client: HasClientTypes;
 
-    fn check_header_and_update_state(
+    fn check_client_header_and_update_state(
         chain: &Context,
         client_id: &Context::ClientId,
         client_state: &ClientState<Self::Client>,

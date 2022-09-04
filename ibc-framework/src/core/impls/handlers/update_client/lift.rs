@@ -15,7 +15,7 @@ where
     Handler: UpdateClientHandler<Context, Client = Client>,
     Context: InjectError<MismatchClientType<Context::ClientType>>,
 {
-    fn check_header_and_update_state(
+    fn check_client_header_and_update_state(
         context: &Context,
         client_id: &Context::ClientId,
         client_state: &Context::AnyClientState,
@@ -29,12 +29,13 @@ where
 
         let client_header = Context::try_from_any_client_header_ref(new_client_header)?;
 
-        let (new_client_state, new_consensus_state) = Handler::check_header_and_update_state(
-            context,
-            client_id,
-            client_state,
-            client_header,
-        )?;
+        let (new_client_state, new_consensus_state) =
+            Handler::check_client_header_and_update_state(
+                context,
+                client_id,
+                client_state,
+                client_header,
+            )?;
 
         Ok((
             Context::into_any_client_state(new_client_state),

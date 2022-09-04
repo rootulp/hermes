@@ -55,7 +55,7 @@ where
 {
     type Client = TendermintClient;
 
-    fn check_header_and_update_state(
+    fn check_client_header_and_update_state(
         context: &Context,
         client_id: &Context::ClientId,
         client_state: &TendermintClientState,

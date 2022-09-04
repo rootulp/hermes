@@ -5,5 +5,5 @@ pub trait MessageHandler<Context>
 where
     Context: HasIbcTypes + HasError,
 {
-    fn handle_message(message: &Context::Message) -> Context::Error;
+    fn handle_message(context: &Context, message: &Context::Message) -> Result<(), Context::Error>;
 }
