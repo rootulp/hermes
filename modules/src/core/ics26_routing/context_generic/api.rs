@@ -63,16 +63,16 @@ impl<S, Error> IbcStore<Error> for S where
 }
 
 pub trait IbcTypedStore<Path, Error>:
-    TypedStore<Path, <Path as IbcStoreValue>::Value, Error = Error>
+    TypedStore<Path, <Path as IbcValueForPath>::Value, Error = Error>
 where
-    Path: IbcStoreValue,
+    Path: IbcValueForPath,
 {
 }
 
 impl<Path, Value, Error, T> IbcTypedStore<Path, Error> for T
 where
     T: TypedStore<Path, Value, Error = Error>,
-    Path: IbcStoreValue<Value = Value>,
+    Path: IbcValueForPath<Value = Value>,
 {
 }
 
@@ -86,19 +86,19 @@ mod private {
     impl Sealed for ClientConsensusStatePath {}
 }
 
-pub trait IbcStoreValue: private::Sealed {
+pub trait IbcValueForPath: private::Sealed {
     type Value;
 }
 
-impl IbcStoreValue for ClientTypePath {
+impl IbcValueForPath for ClientTypePath {
     type Value = IbcClientType;
 }
 
-impl IbcStoreValue for ClientStatePath {
+impl IbcValueForPath for ClientStatePath {
     type Value = Box<dyn ClientState>;
 }
 
-impl IbcStoreValue for ClientConsensusStatePath {
+impl IbcValueForPath for ClientConsensusStatePath {
     type Value = Box<dyn ConsensusState>;
 }
 
