@@ -14,21 +14,6 @@ use crate::events::IbcEvent;
 use crate::prelude::*;
 use crate::timestamp::Timestamp;
 
-pub struct CheckResult {
-    client_id: ClientId,
-    client_state: Box<dyn ClientState>,
-    header: Any,
-}
-
-pub struct ProcessResult {
-    pub client_id: ClientId,
-    pub client_state: Box<dyn ClientState>,
-    pub consensus_state: Box<dyn ConsensusState>,
-    pub header: Any,
-    pub processed_time: Timestamp,
-    pub processed_height: Height,
-}
-
 pub fn validate(msg: RawMsgUpdateClient) -> Result<MsgUpdateClient, Error> {
     msg.try_into()
 }
@@ -37,10 +22,13 @@ pub trait Check {
     fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, Error>;
 }
 
-pub fn check<CtxRead>(
-    ctx: &CtxRead,
-    msg: MsgUpdateClient,
-) -> Result<CheckResult, Error>
+pub struct CheckResult {
+    client_id: ClientId,
+    client_state: Box<dyn ClientState>,
+    header: Any,
+}
+
+pub fn check<CtxRead>(ctx: &CtxRead, msg: MsgUpdateClient) -> Result<CheckResult, Error>
 where
     CtxRead: Check,
 {
@@ -65,6 +53,15 @@ pub trait Process {
     fn host_height(&self) -> Height;
 
     fn host_timestamp(&self) -> Timestamp;
+}
+
+pub struct ProcessResult {
+    pub client_id: ClientId,
+    pub client_state: Box<dyn ClientState>,
+    pub consensus_state: Box<dyn ConsensusState>,
+    pub header: Any,
+    pub processed_time: Timestamp,
+    pub processed_height: Height,
 }
 
 pub fn process<E, CtxRead>(
@@ -129,10 +126,7 @@ pub trait Verify {
     ) -> Result<Option<Box<dyn ConsensusState>>, Error>;
 }
 
-pub fn verify<CtxRead>(
-    ctx: &CtxRead,
-    process_result: ProcessResult,
-) -> Result<ProcessResult, Error>
+pub fn verify<CtxRead>(ctx: &CtxRead, process_result: ProcessResult) -> Result<(), Error>
 where
     CtxRead: Verify + ClientReader, // TODO: Remove `ClientReader` bound
 {
@@ -140,28 +134,16 @@ where
         client_id,
         client_state,
         header,
-        processed_time,
-        processed_height,
         ..
     } = process_result;
 
-    let UpdatedState {
-        client_state,
-        consensus_state,
-    } = client_state
-        .check_header_and_update_state(ctx, client_id.clone(), header.clone())
+    let UpdatedState { .. } = client_state
+        .check_header_and_update_state(ctx, client_id, header)
         .map_err(|e| Error::header_verification_failure(e.to_string()))?;
 
     /* Verification */
 
-    Ok(ProcessResult {
-        client_id,
-        client_state,
-        consensus_state,
-        header,
-        processed_time,
-        processed_height,
-    })
+    Ok(())
 }
 
 pub trait Write {
@@ -193,10 +175,7 @@ pub trait Write {
     ) -> Result<(), Error>;
 }
 
-pub fn write<CtxWrite>(
-    ctx: &mut CtxWrite,
-    process_result: ProcessResult,
-) -> Result<(), Error>
+pub fn write<CtxWrite>(ctx: &mut CtxWrite, process_result: ProcessResult) -> Result<(), Error>
 where
     CtxWrite: Write,
 {
