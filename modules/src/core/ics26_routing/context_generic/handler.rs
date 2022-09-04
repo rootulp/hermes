@@ -143,12 +143,16 @@ where
 
 #[cfg(test)]
 pub mod test {
+    use alloc::collections::BTreeMap;
     use alloc::vec::Vec;
 
     use ibc_proto::ibc::core::client::v1::MsgUpdateClient as RawMsgUpdateClient;
 
     use super::*;
-    use crate::core::ics26_routing::context_generic::api::EventEmitter;
+    use crate::core::ics24_host::Path;
+    use crate::core::ics26_routing::context_generic::api::{
+        EventEmitter, IbcSerde, IbcValueForPath,
+    };
     use crate::core::ics26_routing::context_generic::api::{Host, IbcHost, StoreError};
     use crate::core::ics26_routing::context_generic::framework::TypedStore;
     use crate::core::ics26_routing::context_generic::handler_v2::{Executor, Validator};
@@ -171,21 +175,34 @@ pub mod test {
         }
     }
 
-    struct DummyStore;
+    struct DummyStore(BTreeMap<Path, Vec<u8>>);
 
-    impl<K, V> TypedStore<K, V> for DummyStore {
+    impl<K, V> TypedStore<K, V> for DummyStore
+    where
+        K: Into<Path> + IbcValueForPath<Value = V>,
+        V: IbcSerde,
+    {
         type Error = Ics02Error;
 
-        fn set(&mut self, _key: K, _value: V) -> Result<(), Self::Error> {
-            todo!()
+        fn set(&mut self, key: K, value: V) -> Result<(), Self::Error> {
+            let key = key.into();
+            let value = <<K as IbcValueForPath>::Value as IbcSerde>::serialize(value);
+            self.0.insert(key, value).map(|_| ()).unwrap();
+            Ok(())
         }
 
-        fn get(&self, _key: K) -> Result<Option<V>, Self::Error> {
-            todo!()
+        fn get(&self, key: K) -> Result<Option<V>, Self::Error> {
+            let key = key.into();
+            Ok(self
+                .0
+                .get(&key)
+                .map(|bytes| <<K as IbcValueForPath>::Value as IbcSerde>::deserialize(bytes)))
         }
 
-        fn delete(&mut self, _key: K) -> Result<(), Self::Error> {
-            todo!()
+        fn delete(&mut self, key: K) -> Result<(), Self::Error> {
+            let key = key.into();
+            self.0.remove(&key).map(|_| ()).unwrap();
+            Ok(())
         }
     }
 
