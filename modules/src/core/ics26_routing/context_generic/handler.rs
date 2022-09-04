@@ -1,5 +1,6 @@
 use alloc::boxed::Box;
 use alloc::string::ToString;
+use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 use ibc_proto::google::protobuf::Any;
@@ -12,11 +13,12 @@ use crate::core::ics02_client::error::Error as Ics02Error;
 use crate::core::ics02_client::msgs::update_client::MsgUpdateClient;
 use crate::core::ics24_host::identifier::ClientId;
 use crate::core::ics26_routing::context_generic::api::{
-    DefaultIbcTypes, DynClientContext, Host, IbcHost, StoreError,
+    DefaultIbcTypes, DynClientContext, EventEmitter, Host, IbcHost, StoreError,
 };
 use crate::core::ics26_routing::context_generic::framework::{
     TypedStore, UpdateClientValidationContext,
 };
+use crate::events::IbcEvent;
 use crate::timestamp::Timestamp;
 use crate::Height;
 
@@ -182,11 +184,29 @@ pub fn update_client_handler() -> PhantomData<impl Phase> {
         }
     }
 
+    #[derive(Clone, Debug)]
+    pub struct DefaultEventEmitter {
+        events: Vec<IbcEvent>,
+    }
+
+    impl EventEmitter for DefaultEventEmitter {
+        type Event = IbcEvent;
+
+        fn events(&self) -> &[Self::Event] {
+            self.events.as_ref()
+        }
+
+        fn emit_event(&mut self, event: Self::Event) {
+            self.events.push(event)
+        }
+    }
+
     struct DummyHost;
 
     impl Host for DummyHost {
         type Error = Ics02Error;
         type KvStore = DummyStore;
+        type EventEmitter = DefaultEventEmitter;
 
         fn current_timestamp(&self) -> Timestamp {
             todo!()

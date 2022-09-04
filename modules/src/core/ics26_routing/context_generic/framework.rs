@@ -21,6 +21,7 @@ pub trait IbcTypes {
     type ClientId;
     type Height;
     type Timestamp;
+    type Event;
 }
 
 pub trait HasIbcTypes {

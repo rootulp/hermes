@@ -11,6 +11,7 @@ use crate::core::ics26_routing::context_generic::framework::{
     AnyClientContext, AnyClientState, AnyConsensusState, ClientId, ClientType, Height, IbcTypes,
     Timestamp, TypedStore, UpdateClientExecutionContext, UpdateClientValidationContext,
 };
+use crate::events::IbcEvent;
 use crate::prelude::Box;
 use crate::{timestamp::Timestamp as IbcTimestamp, Height as IbcHeight};
 
@@ -44,6 +45,7 @@ impl IbcTypes for DefaultIbcTypes {
     type ClientId = IbcClientId;
     type Height = IbcHeight;
     type Timestamp = IbcTimestamp;
+    type Event = IbcEvent;
 }
 
 pub trait IbcStore<Context, Types, Error>:
@@ -73,6 +75,7 @@ pub trait StoreError {
 pub trait Host {
     type Error: StoreError;
     type KvStore: IbcStore<DynClientContext, DefaultIbcTypes, Self::Error>;
+    type EventEmitter: EventEmitter<Event = <DefaultIbcTypes as IbcTypes>::Event>;
 
     fn current_timestamp(&self) -> IbcTimestamp;
 
@@ -81,8 +84,17 @@ pub trait Host {
     fn store(&self) -> &Self::KvStore;
 
     fn store_mut(&mut self) -> &mut Self::KvStore;
+}
 
-    // events - commitment?
+pub trait EventEmitter {
+    /// Event type
+    type Event;
+
+    /// Return the events generated so-far
+    fn events(&self) -> &[Self::Event];
+
+    /// Emit an event
+    fn emit_event(&mut self, _event: Self::Event);
 }
 
 pub struct IbcHost<H> {
@@ -92,6 +104,7 @@ pub struct IbcHost<H> {
 impl<H: Host> Host for IbcHost<H> {
     type Error = H::Error;
     type KvStore = H::KvStore;
+    type EventEmitter = H::EventEmitter;
 
     fn current_timestamp(&self) -> IbcTimestamp {
         self.host.current_timestamp()
