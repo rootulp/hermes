@@ -1,4 +1,5 @@
 use alloc::boxed::Box;
+use alloc::string::ToString;
 use core::marker::PhantomData;
 
 use ibc_proto::google::protobuf::Any;
@@ -6,8 +7,8 @@ use ibc_proto::ibc::core::client::v1::MsgUpdateClient as RawMsgUpdateClient;
 
 use crate::core::ics02_client::client_state::{ClientState, UpdatedState};
 use crate::core::ics02_client::consensus_state::ConsensusState;
+use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics02_client::error::Error as Ics02Error;
-use crate::core::ics02_client::events::{Attributes, UpdateClient as UpdateClientEvent};
 use crate::core::ics02_client::msgs::update_client::MsgUpdateClient;
 use crate::core::ics24_host::identifier::ClientId;
 use crate::core::ics26_routing::context_generic::api::{
@@ -104,10 +105,10 @@ impl<T> Phase for Process<T>
 where
     T: Phase<Input = ProcessResult, Error = Ics02Error>,
     T::Context: UpdateClientValidationContext<
-        AnyClientContext = DynClientContext,
-        IbcTypes = DefaultIbcTypes,
-        Error = T::Error,
-    >,
+            AnyClientContext = DynClientContext,
+            IbcTypes = DefaultIbcTypes,
+            Error = T::Error,
+        > + ClientReader,
 {
     type Error = Ics02Error;
     type Input = CheckResult;
@@ -125,32 +126,23 @@ where
             client_state,
             consensus_state,
         } = client_state
-            .check_header_and_update_state(context, client_id.clone(), header)
-            .map_err(|e| Error::header_verification_failure(e.to_string()))?;
+            .check_header_and_update_state(&context, client_id.clone(), header)
+            .map_err(|e| Ics02Error::header_verification_failure(e.to_string()))?;
 
-        event_emitter.emit_event(UpdateClientEvent::from(Attributes {
-            client_id: client_id.clone(),
-            client_type: client_state.client_type(),
-            consensus_height: client_state.latest_height(),
-        }));
+        // TODO: Add support for events
+        // event_emitter.emit_event(UpdateClientEvent::from(Attributes {
+        //     client_id: client_id.clone(),
+        //     client_type: client_state.client_type(),
+        //     consensus_height: client_state.latest_height(),
+        // }));
 
-        Ok(UpdateClientResult {
+        Ok(ProcessResult {
             client_id,
             client_state,
             consensus_state,
-            processed_time: ctx.current_timestamp(),
-            processed_height: ctx.current_height(),
+            processed_time: ClientReader::host_timestamp(&context),
+            processed_height: ClientReader::host_height(&context),
         })
-    }
-}
-
-pub struct UpdateClientValidator<H> {
-    handler: Decode<RawMsgUpdateClient, MsgUpdateClient, Check<Nul<IbcHost<H>>>>,
-}
-
-impl<H: Host> UpdateClientValidator<H> {
-    pub fn new(_host: H) -> Self {
-        todo!()
     }
 }
 
@@ -171,53 +163,53 @@ impl<H> Phase for Nul<H> {
     }
 }
 
-// pub fn update_client_handler() -> PhantomData<impl Phase> {
-//     struct DummyStore;
-//
-//     impl<K, V> TypedStore<K, V> for DummyStore {
-//         type Error = Ics02Error;
-//
-//         fn set(&mut self, _key: K, _value: V) -> Result<(), Self::Error> {
-//             todo!()
-//         }
-//
-//         fn get(&self, _key: K) -> Result<Option<V>, Self::Error> {
-//             todo!()
-//         }
-//
-//         fn delete(&mut self, _key: K) -> Result<(), Self::Error> {
-//             todo!()
-//         }
-//     }
-//
-//     struct DummyHost;
-//
-//     impl Host for DummyHost {
-//         type Error = Ics02Error;
-//         type KvStore = DummyStore;
-//
-//         fn current_timestamp(&self) -> Timestamp {
-//             todo!()
-//         }
-//
-//         fn current_height(&self) -> Height {
-//             todo!()
-//         }
-//
-//         fn store(&self) -> &Self::KvStore {
-//             todo!()
-//         }
-//
-//         fn store_mut(&mut self) -> &mut Self::KvStore {
-//             todo!()
-//         }
-//     }
-//
-//     impl StoreError for Ics02Error {
-//         fn path_not_found() -> Self {
-//             Self::client_not_found(ClientId::default())
-//         }
-//     }
-//
-//     PhantomData::<Decode<RawMsgUpdateClient, MsgUpdateClient, Check<Nul<IbcHost<DummyHost>>>>>
-// }
+pub fn update_client_handler() -> PhantomData<impl Phase> {
+    struct DummyStore;
+
+    impl<K, V> TypedStore<K, V> for DummyStore {
+        type Error = Ics02Error;
+
+        fn set(&mut self, _key: K, _value: V) -> Result<(), Self::Error> {
+            todo!()
+        }
+
+        fn get(&self, _key: K) -> Result<Option<V>, Self::Error> {
+            todo!()
+        }
+
+        fn delete(&mut self, _key: K) -> Result<(), Self::Error> {
+            todo!()
+        }
+    }
+
+    struct DummyHost;
+
+    impl Host for DummyHost {
+        type Error = Ics02Error;
+        type KvStore = DummyStore;
+
+        fn current_timestamp(&self) -> Timestamp {
+            todo!()
+        }
+
+        fn current_height(&self) -> Height {
+            todo!()
+        }
+
+        fn store(&self) -> &Self::KvStore {
+            todo!()
+        }
+
+        fn store_mut(&mut self) -> &mut Self::KvStore {
+            todo!()
+        }
+    }
+
+    impl StoreError for Ics02Error {
+        fn path_not_found() -> Self {
+            Self::client_not_found(ClientId::default())
+        }
+    }
+
+    PhantomData::<Decode<RawMsgUpdateClient, MsgUpdateClient, Check<Nul<IbcHost<DummyHost>>>>>
+}
