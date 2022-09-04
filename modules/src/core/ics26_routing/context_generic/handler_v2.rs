@@ -2,6 +2,7 @@ use ibc_proto::google::protobuf::Any;
 use ibc_proto::ibc::core::client::v1::MsgUpdateClient as RawMsgUpdateClient;
 
 use crate::core::ics02_client::client_state::{ClientState, UpdatedState};
+use crate::core::ics02_client::client_type::ClientType;
 use crate::core::ics02_client::consensus_state::ConsensusState;
 use crate::core::ics02_client::context::ClientReader;
 use crate::core::ics02_client::error::Error;
@@ -9,7 +10,8 @@ use crate::core::ics02_client::events::{Attributes, UpdateClient as UpdateClient
 use crate::core::ics02_client::height::Height;
 use crate::core::ics02_client::msgs::update_client::MsgUpdateClient;
 use crate::core::ics24_host::identifier::ClientId;
-use crate::core::ics26_routing::context_generic::api::EventEmitter;
+use crate::core::ics26_routing::context_generic::api::{DefaultIbcTypes, DynClientContext};
+use crate::core::ics26_routing::context_generic::framework::UpdateClientValidationContext;
 use crate::events::IbcEvent;
 use crate::prelude::*;
 use crate::timestamp::Timestamp;
@@ -20,6 +22,153 @@ pub fn validate(msg: RawMsgUpdateClient) -> Result<MsgUpdateClient, Error> {
 
 pub trait Check {
     fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, Error>;
+}
+
+pub struct Validator<T> {
+    pub context: T,
+}
+
+impl<T> Validator<T>
+where
+    T: UpdateClientValidationContext<
+        AnyClientContext = DynClientContext,
+        IbcTypes = DefaultIbcTypes,
+        Error = Error,
+    >,
+{
+    pub fn validate(&self, msg: RawMsgUpdateClient) -> Result<(), Error> {
+        let msg = msg.try_into()?;
+        let check_result = check(self, msg)?;
+        let process_result = process(self, check_result)?;
+        verify(self, process_result)
+    }
+}
+
+impl<T> Check for Validator<T>
+where
+    T: UpdateClientValidationContext<
+        AnyClientContext = DynClientContext,
+        IbcTypes = DefaultIbcTypes,
+        Error = Error,
+    >,
+{
+    fn client_state(&self, client_id: &ClientId) -> Result<Box<dyn ClientState>, Error> {
+        self.context.client_state(client_id.clone())
+    }
+}
+
+impl<T> Process for Validator<T>
+where
+    T: UpdateClientValidationContext<
+        AnyClientContext = DynClientContext,
+        IbcTypes = DefaultIbcTypes,
+        Error = Error,
+    >,
+{
+    fn host_height(&self) -> Height {
+        self.context.host_height()
+    }
+
+    fn host_timestamp(&self) -> Timestamp {
+        self.context.host_timestamp()
+    }
+}
+
+impl<T> Verify for Validator<T>
+where
+    T: UpdateClientValidationContext<
+        AnyClientContext = DynClientContext,
+        IbcTypes = DefaultIbcTypes,
+        Error = Error,
+    >,
+{
+    fn consensus_state(
+        &self,
+        _client_id: &ClientId,
+        _height: Height,
+    ) -> Result<Box<dyn ConsensusState>, Error> {
+        todo!()
+    }
+
+    fn next_consensus_state(
+        &self,
+        _client_id: &ClientId,
+        _height: Height,
+    ) -> Result<Option<Box<dyn ConsensusState>>, Error> {
+        todo!()
+    }
+
+    fn prev_consensus_state(
+        &self,
+        _client_id: &ClientId,
+        _height: Height,
+    ) -> Result<Option<Box<dyn ConsensusState>>, Error> {
+        todo!()
+    }
+}
+
+impl<T> ClientReader for Validator<T>
+where
+    T: UpdateClientValidationContext<
+        AnyClientContext = DynClientContext,
+        IbcTypes = DefaultIbcTypes,
+        Error = Error,
+    >,
+{
+    fn client_type(&self, _client_id: &ClientId) -> Result<ClientType, Error> {
+        todo!()
+    }
+
+    fn client_state(&self, _client_id: &ClientId) -> Result<Box<dyn ClientState>, Error> {
+        todo!()
+    }
+
+    fn decode_client_state(&self, _client_state: Any) -> Result<Box<dyn ClientState>, Error> {
+        todo!()
+    }
+
+    fn consensus_state(
+        &self,
+        _client_id: &ClientId,
+        _height: crate::Height,
+    ) -> Result<Box<dyn ConsensusState>, Error> {
+        todo!()
+    }
+
+    fn next_consensus_state(
+        &self,
+        _client_id: &ClientId,
+        _height: crate::Height,
+    ) -> Result<Option<Box<dyn ConsensusState>>, Error> {
+        todo!()
+    }
+
+    fn prev_consensus_state(
+        &self,
+        _client_id: &ClientId,
+        _height: crate::Height,
+    ) -> Result<Option<Box<dyn ConsensusState>>, Error> {
+        todo!()
+    }
+
+    fn host_height(&self) -> crate::Height {
+        todo!()
+    }
+
+    fn host_consensus_state(
+        &self,
+        _height: crate::Height,
+    ) -> Result<Box<dyn ConsensusState>, Error> {
+        todo!()
+    }
+
+    fn pending_host_consensus_state(&self) -> Result<Box<dyn ConsensusState>, Error> {
+        todo!()
+    }
+
+    fn client_counter(&self) -> Result<u64, Error> {
+        todo!()
+    }
 }
 
 pub struct CheckResult {
@@ -62,16 +211,12 @@ pub struct ProcessResult {
     pub header: Any,
     pub processed_time: Timestamp,
     pub processed_height: Height,
+    pub event: UpdateClientEvent,
 }
 
-pub fn process<E, CtxRead>(
-    event_emitter: &mut E,
-    ctx: &CtxRead,
-    check_result: CheckResult,
-) -> Result<ProcessResult, Error>
+pub fn process<CtxRead>(ctx: &CtxRead, check_result: CheckResult) -> Result<ProcessResult, Error>
 where
-    E: EventEmitter<Event = IbcEvent>,
-    CtxRead: ClientReader,
+    CtxRead: Process + ClientReader,
 {
     let CheckResult {
         client_id,
@@ -87,14 +232,11 @@ where
         .check_header_and_update_state(ctx, client_id.clone(), header.clone())
         .map_err(|e| Error::header_verification_failure(e.to_string()))?;
 
-    event_emitter.emit_event(
-        UpdateClientEvent::from(Attributes {
-            client_id: client_id.clone(),
-            client_type: client_state.client_type(),
-            consensus_height: client_state.latest_height(),
-        })
-        .into(),
-    );
+    let event = UpdateClientEvent::from(Attributes {
+        client_id: client_id.clone(),
+        client_type: client_state.client_type(),
+        consensus_height: client_state.latest_height(),
+    });
 
     Ok(ProcessResult {
         client_id,
@@ -102,7 +244,8 @@ where
         consensus_state,
         header,
         processed_time: ClientReader::host_timestamp(ctx),
-        processed_height: ctx.host_height(),
+        processed_height: ClientReader::host_height(ctx),
+        event,
     })
 }
 
@@ -147,6 +290,8 @@ where
 }
 
 pub trait Write {
+    fn emit_event(&mut self, event: IbcEvent);
+
     fn store_client_state(
         &mut self,
         client_id: ClientId,
