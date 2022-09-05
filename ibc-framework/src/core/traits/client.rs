@@ -27,15 +27,6 @@ pub trait HasAnyClientMethods: HasAnyClientTypes + HasIbcTypes {
     fn consensus_state_timestamp(consensus_state: &Self::AnyConsensusState) -> Self::Timestamp;
 }
 
-pub trait HasOwnClient: HasClientTypes + HasClientTypeFor<Self::OwnClient> {
-    type OwnClient: HasClientTypes<
-        ClientState = Self::ClientState,
-        ConsensusState = Self::ConsensusState,
-        ClientHeader = Self::ClientHeader,
-        Misbehavior = Self::Misbehavior,
-    >;
-}
-
 pub trait HasClientTypes: Async {
     type ClientState: Async;
 

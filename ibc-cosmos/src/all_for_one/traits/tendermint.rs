@@ -15,16 +15,11 @@ use crate::clients::tendermint::update_client::Error as UpdateTendermintClientEr
 
 pub trait AfoTendermintOnlyChainContext:
     AfoChainContext<
-        OwnClient = TendermintClient,
         Height = Height,
         Timestamp = Timestamp,
         Message = Any,
         ClientId = ClientId,
         MerkleProof = MerkleProof,
-        ClientState = TendermintClientState,
-        ConsensusState = TendermintConsensusState,
-        ClientHeader = TendermintClientHeader,
-        Misbehavior = TendermintMisbehavior,
         AnyClientState = TendermintClientState,
         AnyConsensusState = TendermintConsensusState,
         AnyClientHeader = TendermintClientHeader,
@@ -36,16 +31,11 @@ pub trait AfoTendermintOnlyChainContext:
 
 impl<Context> AfoTendermintOnlyChainContext for Context where
     Context: AfoChainContext<
-            OwnClient = TendermintClient,
             Height = Height,
             Timestamp = Timestamp,
             Message = Any,
             ClientId = ClientId,
             MerkleProof = MerkleProof,
-            ClientState = TendermintClientState,
-            ConsensusState = TendermintConsensusState,
-            ClientHeader = TendermintClientHeader,
-            Misbehavior = TendermintMisbehavior,
             AnyClientState = TendermintClientState,
             AnyConsensusState = TendermintConsensusState,
             AnyClientHeader = TendermintClientHeader,

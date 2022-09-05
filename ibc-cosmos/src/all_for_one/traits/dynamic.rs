@@ -10,24 +10,16 @@ use ibc_proto::google::protobuf::Any;
 use crate::clients::dynamic::client::{
     DynClientHeader, DynClientState, DynConsensusState, DynMisbehavior,
 };
-use crate::clients::tendermint::client::{
-    TendermintClient, TendermintClientHeader, TendermintClientState, TendermintConsensusState,
-    TendermintMisbehavior,
-};
+use crate::clients::tendermint::client::TendermintClient;
 use crate::clients::tendermint::update_client::Error as UpdateTendermintClientError;
 
-pub trait AfoDynamicTendermintChainContext:
+pub trait AfoDynamicChainContext:
     AfoChainContext<
-        OwnClient = TendermintClient,
         Height = Height,
         Timestamp = Timestamp,
         Message = Any,
         ClientId = ClientId,
         MerkleProof = MerkleProof,
-        ClientState = TendermintClientState,
-        ConsensusState = TendermintConsensusState,
-        ClientHeader = TendermintClientHeader,
-        Misbehavior = TendermintMisbehavior,
         AnyClientState = DynClientState,
         AnyConsensusState = DynConsensusState,
         AnyClientHeader = DynClientHeader,
@@ -37,18 +29,13 @@ pub trait AfoDynamicTendermintChainContext:
 {
 }
 
-impl<Context> AfoDynamicTendermintChainContext for Context where
+impl<Context> AfoDynamicChainContext for Context where
     Context: AfoChainContext<
-            OwnClient = TendermintClient,
             Height = Height,
             Timestamp = Timestamp,
             Message = Any,
             ClientId = ClientId,
             MerkleProof = MerkleProof,
-            ClientState = TendermintClientState,
-            ConsensusState = TendermintConsensusState,
-            ClientHeader = TendermintClientHeader,
-            Misbehavior = TendermintMisbehavior,
             AnyClientState = DynClientState,
             AnyConsensusState = DynConsensusState,
             AnyClientHeader = DynClientHeader,

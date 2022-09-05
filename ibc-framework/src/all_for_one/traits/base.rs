@@ -1,6 +1,6 @@
 use crate::all_for_one::traits::error::AfoErrorContext;
 use crate::all_for_one::traits::event::AfoEventContext;
-use crate::core::traits::client::{HasAnyClientMethods, HasOwnClient};
+use crate::core::traits::client::HasAnyClientMethods;
 use crate::core::traits::client_reader::HasAnyClientReader;
 use crate::core::traits::client_writer::HasAnyClientWriter;
 use crate::core::traits::event::HasEventEmitter;
@@ -14,7 +14,6 @@ pub trait AfoChainContext:
     AfoErrorContext
     + AfoEventContext
     + HasIbcMethods
-    + HasOwnClient
     + HasAnyClientMethods
     + HasAnyClientReader
     + HasAnyClientWriter
@@ -30,7 +29,6 @@ impl<Context> AfoChainContext for Context where
     Context: AfoErrorContext
         + AfoEventContext
         + HasIbcMethods
-        + HasOwnClient
         + HasAnyClientMethods
         + HasAnyClientReader
         + HasAnyClientWriter
