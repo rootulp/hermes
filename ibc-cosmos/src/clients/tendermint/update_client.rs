@@ -140,6 +140,10 @@ where
         // If the header has verified, but its corresponding consensus state
         // differs from the existing consensus state for that height, freeze the
         // client and return the installed consensus state.
+        //
+        // Note that this must be done *after* the light client verification.
+        // So that invalid headers will result in verification errors instead
+        // of errorneously freezing clients.
         if let Some(cs) = m_current_client_consensus_state {
             if cs != new_consensus_state {
                 return Ok((

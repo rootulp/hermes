@@ -1,6 +1,6 @@
 use crate::core::traits::client::HasAnyClientMethods;
 use crate::core::traits::client_reader::HasAnyClientReader;
-use crate::core::traits::client_writer::AnyClientWriter;
+use crate::core::traits::client_writer::HasAnyClientWriter;
 use crate::core::traits::error::InjectError;
 use crate::core::traits::event::HasEventEmitter;
 use crate::core::traits::events::misbehavior::InjectMisbehaviorEvent;
@@ -31,7 +31,7 @@ where
     Context: InjectUpdateClientEvent,
     Context: InjectMisbehaviorEvent,
     Context: HasEventEmitter,
-    Context: AnyClientWriter,
+    Context: HasAnyClientWriter,
 {
     fn handle_update_client_message(
         context: &Context,
