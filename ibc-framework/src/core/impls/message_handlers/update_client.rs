@@ -1,5 +1,6 @@
 use crate::core::traits::client::HasAnyClientMethods;
 use crate::core::traits::client_reader::AnyClientReader;
+use crate::core::traits::client_writer::AnyClientWriter;
 use crate::core::traits::error::InjectError;
 use crate::core::traits::event::HasEventEmitter;
 use crate::core::traits::events::misbehavior::InjectMisbehaviorEvent;
@@ -30,6 +31,7 @@ where
     Context: InjectUpdateClientEvent,
     Context: InjectMisbehaviorEvent,
     Context: HasEventEmitter,
+    Context: AnyClientWriter,
 {
     fn handle_update_client_message(
         context: &Context,
@@ -68,6 +70,8 @@ where
                 new_any_client_header,
             )?;
 
+        context.set_any_client_state(client_id, &new_any_client_state)?;
+
         if Context::client_state_is_frozen(&new_any_client_state) {
             let event = Context::inject_misbehavior_event(
                 client_id,
@@ -78,6 +82,8 @@ where
 
             context.emit_event(&event);
         } else {
+            context.set_any_consensus_state(client_id, &new_any_consensus_state)?;
+
             let event = Context::inject_update_client_event(
                 client_id,
                 &Context::client_state_type(&new_any_client_state),

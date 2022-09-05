@@ -1,5 +1,6 @@
 pub mod client;
 pub mod client_reader;
+pub mod client_writer;
 pub mod error;
 pub mod event;
 pub mod events;
