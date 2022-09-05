@@ -3,7 +3,7 @@ use ibc::core::ics24_host::identifier::ClientId;
 use ibc::timestamp::Timestamp;
 use ibc::Height;
 use ibc_framework::all_for_one::traits::base::AfoChainContext;
-use ibc_framework::core::traits::client::ContainsClient;
+use ibc_framework::core::traits::client_reader::HasClientReader;
 use ibc_framework::core::traits::error::InjectError;
 use ibc_proto::google::protobuf::Any;
 
@@ -30,7 +30,7 @@ pub trait AfoTendermintOnlyChainContext:
         AnyClientHeader = TendermintClientHeader,
         AnyMisbehavior = TendermintMisbehavior,
     > + InjectError<UpdateTendermintClientError>
-    + ContainsClient<TendermintClient>
+    + HasClientReader<TendermintClient>
 {
 }
 
@@ -51,6 +51,6 @@ impl<Context> AfoTendermintOnlyChainContext for Context where
             AnyClientHeader = TendermintClientHeader,
             AnyMisbehavior = TendermintMisbehavior,
         > + InjectError<UpdateTendermintClientError>
-        + ContainsClient<TendermintClient>
+        + HasClientReader<TendermintClient>
 {
 }

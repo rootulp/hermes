@@ -1,7 +1,7 @@
 use ibc::timestamp::Timestamp;
 use ibc::Height;
 use ibc_framework::core::traits::client::ContainsClient;
-use ibc_framework::core::traits::client_reader::ClientReader;
+use ibc_framework::core::traits::client_reader::HasClientReader;
 use ibc_framework::core::traits::error::{HasError, InjectError};
 use ibc_framework::core::traits::handlers::update_client::UpdateClientHandler;
 use ibc_framework::core::traits::host::HasHostMethods;
@@ -48,7 +48,7 @@ impl<Context> UpdateClientHandler<Context> for TendermintClient
 where
     Context: HasError,
     Context: HasIbcTypes<Height = Height, Timestamp = Timestamp>,
-    Context: ClientReader<TendermintClient>,
+    Context: HasClientReader<TendermintClient>,
     Context: ContainsClient<TendermintClient>,
     Context: HasHostMethods,
     Context: InjectError<Error>,

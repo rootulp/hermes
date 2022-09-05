@@ -2,7 +2,7 @@ use core::marker::PhantomData;
 
 use crate::core::impls::handlers::update_client::lift::LiftClientUpdateHandler;
 use crate::core::traits::client::{ContainsClient, HasClientTypes};
-use crate::core::traits::client_reader::AnyClientReader;
+use crate::core::traits::client_reader::HasAnyClientReader;
 use crate::core::traits::handlers::update_client::{AnyUpdateClientHandler, UpdateClientHandler};
 
 pub struct CombineClientUpdateHandler<Handler, NextHandlers>(
@@ -12,7 +12,7 @@ pub struct CombineClientUpdateHandler<Handler, NextHandlers>(
 impl<Context, Handler, NextHandlers, Client> AnyUpdateClientHandler<Context>
     for CombineClientUpdateHandler<Handler, NextHandlers>
 where
-    Context: AnyClientReader,
+    Context: HasAnyClientReader,
     Context: ContainsClient<Client>,
     Client: HasClientTypes,
     Handler: UpdateClientHandler<Context, Client = Client>,

@@ -1,5 +1,5 @@
 use crate::core::traits::client::HasAnyClientMethods;
-use crate::core::traits::client_reader::AnyClientReader;
+use crate::core::traits::client_reader::HasAnyClientReader;
 use crate::core::traits::client_writer::AnyClientWriter;
 use crate::core::traits::error::InjectError;
 use crate::core::traits::event::HasEventEmitter;
@@ -22,7 +22,7 @@ pub struct BaseUpdateClientMessageHandler;
 impl<Context> UpdateClientMessageHandler<Context> for BaseUpdateClientMessageHandler
 where
     Context: HasUpdateClientMessage,
-    Context: AnyClientReader,
+    Context: HasAnyClientReader,
     Context: HasAnyUpdateClientHandler,
     Context: HasAnyClientMethods,
     Context: InjectError<Error>,
