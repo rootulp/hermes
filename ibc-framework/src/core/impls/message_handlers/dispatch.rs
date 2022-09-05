@@ -1,5 +1,5 @@
 use crate::core::traits::error::InjectError;
-use crate::core::traits::ibc::HasIbcTypes;
+use crate::core::traits::ibc::HasIbcMethods;
 use crate::core::traits::message_handler::MessageHandler;
 use crate::core::traits::messages::update_client::{
     HasUpdateClientMessage, HasUpdateClientMessageHandler,
@@ -13,7 +13,7 @@ pub struct UnknownMessage<MessageType> {
 
 impl<Context> MessageHandler<Context> for DispatchIbcMessages
 where
-    Context: HasIbcTypes,
+    Context: HasIbcMethods,
     Context: HasUpdateClientMessageHandler,
     Context: InjectError<UnknownMessage<Context::MessageType>>,
 {

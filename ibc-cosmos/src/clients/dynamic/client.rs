@@ -7,9 +7,7 @@ use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics02_client::consensus_state::ConsensusState;
 use ibc::core::ics02_client::header::Header as ClientHeader;
 use ibc::core::ics02_client::misbehaviour::Misbehaviour;
-use ibc_framework::core::traits::client::{
-    HasAnyClientMethods, HasAnyClientTypes, HasClientTypeFor,
-};
+use ibc_framework::core::traits::client::{HasAnyClientTypes, HasClientTypeFor};
 use ibc_framework::core::traits::prism::Prism;
 
 use crate::clients::tendermint::client::TendermintClient;
@@ -104,15 +102,15 @@ impl HasClientTypeFor<TendermintClient> for DynamicClient {
     const CLIENT_TYPE: ClientType = ClientType::Tendermint;
 }
 
-impl HasAnyClientMethods for DynamicClient {
-    fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType {
-        client_state.client_state.client_type()
-    }
+// impl HasAnyClientMethods for DynamicClient {
+//     fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType {
+//         client_state.client_state.client_type()
+//     }
 
-    fn client_state_is_frozen(client_state: &Self::AnyClientState) -> bool {
-        client_state.client_state.is_frozen()
-    }
-}
+//     fn client_state_is_frozen(client_state: &Self::AnyClientState) -> bool {
+//         client_state.client_state.is_frozen()
+//     }
+// }
 
 impl DynClientState {
     fn new(client_state: impl ClientState) -> Self {
