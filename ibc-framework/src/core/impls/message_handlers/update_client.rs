@@ -17,9 +17,9 @@ pub enum Error {
     ClientIsExpired,
 }
 
-pub struct BaseHandleUpdateClientMessage;
+pub struct BaseUpdateClientMessageHandler;
 
-impl<Context> UpdateClientMessageHandler<Context> for BaseHandleUpdateClientMessage
+impl<Context> UpdateClientMessageHandler<Context> for BaseUpdateClientMessageHandler
 where
     Context: HasUpdateClientMessage,
     Context: AnyClientReader,

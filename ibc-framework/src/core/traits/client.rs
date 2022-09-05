@@ -1,4 +1,4 @@
-use crate::core::traits::error::{HasError, InjectError, MismatchClientType};
+use crate::core::traits::error::HasError;
 use crate::core::traits::ibc::HasIbcTypes;
 use crate::core::traits::prism::Prism;
 use crate::core::traits::sync::Async;
@@ -50,170 +50,149 @@ pub trait HasClientTypeFor<Client>: HasAnyClientTypes {
     const CLIENT_TYPE: Self::ClientType;
 }
 
-pub trait HasClientPrisms<AnyClient, Client>:
-    Prism<AnyClient::AnyClientState, Client::ClientState>
-    + Prism<AnyClient::AnyConsensusState, Client::ConsensusState>
-    + Prism<AnyClient::AnyClientHeader, Client::ClientHeader>
-    + Prism<AnyClient::AnyMisbehavior, Client::Misbehavior>
+pub trait InjectClientTypeMismatchError: HasError + HasAnyClientTypes {
+    fn inject_client_type_mismatch_error(expected_client_type: Self::ClientType) -> Self::Error;
+}
+
+pub trait HasClientPrisms<Client>:
+    HasAnyClientTypes
+    + Prism<Self::AnyClientState, Client::ClientState>
+    + Prism<Self::AnyConsensusState, Client::ConsensusState>
+    + Prism<Self::AnyClientHeader, Client::ClientHeader>
+    + Prism<Self::AnyMisbehavior, Client::Misbehavior>
     + HasError
 where
-    AnyClient: HasAnyClientTypes,
     Client: HasClientTypes,
 {
-    fn into_any_client_state(client_state: Client::ClientState) -> AnyClient::AnyClientState;
+    fn into_any_client_state(client_state: Client::ClientState) -> Self::AnyClientState;
 
     fn try_from_any_client_state(
-        client_state: AnyClient::AnyClientState,
+        client_state: Self::AnyClientState,
     ) -> Result<Client::ClientState, Self::Error>;
 
     fn try_from_any_client_state_ref(
-        client_state: &AnyClient::AnyClientState,
+        client_state: &Self::AnyClientState,
     ) -> Result<&Client::ClientState, Self::Error>;
 
-    fn into_any_consensus_state(
-        consensus_state: Client::ConsensusState,
-    ) -> AnyClient::AnyConsensusState;
+    fn into_any_consensus_state(consensus_state: Client::ConsensusState)
+        -> Self::AnyConsensusState;
 
     fn try_from_any_consensus_state(
-        consensus_state: AnyClient::AnyConsensusState,
+        consensus_state: Self::AnyConsensusState,
     ) -> Result<Client::ConsensusState, Self::Error>;
 
     fn try_from_any_consensus_state_ref(
-        consensus_state: &AnyClient::AnyConsensusState,
+        consensus_state: &Self::AnyConsensusState,
     ) -> Result<&Client::ConsensusState, Self::Error>;
 
-    fn into_any_client_header(client_header: Client::ClientHeader) -> AnyClient::AnyClientHeader;
+    fn into_any_client_header(client_header: Client::ClientHeader) -> Self::AnyClientHeader;
 
     fn try_from_any_client_header(
-        client_header: AnyClient::AnyClientHeader,
+        client_header: Self::AnyClientHeader,
     ) -> Result<Client::ClientHeader, Self::Error>;
 
     fn try_from_any_client_header_ref(
-        client_header: &AnyClient::AnyClientHeader,
+        client_header: &Self::AnyClientHeader,
     ) -> Result<&Client::ClientHeader, Self::Error>;
 
-    fn into_any_misbehavior(misbehavior: Client::Misbehavior) -> AnyClient::AnyMisbehavior;
+    fn into_any_misbehavior(misbehavior: Client::Misbehavior) -> Self::AnyMisbehavior;
 
     fn try_from_any_misbehavior(
-        misbehavior: AnyClient::AnyMisbehavior,
+        misbehavior: Self::AnyMisbehavior,
     ) -> Result<Client::Misbehavior, Self::Error>;
 
     fn try_from_any_misbehavior_ref(
-        misbehavior: &AnyClient::AnyMisbehavior,
+        misbehavior: &Self::AnyMisbehavior,
     ) -> Result<&Client::Misbehavior, Self::Error>;
 }
 
-impl<Context, AnyClient, Client> HasClientPrisms<AnyClient, Client> for Context
+impl<Context, Client> HasClientPrisms<Client> for Context
 where
-    AnyClient: HasClientTypeFor<Client>,
+    Context: HasClientTypeFor<Client>,
     Client: HasClientTypes,
-    Context: InjectError<MismatchClientType<AnyClient::ClientType>>,
-    Context: Prism<AnyClient::AnyClientState, Client::ClientState>
-        + Prism<AnyClient::AnyConsensusState, Client::ConsensusState>
-        + Prism<AnyClient::AnyClientHeader, Client::ClientHeader>
-        + Prism<AnyClient::AnyMisbehavior, Client::Misbehavior>,
+    Context: InjectClientTypeMismatchError,
+    Context: Prism<Self::AnyClientState, Client::ClientState>
+        + Prism<Self::AnyConsensusState, Client::ConsensusState>
+        + Prism<Self::AnyClientHeader, Client::ClientHeader>
+        + Prism<Self::AnyMisbehavior, Client::Misbehavior>,
 {
-    fn into_any_client_state(client_state: Client::ClientState) -> AnyClient::AnyClientState {
+    fn into_any_client_state(client_state: Client::ClientState) -> Self::AnyClientState {
         Context::into(client_state)
     }
 
     fn try_from_any_client_state(
-        client_state: AnyClient::AnyClientState,
+        client_state: Self::AnyClientState,
     ) -> Result<Client::ClientState, Context::Error> {
-        Context::try_from(client_state).ok_or_else(|| {
-            Context::inject_error(MismatchClientType {
-                expected_client_type: AnyClient::CLIENT_TYPE,
-            })
-        })
+        Context::try_from(client_state)
+            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
     }
 
     fn try_from_any_client_state_ref(
-        client_state: &AnyClient::AnyClientState,
+        client_state: &Self::AnyClientState,
     ) -> Result<&Client::ClientState, Context::Error> {
-        Context::try_from_ref(client_state).ok_or_else(|| {
-            Context::inject_error(MismatchClientType {
-                expected_client_type: AnyClient::CLIENT_TYPE,
-            })
-        })
+        Context::try_from_ref(client_state)
+            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
     }
 
     fn into_any_consensus_state(
         consensus_state: Client::ConsensusState,
-    ) -> AnyClient::AnyConsensusState {
+    ) -> Self::AnyConsensusState {
         Context::into(consensus_state)
     }
 
     fn try_from_any_consensus_state(
-        consensus_state: AnyClient::AnyConsensusState,
+        consensus_state: Self::AnyConsensusState,
     ) -> Result<Client::ConsensusState, Context::Error> {
-        Context::try_from(consensus_state).ok_or_else(|| {
-            Context::inject_error(MismatchClientType {
-                expected_client_type: AnyClient::CLIENT_TYPE,
-            })
-        })
+        Context::try_from(consensus_state)
+            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
     }
 
     fn try_from_any_consensus_state_ref(
-        consensus_state: &AnyClient::AnyConsensusState,
+        consensus_state: &Self::AnyConsensusState,
     ) -> Result<&Client::ConsensusState, Context::Error> {
-        Context::try_from_ref(consensus_state).ok_or_else(|| {
-            Context::inject_error(MismatchClientType {
-                expected_client_type: AnyClient::CLIENT_TYPE,
-            })
-        })
+        Context::try_from_ref(consensus_state)
+            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
     }
 
-    fn into_any_client_header(client_header: Client::ClientHeader) -> AnyClient::AnyClientHeader {
+    fn into_any_client_header(client_header: Client::ClientHeader) -> Self::AnyClientHeader {
         Context::into(client_header)
     }
 
     fn try_from_any_client_header(
-        client_header: AnyClient::AnyClientHeader,
+        client_header: Self::AnyClientHeader,
     ) -> Result<Client::ClientHeader, Context::Error> {
-        Context::try_from(client_header).ok_or_else(|| {
-            Context::inject_error(MismatchClientType {
-                expected_client_type: AnyClient::CLIENT_TYPE,
-            })
-        })
+        Context::try_from(client_header)
+            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
     }
 
     fn try_from_any_client_header_ref(
-        client_header: &AnyClient::AnyClientHeader,
+        client_header: &Self::AnyClientHeader,
     ) -> Result<&Client::ClientHeader, Context::Error> {
-        Context::try_from_ref(client_header).ok_or_else(|| {
-            Context::inject_error(MismatchClientType {
-                expected_client_type: AnyClient::CLIENT_TYPE,
-            })
-        })
+        Context::try_from_ref(client_header)
+            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
     }
 
-    fn into_any_misbehavior(misbehavior: Client::Misbehavior) -> AnyClient::AnyMisbehavior {
+    fn into_any_misbehavior(misbehavior: Client::Misbehavior) -> Self::AnyMisbehavior {
         Context::into(misbehavior)
     }
 
     fn try_from_any_misbehavior(
-        misbehavior: AnyClient::AnyMisbehavior,
+        misbehavior: Self::AnyMisbehavior,
     ) -> Result<Client::Misbehavior, Context::Error> {
-        Context::try_from(misbehavior).ok_or_else(|| {
-            Context::inject_error(MismatchClientType {
-                expected_client_type: AnyClient::CLIENT_TYPE,
-            })
-        })
+        Context::try_from(misbehavior)
+            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
     }
 
     fn try_from_any_misbehavior_ref(
-        misbehavior: &AnyClient::AnyMisbehavior,
+        misbehavior: &Self::AnyMisbehavior,
     ) -> Result<&Client::Misbehavior, Context::Error> {
-        Context::try_from_ref(misbehavior).ok_or_else(|| {
-            Context::inject_error(MismatchClientType {
-                expected_client_type: AnyClient::CLIENT_TYPE,
-            })
-        })
+        Context::try_from_ref(misbehavior)
+            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
     }
 }
 
 pub trait ContainsClient<Client>:
-    HasAnyClientTypes + HasClientPrisms<Self, Client> + HasClientTypeFor<Client>
+    HasAnyClientTypes + HasClientPrisms<Client> + HasClientTypeFor<Client>
 where
     Client: HasClientTypes,
 {
@@ -222,6 +201,6 @@ where
 impl<Context, Client> ContainsClient<Client> for Context
 where
     Client: HasClientTypes,
-    Context: HasAnyClientTypes + HasClientPrisms<Context, Client> + HasClientTypeFor<Client>,
+    Context: HasAnyClientTypes + HasClientPrisms<Client> + HasClientTypeFor<Client>,
 {
 }

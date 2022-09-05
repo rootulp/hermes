@@ -1,5 +1,5 @@
-use crate::core::traits::error::InjectError;
-use crate::core::traits::ibc::HasIbcMethods;
+use crate::core::traits::error::HasError;
+use crate::core::traits::ibc::{HasIbcMethods, HasIbcTypes};
 use crate::core::traits::message_handler::MessageHandler;
 use crate::core::traits::messages::update_client::{
     HasUpdateClientMessage, HasUpdateClientMessageHandler,
@@ -7,15 +7,15 @@ use crate::core::traits::messages::update_client::{
 
 pub struct DispatchIbcMessages;
 
-pub struct UnknownMessage<MessageType> {
-    pub message_type: MessageType,
+pub trait InjectUnknownMessageError: HasIbcTypes + HasError {
+    fn inject_unknown_message_error(message_type: Self::MessageType) -> Self::Error;
 }
 
 impl<Context> MessageHandler<Context> for DispatchIbcMessages
 where
     Context: HasIbcMethods,
     Context: HasUpdateClientMessageHandler,
-    Context: InjectError<UnknownMessage<Context::MessageType>>,
+    Context: InjectUnknownMessageError,
 {
     fn handle_message(context: &Context, message: &Context::Message) -> Result<(), Context::Error> {
         let message_type = Context::message_type(message);
@@ -29,7 +29,7 @@ where
 
             Ok(())
         } else {
-            Err(Context::inject_error(UnknownMessage { message_type }))
+            Err(Context::inject_unknown_message_error(message_type))
         }
     }
 }

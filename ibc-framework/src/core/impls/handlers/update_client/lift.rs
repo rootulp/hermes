@@ -1,7 +1,9 @@
 use core::marker::PhantomData;
 
-use crate::core::traits::client::{ContainsClient, HasAnyClientMethods, HasClientTypes};
-use crate::core::traits::error::{HasError, InjectError, MismatchClientType};
+use crate::core::traits::client::{
+    ContainsClient, HasAnyClientMethods, HasClientTypes, InjectClientTypeMismatchError,
+};
+use crate::core::traits::error::HasError;
 use crate::core::traits::handlers::update_client::{AnyUpdateClientHandler, UpdateClientHandler};
 use crate::core::traits::ibc::HasIbcTypes;
 
@@ -13,7 +15,7 @@ where
     Context: ContainsClient<Client>,
     Client: HasClientTypes,
     Handler: UpdateClientHandler<Context, Client = Client>,
-    Context: InjectError<MismatchClientType<Context::ClientType>>,
+    Context: InjectClientTypeMismatchError,
 {
     fn check_client_header_and_update_state(
         context: &Context,

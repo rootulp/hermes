@@ -1,30 +1,43 @@
+use crate::all_for_one::traits::error::AfoErrorContext;
+use crate::all_for_one::traits::event::AfoEventContext;
 use crate::core::traits::client::{HasAnyClientMethods, HasOwnClient};
 use crate::core::traits::client_reader::AnyClientReader;
-use crate::core::traits::error::{HasError, InjectError, MismatchClientType};
+use crate::core::traits::client_writer::AnyClientWriter;
+use crate::core::traits::event::HasEventEmitter;
 use crate::core::traits::handlers::update_client::HasAnyUpdateClientHandler;
 use crate::core::traits::host::HasHostMethods;
-use crate::core::traits::ibc::HasIbcTypes;
+use crate::core::traits::ibc::HasIbcMethods;
+use crate::core::traits::messages::ibc::HasIbcMessages;
+use crate::core::traits::messages::update_client::HasUpdateClientMessageHandler;
 
 pub trait AfoChainContext:
-    HasError
-    + HasIbcTypes
+    AfoErrorContext
+    + AfoEventContext
+    + HasIbcMethods
     + HasOwnClient
     + HasAnyClientMethods
     + AnyClientReader
+    + AnyClientWriter
     + HasAnyUpdateClientHandler
     + HasHostMethods
-    + InjectError<MismatchClientType<Self::ClientType>>
+    + HasIbcMessages
+    + HasEventEmitter
+    + HasUpdateClientMessageHandler
 {
 }
 
 impl<Context> AfoChainContext for Context where
-    Context: HasError
-        + HasIbcTypes
+    Context: AfoErrorContext
+        + AfoEventContext
+        + HasIbcMethods
         + HasOwnClient
         + HasAnyClientMethods
         + AnyClientReader
+        + AnyClientWriter
         + HasAnyUpdateClientHandler
         + HasHostMethods
-        + InjectError<MismatchClientType<Self::ClientType>>
+        + HasIbcMessages
+        + HasEventEmitter
+        + HasUpdateClientMessageHandler
 {
 }
