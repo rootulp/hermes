@@ -1,6 +1,8 @@
 pub mod client;
 pub mod client_reader;
 pub mod error;
+pub mod event;
+pub mod events;
 pub mod handlers;
 pub mod host;
 pub mod ibc;

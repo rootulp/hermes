@@ -22,6 +22,8 @@ pub trait HasAnyClientMethods: HasAnyClientTypes + HasIbcTypes {
 
     fn client_state_trusting_period(client_state: &Self::AnyClientState) -> Self::Duration;
 
+    fn consensus_state_height(consensus_state: &Self::AnyConsensusState) -> Self::Height;
+
     fn consensus_state_timestamp(consensus_state: &Self::AnyConsensusState) -> Self::Timestamp;
 }
 

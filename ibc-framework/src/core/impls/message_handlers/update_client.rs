@@ -1,6 +1,9 @@
 use crate::core::traits::client::HasAnyClientMethods;
 use crate::core::traits::client_reader::AnyClientReader;
 use crate::core::traits::error::InjectError;
+use crate::core::traits::event::HasEventEmitter;
+use crate::core::traits::events::misbehavior::InjectMisbehaviorEvent;
+use crate::core::traits::events::update_client::InjectUpdateClientEvent;
 use crate::core::traits::handlers::update_client::HasAnyUpdateClientHandler;
 use crate::core::traits::host::HasHostMethods;
 use crate::core::traits::ibc::HasIbcMethods;
@@ -24,6 +27,9 @@ where
     Context: InjectError<Error>,
     Context: HasHostMethods,
     Context: HasIbcMethods,
+    Context: InjectUpdateClientEvent,
+    Context: InjectMisbehaviorEvent,
+    Context: HasEventEmitter,
 {
     fn handle_update_client_message(
         context: &Context,
@@ -61,6 +67,26 @@ where
                 &current_any_client_state,
                 new_any_client_header,
             )?;
+
+        if Context::client_state_is_frozen(&new_any_client_state) {
+            let event = Context::inject_misbehavior_event(
+                client_id,
+                &Context::client_state_type(&new_any_client_state),
+                &Context::consensus_state_height(&new_any_consensus_state),
+                new_any_client_header,
+            );
+
+            context.emit_event(&event);
+        } else {
+            let event = Context::inject_update_client_event(
+                client_id,
+                &Context::client_state_type(&new_any_client_state),
+                &Context::consensus_state_height(&new_any_consensus_state),
+                new_any_client_header,
+            );
+
+            context.emit_event(&event);
+        }
 
         Ok(())
     }
