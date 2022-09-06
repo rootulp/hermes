@@ -1,5 +1,5 @@
 use crate::core::traits::error::HasError;
-use crate::core::traits::ibc::HasIbcTypes;
+use crate::core::traits::ibc::HasHostTypes;
 use crate::core::traits::prism::Prism;
 use crate::core::traits::sync::Async;
 
@@ -15,16 +15,18 @@ pub trait HasAnyClientTypes: Async {
     type AnyMisbehavior: Async;
 }
 
-pub trait HasAnyClientMethods: HasAnyClientTypes + HasIbcTypes {
+pub trait HasAnyClientMethods: HasAnyClientTypes + HasHostTypes {
     fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType;
 
     fn client_state_is_frozen(client_state: &Self::AnyClientState) -> bool;
 
     fn client_state_trusting_period(client_state: &Self::AnyClientState) -> Self::Duration;
 
-    fn consensus_state_height(consensus_state: &Self::AnyConsensusState) -> Self::Height;
+    fn client_state_latest_height(client_state: &Self::AnyClientState) -> Self::Height;
 
     fn consensus_state_timestamp(consensus_state: &Self::AnyConsensusState) -> Self::Timestamp;
+
+    fn client_header_height(client_header: &Self::AnyClientHeader) -> Self::Height;
 }
 
 pub trait HasClientTypes: Async {

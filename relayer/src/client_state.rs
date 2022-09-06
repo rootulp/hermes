@@ -221,6 +221,15 @@ impl ClientState for AnyClientState {
         }
     }
 
+    fn trusting_period(&self) -> Duration {
+        match self {
+            AnyClientState::Tendermint(tm_state) => tm_state.trusting_period(),
+
+            #[cfg(test)]
+            AnyClientState::Mock(mock_state) => mock_state.trusting_period(),
+        }
+    }
+
     fn initialise(&self, _consensus_state: Any) -> Result<Box<dyn ConsensusState>, Error> {
         unimplemented!()
     }

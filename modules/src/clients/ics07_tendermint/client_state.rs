@@ -266,6 +266,10 @@ impl Ics2ClientState for ClientState {
         elapsed > self.trusting_period
     }
 
+    fn trusting_period(&self) -> Duration {
+        self.trusting_period
+    }
+
     fn initialise(&self, consensus_state: Any) -> Result<Box<dyn ConsensusState>, Ics02Error> {
         TmConsensusState::try_from(consensus_state).map(TmConsensusState::into_box)
     }

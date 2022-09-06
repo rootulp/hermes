@@ -1,5 +1,13 @@
+use core::time::Duration;
+use ibc::core::ics02_client::client_state::ClientState;
 use ibc::core::ics02_client::client_type::ClientType;
-use ibc_framework::core::traits::client::{HasAnyClientTypes, HasClientTypeFor, HasClientTypes};
+use ibc::core::ics02_client::consensus_state::ConsensusState;
+use ibc::timestamp::Timestamp;
+use ibc::Height;
+use ibc_framework::core::traits::client::{
+    HasAnyClientMethods, HasAnyClientTypes, HasClientTypeFor, HasClientTypes,
+};
+use ibc_framework::core::traits::ibc::HasHostTypes;
 use ibc_framework::core::traits::prism::Prism;
 
 pub use ibc::clients::ics07_tendermint::client_state::ClientState as TendermintClientState;
@@ -49,12 +57,36 @@ impl HasClientTypeFor<TendermintClient> for TendermintClient {
     const CLIENT_TYPE: ClientType = ClientType::Tendermint;
 }
 
-// impl HasAnyClientMethods for TendermintClient {
-//     fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType {
-//         client_state.client_type()
-//     }
+impl HasHostTypes for TendermintClient {
+    type Height = Height;
 
-//     fn client_state_is_frozen(client_state: &Self::AnyClientState) -> bool {
-//         client_state.is_frozen()
-//     }
-// }
+    type Timestamp = Timestamp;
+
+    type Duration = Duration;
+}
+
+impl HasAnyClientMethods for TendermintClient {
+    fn client_state_type(client_state: &TendermintClientState) -> Self::ClientType {
+        client_state.client_type()
+    }
+
+    fn client_state_is_frozen(client_state: &TendermintClientState) -> bool {
+        client_state.is_frozen()
+    }
+
+    fn client_state_trusting_period(client_state: &TendermintClientState) -> Self::Duration {
+        client_state.trusting_period
+    }
+
+    fn client_state_latest_height(client_state: &TendermintClientState) -> Self::Height {
+        client_state.latest_height()
+    }
+
+    fn consensus_state_timestamp(consensus_state: &TendermintConsensusState) -> Self::Timestamp {
+        consensus_state.timestamp()
+    }
+
+    fn client_header_height(client_header: &TendermintClientHeader) -> Self::Height {
+        client_header.height()
+    }
+}

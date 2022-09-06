@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+use core::cmp::Ordering;
 use core::fmt::Display;
 use core::hash::{Hash, Hasher};
 use core::num::ParseIntError;
@@ -181,6 +182,23 @@ define_error! {
     TimestampOverflowError {
         TimestampOverflow
             |_| { "Timestamp overflow when modifying with duration" }
+    }
+}
+
+impl PartialOrd for Timestamp {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Timestamp {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (&self.time, &other.time) {
+            (Some(time), Some(other)) => time.cmp(other),
+            (Some(_), None) => Ordering::Greater,
+            (None, Some(_)) => Ordering::Less,
+            (None, None) => Ordering::Equal,
+        }
     }
 }
 

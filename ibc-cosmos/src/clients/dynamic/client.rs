@@ -1,3 +1,4 @@
+use core::time::Duration;
 use ibc::clients::ics07_tendermint::client_state::ClientState as TendermintClientState;
 use ibc::clients::ics07_tendermint::consensus_state::ConsensusState as TendermintConsensusState;
 use ibc::clients::ics07_tendermint::header::Header as TendermintClientHeader;
@@ -7,7 +8,12 @@ use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics02_client::consensus_state::ConsensusState;
 use ibc::core::ics02_client::header::Header as ClientHeader;
 use ibc::core::ics02_client::misbehaviour::Misbehaviour;
-use ibc_framework::core::traits::client::{HasAnyClientTypes, HasClientTypeFor};
+use ibc::timestamp::Timestamp;
+use ibc::Height;
+use ibc_framework::core::traits::client::{
+    HasAnyClientMethods, HasAnyClientTypes, HasClientTypeFor,
+};
+use ibc_framework::core::traits::ibc::HasHostTypes;
 use ibc_framework::core::traits::prism::Prism;
 
 use crate::clients::tendermint::client::TendermintClient;
@@ -102,15 +108,39 @@ impl HasClientTypeFor<TendermintClient> for DynamicClient {
     const CLIENT_TYPE: ClientType = ClientType::Tendermint;
 }
 
-// impl HasAnyClientMethods for DynamicClient {
-//     fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType {
-//         client_state.client_state.client_type()
-//     }
+impl HasHostTypes for DynamicClient {
+    type Height = Height;
 
-//     fn client_state_is_frozen(client_state: &Self::AnyClientState) -> bool {
-//         client_state.client_state.is_frozen()
-//     }
-// }
+    type Timestamp = Timestamp;
+
+    type Duration = Duration;
+}
+
+impl HasAnyClientMethods for DynamicClient {
+    fn client_state_type(client_state: &DynClientState) -> Self::ClientType {
+        client_state.client_state.client_type()
+    }
+
+    fn client_state_is_frozen(client_state: &DynClientState) -> bool {
+        client_state.client_state.is_frozen()
+    }
+
+    fn client_state_trusting_period(client_state: &DynClientState) -> Self::Duration {
+        client_state.client_state.trusting_period()
+    }
+
+    fn client_state_latest_height(client_state: &DynClientState) -> Self::Height {
+        client_state.client_state.latest_height()
+    }
+
+    fn consensus_state_timestamp(consensus_state: &DynConsensusState) -> Self::Timestamp {
+        consensus_state.consensus_state.timestamp()
+    }
+
+    fn client_header_height(client_header: &DynClientHeader) -> Self::Height {
+        client_header.client_header.height()
+    }
+}
 
 impl DynClientState {
     fn new(client_state: impl ClientState) -> Self {

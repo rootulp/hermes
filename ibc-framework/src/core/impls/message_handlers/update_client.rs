@@ -76,7 +76,7 @@ where
             let event = Context::inject_misbehavior_event(
                 client_id,
                 &Context::client_state_type(&new_any_client_state),
-                &Context::consensus_state_height(&new_any_consensus_state),
+                &Context::client_header_height(&new_any_client_header),
                 new_any_client_header,
             );
 
@@ -87,7 +87,7 @@ where
             let event = Context::inject_update_client_event(
                 client_id,
                 &Context::client_state_type(&new_any_client_state),
-                &Context::consensus_state_height(&new_any_consensus_state),
+                &Context::client_header_height(&new_any_client_header),
                 new_any_client_header,
             );
 
