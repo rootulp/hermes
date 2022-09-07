@@ -1,9 +1,17 @@
 use crate::core::traits::client::{HasAnyClientMethods, HasAnyClientTypes};
+use crate::core::traits::error::HasError;
 use crate::core::traits::host::{HasHostMethods, HasHostTypes};
 use crate::core::traits::ibc::HasIbcTypes;
 use crate::core::traits::message::{HasMessageMethods, HasMessageTypes};
 use crate::one_for_all::traits::chain::OfaChain;
 use crate::one_for_all::types::chain::OfaChainWrapper;
+
+impl<Chain> HasError for OfaChainWrapper<Chain>
+where
+    Chain: OfaChain,
+{
+    type Error = Chain::Error;
+}
 
 impl<Chain> HasHostTypes for OfaChainWrapper<Chain>
 where

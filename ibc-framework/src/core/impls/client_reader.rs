@@ -1,5 +1,5 @@
 use crate::core::traits::client::{ContainsClient, HasClientTypeFor, HasClientTypes};
-use crate::core::traits::client_reader::{ClientReader, HasAnyClientReader};
+use crate::core::traits::stores::client_reader::{ClientReader, HasAnyClientReader};
 
 pub struct ClientReaderFromAnyClient;
 

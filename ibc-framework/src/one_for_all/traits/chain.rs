@@ -1,8 +1,10 @@
 use crate::core::traits::client::HasAnyClientMethods;
 use crate::core::traits::sync::Async;
+use crate::one_for_all::traits::components::OfaComponents;
+use crate::one_for_all::traits::error::OfaError;
 
-pub trait OfaChain: Async {
-    type Components;
+pub trait OfaChainTypes: Async {
+    type Error: OfaError;
 
     type Height: Async;
 
@@ -35,6 +37,10 @@ pub trait OfaChain: Async {
     type AnyClientHeader: Async;
 
     type AnyMisbehavior: Async;
+}
+
+pub trait OfaChain: OfaChainTypes {
+    type Components: OfaComponents<Self>;
 
     type AnyClientMethods: HasAnyClientMethods<
         Height = Self::Height,
@@ -57,13 +63,45 @@ pub trait OfaChain: Async {
 
     fn message_signer(message: &Self::Message) -> &Self::Signer;
 
-    fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType;
+    fn get_client_type(&self, client_id: &Self::ClientId) -> Result<Self::ClientType, Self::Error>;
 
-    fn client_state_is_frozen(client_state: &Self::AnyClientState) -> bool;
+    fn get_any_client_state(
+        &self,
+        client_id: &Self::ClientId,
+    ) -> Result<Self::AnyClientState, Self::Error>;
 
-    fn client_state_trusting_period(client_state: &Self::AnyClientState) -> Self::Duration;
+    fn get_latest_any_consensus_state(
+        &self,
+        client_id: &Self::ClientId,
+    ) -> Result<Self::AnyConsensusState, Self::Error>;
 
-    fn consensus_state_height(consensus_state: &Self::AnyConsensusState) -> Self::Height;
+    fn get_any_consensus_state_at_height(
+        &self,
+        client_id: &Self::ClientId,
+        height: &Self::Height,
+    ) -> Result<Option<Self::AnyConsensusState>, Self::Error>;
 
-    fn consensus_state_timestamp(consensus_state: &Self::AnyConsensusState) -> Self::Timestamp;
+    fn get_any_consensus_state_after_height(
+        &self,
+        client_id: &Self::ClientId,
+        height: &Self::Height,
+    ) -> Result<Option<Self::AnyConsensusState>, Self::Error>;
+
+    fn get_any_consensus_state_before_height(
+        &self,
+        client_id: &Self::ClientId,
+        height: &Self::Height,
+    ) -> Result<Option<Self::AnyConsensusState>, Self::Error>;
+
+    fn set_any_client_state(
+        &self,
+        client_id: &Self::ClientId,
+        client_state: &Self::AnyClientState,
+    ) -> Result<(), Self::Error>;
+
+    fn set_any_consensus_state(
+        &self,
+        client_id: &Self::ClientId,
+        consensus_state: &Self::AnyConsensusState,
+    ) -> Result<(), Self::Error>;
 }

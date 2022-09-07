@@ -1,6 +1,4 @@
 use crate::core::traits::client::HasAnyClientMethods;
-use crate::core::traits::client_reader::HasAnyClientReader;
-use crate::core::traits::client_writer::HasAnyClientWriter;
 use crate::core::traits::error::InjectError;
 use crate::core::traits::event::HasEventEmitter;
 use crate::core::traits::events::misbehavior::InjectMisbehaviorEvent;
@@ -11,6 +9,8 @@ use crate::core::traits::ibc::HasIbcTypes;
 use crate::core::traits::messages::update_client::{
     HasUpdateClientMessage, UpdateClientMessageHandler,
 };
+use crate::core::traits::stores::client_reader::HasAnyClientReader;
+use crate::core::traits::stores::client_writer::HasAnyClientWriter;
 
 pub enum Error {
     ClientIsFrozen,

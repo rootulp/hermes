@@ -3,8 +3,8 @@ use ibc::core::ics24_host::identifier::ClientId;
 use ibc::timestamp::Timestamp;
 use ibc::Height;
 use ibc_framework::all_for_one::traits::base::AfoChainContext;
-use ibc_framework::core::traits::client_reader::HasClientReader;
 use ibc_framework::core::traits::error::InjectError;
+use ibc_framework::core::traits::stores::client_reader::HasClientReader;
 use ibc_proto::google::protobuf::Any;
 
 use crate::clients::tendermint::client::{

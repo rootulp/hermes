@@ -1,6 +1,4 @@
 pub mod client;
-pub mod client_reader;
-pub mod client_writer;
 pub mod error;
 pub mod event;
 pub mod events;
@@ -11,4 +9,5 @@ pub mod message;
 pub mod message_handler;
 pub mod messages;
 pub mod prism;
+pub mod stores;
 pub mod sync;
