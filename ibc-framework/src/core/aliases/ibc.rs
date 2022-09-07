@@ -1,4 +1,5 @@
-use crate::core::traits::ibc::{HasHostTypes, HasIbcTypes};
+use crate::core::traits::host::HasHostTypes;
+use crate::core::traits::ibc::HasIbcTypes;
 
 pub type Height<Context> = <Context as HasHostTypes>::Height;
 

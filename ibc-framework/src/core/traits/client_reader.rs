@@ -1,10 +1,11 @@
 use crate::core::traits::client::{ContainsClient, HasAnyClientTypes, HasClientTypes};
 use crate::core::traits::error::HasError;
+use crate::core::traits::host::HasHostTypes;
 use crate::core::traits::ibc::HasIbcTypes;
 
 pub trait AnyClientReader<Context>
 where
-    Context: HasAnyClientTypes + HasIbcTypes + HasError,
+    Context: HasAnyClientTypes + HasIbcTypes + HasHostTypes + HasError,
 {
     fn get_client_type(
         context: &Context,
@@ -40,7 +41,7 @@ where
     ) -> Result<Option<Context::AnyConsensusState>, Context::Error>;
 }
 
-pub trait HasAnyClientReader: HasAnyClientTypes + HasIbcTypes + HasError {
+pub trait HasAnyClientReader: HasAnyClientTypes + HasIbcTypes + HasHostTypes + HasError {
     type AnyClientReader: AnyClientReader<Self>;
 
     fn get_client_type(&self, client_id: &Self::ClientId) -> Result<Self::ClientType, Self::Error> {
@@ -92,7 +93,7 @@ pub struct MismatchClientFormat<ClientType> {
 
 pub trait ClientReader<Context, Client>
 where
-    Context: HasError + HasIbcTypes + ContainsClient<Client>,
+    Context: HasError + HasIbcTypes + HasHostTypes + ContainsClient<Client>,
     Client: HasClientTypes,
 {
     fn get_client_state(
@@ -124,7 +125,8 @@ where
     ) -> Result<Option<Client::ConsensusState>, Context::Error>;
 }
 
-pub trait HasClientReader<Client>: HasError + HasIbcTypes + ContainsClient<Client>
+pub trait HasClientReader<Client>:
+    HasError + HasIbcTypes + HasHostTypes + ContainsClient<Client>
 where
     Client: HasClientTypes,
 {

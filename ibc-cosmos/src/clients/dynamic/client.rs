@@ -13,7 +13,7 @@ use ibc::Height;
 use ibc_framework::core::traits::client::{
     HasAnyClientMethods, HasAnyClientTypes, HasClientTypeFor,
 };
-use ibc_framework::core::traits::ibc::HasHostTypes;
+use ibc_framework::core::traits::host::HasHostTypes;
 use ibc_framework::core::traits::prism::Prism;
 
 use crate::clients::tendermint::client::TendermintClient;

@@ -7,6 +7,7 @@ pub mod events;
 pub mod handlers;
 pub mod host;
 pub mod ibc;
+pub mod message;
 pub mod message_handler;
 pub mod messages;
 pub mod prism;

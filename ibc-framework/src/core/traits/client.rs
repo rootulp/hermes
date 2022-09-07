@@ -1,5 +1,5 @@
 use crate::core::traits::error::HasError;
-use crate::core::traits::ibc::HasHostTypes;
+use crate::core::traits::host::HasHostTypes;
 use crate::core::traits::prism::Prism;
 use crate::core::traits::sync::Async;
 

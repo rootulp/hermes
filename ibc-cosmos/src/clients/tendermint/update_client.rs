@@ -47,10 +47,10 @@ pub enum Error {
 impl<Context> UpdateClientHandler<Context> for TendermintClient
 where
     Context: HasError,
-    Context: HasIbcTypes<Height = Height, Timestamp = Timestamp>,
+    Context: HasIbcTypes,
+    Context: HasHostMethods<Height = Height, Timestamp = Timestamp>,
     Context: HasClientReader<TendermintClient>,
     Context: ContainsClient<TendermintClient>,
-    Context: HasHostMethods,
     Context: InjectError<Error>,
 {
     type Client = TendermintClient;

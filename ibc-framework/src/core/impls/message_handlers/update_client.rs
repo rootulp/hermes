@@ -7,7 +7,7 @@ use crate::core::traits::events::misbehavior::InjectMisbehaviorEvent;
 use crate::core::traits::events::update_client::InjectUpdateClientEvent;
 use crate::core::traits::handlers::update_client::HasAnyUpdateClientHandler;
 use crate::core::traits::host::HasHostMethods;
-use crate::core::traits::ibc::HasIbcMethods;
+use crate::core::traits::ibc::HasIbcTypes;
 use crate::core::traits::messages::update_client::{
     HasUpdateClientMessage, UpdateClientMessageHandler,
 };
@@ -27,7 +27,7 @@ where
     Context: HasAnyClientMethods,
     Context: InjectError<Error>,
     Context: HasHostMethods,
-    Context: HasIbcMethods,
+    Context: HasIbcTypes,
     Context: InjectUpdateClientEvent,
     Context: InjectMisbehaviorEvent,
     Context: HasEventEmitter,

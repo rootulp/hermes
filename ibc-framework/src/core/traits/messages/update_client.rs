@@ -1,9 +1,12 @@
 use crate::core::traits::client::HasAnyClientTypes;
 use crate::core::traits::error::HasError;
 use crate::core::traits::ibc::HasIbcTypes;
+use crate::core::traits::message::HasMessageTypes;
 use crate::core::traits::sync::Async;
 
-pub trait HasUpdateClientMessage: HasAnyClientTypes + HasIbcTypes + HasError {
+pub trait HasUpdateClientMessage:
+    HasAnyClientTypes + HasIbcTypes + HasMessageTypes + HasError
+{
     const MESSAGE_TYPE: Self::MessageType;
 
     type UpdateClientMessage: Async;
