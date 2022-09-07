@@ -1,5 +1,4 @@
 use crate::core::traits::sync::Async;
-use crate::one_for_all::traits::components::OfaChainComponents;
 
 pub trait OfaChainTypes: Async {
     type Error: Async;
@@ -42,7 +41,7 @@ pub trait OfaChainTypes: Async {
 }
 
 pub trait OfaChain: OfaChainTypes {
-    type ChainComponents: OfaChainComponents<Self>;
+    type ChainComponents;
 
     type ClientComponents;
 
@@ -60,9 +59,7 @@ pub trait OfaChain: OfaChainTypes {
 
     // Message methods
 
-    fn message_type(message: &Self::Message) -> &Self::MessageType;
-
-    fn message_signer(message: &Self::Message) -> &Self::Signer;
+    fn message_type(message: &Self::Message) -> Self::MessageType;
 
     // AnyClient methods
 

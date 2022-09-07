@@ -9,6 +9,7 @@ use crate::one_for_all::types::chain::OfaChainWrapper;
 impl<Chain> HasAnyClientReader for OfaChainWrapper<Chain>
 where
     Chain: OfaChain,
+    Chain::ChainComponents: OfaChainComponents<Chain>,
 {
     type AnyClientReader = <Chain::ChainComponents as OfaChainComponents<Chain>>::AnyClientReader;
 }
@@ -16,6 +17,7 @@ where
 impl<Chain> HasAnyClientWriter for OfaChainWrapper<Chain>
 where
     Chain: OfaChain,
+    Chain::ChainComponents: OfaChainComponents<Chain>,
 {
     type AnyClientWriter = <Chain::ChainComponents as OfaChainComponents<Chain>>::AnyClientWriter;
 }
@@ -32,6 +34,7 @@ where
 impl<Chain> HasUpdateClientMessageHandler for OfaChainWrapper<Chain>
 where
     Chain: OfaChain,
+    Chain::ChainComponents: OfaChainComponents<Chain>,
 {
     type UpdateClientMessageHandler =
         <Chain::ChainComponents as OfaChainComponents<Chain>>::UpdateClientMessageHandler;

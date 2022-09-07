@@ -1,11 +1,13 @@
 use core::time::Duration;
 use ibc::core::ics02_client::client_type::ClientType;
 use ibc::core::ics24_host::identifier::ClientId;
+use ibc::events::IbcEvent;
 use ibc::timestamp::Timestamp;
 use ibc::Height;
 use ibc_framework::core::traits::client::{HasAnyClientMethods, HasAnyClientTypes};
 use ibc_framework::core::traits::sync::Async;
-use tendermint::abci::responses::Event;
+
+use crate::types::message::IbcMessageType;
 
 pub trait OfaCosmosChain: Async {
     type Error: Async;
@@ -19,7 +21,7 @@ pub trait OfaCosmosChain: Async {
         ClientType = ClientType,
     >;
 
-    fn emit_event(&self, event: &Event);
+    fn emit_event(&self, event: &IbcEvent);
 
     fn host_height(&self) -> Height;
 
@@ -69,7 +71,7 @@ pub trait OfaCosmosChain: Async {
 
     fn client_type_mismatch_error(expected_client_type: &ClientType) -> Self::Error;
 
-    fn unknown_message_error(message_type: &str) -> Self::Error;
+    fn unknown_message_error(message_type: &IbcMessageType) -> Self::Error;
 
     fn client_frozen_error(client_id: &ClientId) -> Self::Error;
 

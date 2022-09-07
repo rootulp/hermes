@@ -9,7 +9,5 @@ pub trait HasMessageTypes {
 }
 
 pub trait HasMessageMethods: HasMessageTypes {
-    fn message_type(message: &Self::Message) -> &Self::MessageType;
-
-    fn message_signer(message: &Self::Message) -> &Self::Signer;
+    fn message_type(message: &Self::Message) -> Self::MessageType;
 }

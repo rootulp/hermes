@@ -7,7 +7,7 @@ pub struct DefaultChainComponents;
 
 impl<Chain> OfaChainComponents<Chain> for DefaultChainComponents
 where
-    Chain: OfaChain,
+    Chain: OfaChain<ChainComponents = Self>,
     Chain::ClientComponents: OfaClientComponents<Chain>,
 {
     type AnyClientReader = OfaClientReader;

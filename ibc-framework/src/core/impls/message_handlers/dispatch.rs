@@ -22,14 +22,14 @@ where
 
         // TODO: Handle all IBC messages here
 
-        if message_type == &<Context as HasUpdateClientMessage>::MESSAGE_TYPE {
+        if message_type == <Context as HasUpdateClientMessage>::MESSAGE_TYPE {
             let update_client_message = Context::try_extract_update_client_message(message)?;
 
             context.handle_update_client_message(update_client_message)?;
 
             Ok(())
         } else {
-            Err(Context::unknown_message_error(message_type))
+            Err(Context::unknown_message_error(&message_type))
         }
     }
 }

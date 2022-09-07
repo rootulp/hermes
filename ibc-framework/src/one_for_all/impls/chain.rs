@@ -89,12 +89,8 @@ impl<Chain> HasMessageMethods for OfaChainWrapper<Chain>
 where
     Chain: OfaChain,
 {
-    fn message_type(message: &Self::Message) -> &Self::MessageType {
+    fn message_type(message: &Self::Message) -> Self::MessageType {
         Chain::message_type(message)
-    }
-
-    fn message_signer(message: &Self::Message) -> &Self::Signer {
-        Chain::message_signer(message)
     }
 }
 
