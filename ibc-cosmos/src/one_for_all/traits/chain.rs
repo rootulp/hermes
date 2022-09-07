@@ -10,6 +10,8 @@ use tendermint::abci::responses::Event;
 pub trait OfaCosmosChain: Async {
     type Error: Async;
 
+    type ChainComponents;
+
     type AnyClient: HasAnyClientMethods<
         Timestamp = Timestamp,
         Height = Height,
