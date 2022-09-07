@@ -1,9 +1,10 @@
 use crate::core::traits::client::{HasAnyClientMethods, HasAnyClientTypes};
 use crate::core::traits::error::HasError;
-use crate::core::traits::event::HasEventTypes;
+use crate::core::traits::event::{HasEventEmitter, HasEventTypes};
 use crate::core::traits::host::{HasHostMethods, HasHostTypes};
 use crate::core::traits::ibc::HasIbcTypes;
 use crate::core::traits::message::{HasMessageMethods, HasMessageTypes};
+use crate::core::traits::messages::update_client::HasUpdateClientMessage;
 use crate::one_for_all::traits::chain::OfaChain;
 use crate::one_for_all::types::chain::OfaChainWrapper;
 
@@ -19,6 +20,15 @@ where
     Chain: OfaChain,
 {
     type Event = Chain::Event;
+}
+
+impl<Chain> HasEventEmitter for OfaChainWrapper<Chain>
+where
+    Chain: OfaChain,
+{
+    fn emit_event(&self, event: &Self::Event) {
+        self.chain.emit_event(event)
+    }
 }
 
 impl<Chain> HasHostTypes for OfaChainWrapper<Chain>
@@ -129,5 +139,28 @@ where
 
     fn client_header_height(client_header: &Self::AnyClientHeader) -> Self::Height {
         Chain::client_header_height(client_header)
+    }
+}
+
+impl<Chain> HasUpdateClientMessage for OfaChainWrapper<Chain>
+where
+    Chain: OfaChain,
+{
+    const MESSAGE_TYPE: Self::MessageType = Chain::UPDATE_CLIENT_MESSAGE_TYPE;
+
+    type UpdateClientMessage = Chain::UpdateClientMessage;
+
+    fn try_extract_update_client_message(
+        message: &Self::Message,
+    ) -> Result<&Self::UpdateClientMessage, Self::Error> {
+        Chain::try_extract_update_client_message(message)
+    }
+
+    fn message_client_id(message: &Self::UpdateClientMessage) -> &Self::ClientId {
+        Chain::update_client_message_client_id(message)
+    }
+
+    fn message_client_header(message: &Self::UpdateClientMessage) -> &Self::AnyClientHeader {
+        Chain::update_client_message_client_header(message)
     }
 }

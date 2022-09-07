@@ -1,5 +1,5 @@
 use crate::core::traits::sync::Async;
-use crate::one_for_all::traits::components::OfaComponents;
+use crate::one_for_all::traits::components::{OfaChainComponents, OfaClientComponents};
 
 pub trait OfaChainTypes: Async {
     type Error: Async;
@@ -37,10 +37,18 @@ pub trait OfaChainTypes: Async {
     type AnyClientHeader: Async;
 
     type AnyMisbehavior: Async;
+
+    type UpdateClientMessage: Async;
 }
 
 pub trait OfaChain: OfaChainTypes {
-    type Components: OfaComponents<Self>;
+    type ChainComponents: OfaChainComponents<Self>;
+
+    type ClientComponents: OfaClientComponents<Self>;
+
+    // EventEmitter methods
+
+    fn emit_event(&self, event: &Self::Event);
 
     // Host methods
 
@@ -56,7 +64,7 @@ pub trait OfaChain: OfaChainTypes {
 
     fn message_signer(message: &Self::Message) -> &Self::Signer;
 
-    // AnyClientMethods
+    // AnyClient methods
 
     fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType;
 
@@ -145,4 +153,20 @@ pub trait OfaChain: OfaChainTypes {
         consensus_height: &Self::Height,
         header: &Self::AnyClientHeader,
     ) -> Self::Event;
+
+    // Message methods
+
+    // UpdateClient message
+
+    const UPDATE_CLIENT_MESSAGE_TYPE: Self::MessageType;
+
+    fn try_extract_update_client_message(
+        message: &Self::Message,
+    ) -> Result<&Self::UpdateClientMessage, Self::Error>;
+
+    fn update_client_message_client_id(message: &Self::UpdateClientMessage) -> &Self::ClientId;
+
+    fn update_client_message_client_header(
+        message: &Self::UpdateClientMessage,
+    ) -> &Self::AnyClientHeader;
 }
