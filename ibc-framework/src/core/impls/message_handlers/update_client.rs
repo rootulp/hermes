@@ -1,10 +1,10 @@
 use crate::core::traits::client::HasAnyClientMethods;
-use crate::core::traits::error::InjectError;
+use crate::core::traits::error::HasError;
 use crate::core::traits::event::HasEventEmitter;
 use crate::core::traits::events::misbehavior::InjectMisbehaviorEvent;
 use crate::core::traits::events::update_client::InjectUpdateClientEvent;
 use crate::core::traits::handlers::update_client::HasAnyUpdateClientHandler;
-use crate::core::traits::host::HasHostMethods;
+use crate::core::traits::host::{HasHostMethods, HasHostTypes};
 use crate::core::traits::ibc::HasIbcTypes;
 use crate::core::traits::messages::update_client::{
     HasUpdateClientMessage, UpdateClientMessageHandler,
@@ -12,9 +12,14 @@ use crate::core::traits::messages::update_client::{
 use crate::core::traits::stores::client_reader::HasAnyClientReader;
 use crate::core::traits::stores::client_writer::HasAnyClientWriter;
 
-pub enum Error {
-    ClientIsFrozen,
-    ClientIsExpired,
+pub trait InjectUpdateClientError: HasError + HasIbcTypes + HasHostTypes {
+    fn client_frozen_error(client_id: &Self::ClientId) -> Self::Error;
+
+    fn client_expired_error(
+        client_id: &Self::ClientId,
+        current_time: &Self::Timestamp,
+        latest_allowed_update_time: &Self::Timestamp,
+    ) -> Self::Error;
 }
 
 pub struct BaseUpdateClientMessageHandler;
@@ -25,7 +30,7 @@ where
     Context: HasAnyClientReader,
     Context: HasAnyUpdateClientHandler,
     Context: HasAnyClientMethods,
-    Context: InjectError<Error>,
+    Context: InjectUpdateClientError,
     Context: HasHostMethods,
     Context: HasIbcTypes,
     Context: InjectUpdateClientEvent,
@@ -43,7 +48,7 @@ where
         let current_any_client_state = context.get_any_client_state(client_id)?;
 
         if Context::client_state_is_frozen(&current_any_client_state) {
-            return Err(Context::inject_error(Error::ClientIsFrozen));
+            return Err(Context::client_frozen_error(client_id));
         }
 
         {
@@ -59,7 +64,11 @@ where
                 Context::add_duration(&last_updated_time, &trusting_period);
 
             if current_time > latest_allowed_update_time {
-                return Err(Context::inject_error(Error::ClientIsExpired));
+                return Err(Context::client_expired_error(
+                    client_id,
+                    &current_time,
+                    &latest_allowed_update_time,
+                ));
             }
         }
 
@@ -73,7 +82,7 @@ where
         context.set_any_client_state(client_id, &new_any_client_state)?;
 
         if Context::client_state_is_frozen(&new_any_client_state) {
-            let event = Context::inject_misbehavior_event(
+            let event = Context::misbehavior_event(
                 client_id,
                 &Context::client_state_type(&new_any_client_state),
                 &Context::client_header_height(&new_any_client_header),
@@ -84,7 +93,7 @@ where
         } else {
             context.set_any_consensus_state(client_id, &new_any_consensus_state)?;
 
-            let event = Context::inject_update_client_event(
+            let event = Context::update_client_event(
                 client_id,
                 &Context::client_state_type(&new_any_client_state),
                 &Context::client_header_height(&new_any_client_header),

@@ -44,7 +44,7 @@ pub trait HasClientTypeFor<Client>: HasAnyClientTypes {
 }
 
 pub trait InjectClientTypeMismatchError: HasError + HasAnyClientTypes {
-    fn inject_client_type_mismatch_error(expected_client_type: Self::ClientType) -> Self::Error;
+    fn client_type_mismatch_error(expected_client_type: &Self::ClientType) -> Self::Error;
 }
 
 pub trait HasClientPrisms<Client>:
@@ -117,14 +117,14 @@ where
         client_state: Self::AnyClientState,
     ) -> Result<Client::ClientState, Context::Error> {
         Context::try_from(client_state)
-            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
+            .ok_or_else(|| Context::client_type_mismatch_error(&Self::CLIENT_TYPE))
     }
 
     fn try_from_any_client_state_ref(
         client_state: &Self::AnyClientState,
     ) -> Result<&Client::ClientState, Context::Error> {
         Context::try_from_ref(client_state)
-            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
+            .ok_or_else(|| Context::client_type_mismatch_error(&Self::CLIENT_TYPE))
     }
 
     fn into_any_consensus_state(
@@ -137,14 +137,14 @@ where
         consensus_state: Self::AnyConsensusState,
     ) -> Result<Client::ConsensusState, Context::Error> {
         Context::try_from(consensus_state)
-            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
+            .ok_or_else(|| Context::client_type_mismatch_error(&Self::CLIENT_TYPE))
     }
 
     fn try_from_any_consensus_state_ref(
         consensus_state: &Self::AnyConsensusState,
     ) -> Result<&Client::ConsensusState, Context::Error> {
         Context::try_from_ref(consensus_state)
-            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
+            .ok_or_else(|| Context::client_type_mismatch_error(&Self::CLIENT_TYPE))
     }
 
     fn into_any_client_header(client_header: Client::ClientHeader) -> Self::AnyClientHeader {
@@ -155,14 +155,14 @@ where
         client_header: Self::AnyClientHeader,
     ) -> Result<Client::ClientHeader, Context::Error> {
         Context::try_from(client_header)
-            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
+            .ok_or_else(|| Context::client_type_mismatch_error(&Self::CLIENT_TYPE))
     }
 
     fn try_from_any_client_header_ref(
         client_header: &Self::AnyClientHeader,
     ) -> Result<&Client::ClientHeader, Context::Error> {
         Context::try_from_ref(client_header)
-            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
+            .ok_or_else(|| Context::client_type_mismatch_error(&Self::CLIENT_TYPE))
     }
 
     fn into_any_misbehavior(misbehavior: Client::Misbehavior) -> Self::AnyMisbehavior {
@@ -173,14 +173,14 @@ where
         misbehavior: Self::AnyMisbehavior,
     ) -> Result<Client::Misbehavior, Context::Error> {
         Context::try_from(misbehavior)
-            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
+            .ok_or_else(|| Context::client_type_mismatch_error(&Self::CLIENT_TYPE))
     }
 
     fn try_from_any_misbehavior_ref(
         misbehavior: &Self::AnyMisbehavior,
     ) -> Result<&Client::Misbehavior, Context::Error> {
         Context::try_from_ref(misbehavior)
-            .ok_or_else(|| Context::inject_client_type_mismatch_error(Self::CLIENT_TYPE))
+            .ok_or_else(|| Context::client_type_mismatch_error(&Self::CLIENT_TYPE))
     }
 }
 

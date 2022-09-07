@@ -8,7 +8,7 @@ use crate::core::traits::messages::update_client::{
 pub struct DispatchIbcMessages;
 
 pub trait InjectUnknownMessageError: HasMessageMethods + HasError {
-    fn inject_unknown_message_error(message_type: &Self::MessageType) -> Self::Error;
+    fn unknown_message_error(message_type: &Self::MessageType) -> Self::Error;
 }
 
 impl<Context> MessageHandler<Context> for DispatchIbcMessages
@@ -29,7 +29,7 @@ where
 
             Ok(())
         } else {
-            Err(Context::inject_unknown_message_error(message_type))
+            Err(Context::unknown_message_error(message_type))
         }
     }
 }

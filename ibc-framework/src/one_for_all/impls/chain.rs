@@ -1,5 +1,6 @@
 use crate::core::traits::client::{HasAnyClientMethods, HasAnyClientTypes};
 use crate::core::traits::error::HasError;
+use crate::core::traits::event::HasEventTypes;
 use crate::core::traits::host::{HasHostMethods, HasHostTypes};
 use crate::core::traits::ibc::HasIbcTypes;
 use crate::core::traits::message::{HasMessageMethods, HasMessageTypes};
@@ -11,6 +12,13 @@ where
     Chain: OfaChain,
 {
     type Error = Chain::Error;
+}
+
+impl<Chain> HasEventTypes for OfaChainWrapper<Chain>
+where
+    Chain: OfaChain,
+{
+    type Event = Chain::Event;
 }
 
 impl<Chain> HasHostTypes for OfaChainWrapper<Chain>
@@ -100,26 +108,26 @@ where
     Chain: OfaChain,
 {
     fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType {
-        Chain::AnyClientMethods::client_state_type(client_state)
+        Chain::client_state_type(client_state)
     }
 
     fn client_state_is_frozen(client_state: &Self::AnyClientState) -> bool {
-        Chain::AnyClientMethods::client_state_is_frozen(client_state)
+        Chain::client_state_is_frozen(client_state)
     }
 
     fn client_state_trusting_period(client_state: &Self::AnyClientState) -> Self::Duration {
-        Chain::AnyClientMethods::client_state_trusting_period(client_state)
+        Chain::client_state_trusting_period(client_state)
     }
 
     fn client_state_latest_height(client_state: &Self::AnyClientState) -> Self::Height {
-        Chain::AnyClientMethods::client_state_latest_height(client_state)
+        Chain::client_state_latest_height(client_state)
     }
 
     fn consensus_state_timestamp(consensus_state: &Self::AnyConsensusState) -> Self::Timestamp {
-        Chain::AnyClientMethods::consensus_state_timestamp(consensus_state)
+        Chain::consensus_state_timestamp(consensus_state)
     }
 
     fn client_header_height(client_header: &Self::AnyClientHeader) -> Self::Height {
-        Chain::AnyClientMethods::client_header_height(client_header)
+        Chain::client_header_height(client_header)
     }
 }

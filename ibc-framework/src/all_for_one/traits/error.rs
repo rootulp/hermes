@@ -1,12 +1,9 @@
 use crate::core::impls::message_handlers::dispatch::InjectUnknownMessageError;
-use crate::core::impls::message_handlers::update_client::Error as UpdateClientError;
+use crate::core::impls::message_handlers::update_client::InjectUpdateClientError;
 use crate::core::traits::client::InjectClientTypeMismatchError;
-use crate::core::traits::error::{HasError, InjectError};
+use crate::core::traits::error::HasError;
 
 pub trait AfoErrorContext:
-    HasError
-    + InjectClientTypeMismatchError
-    + InjectUnknownMessageError
-    + InjectError<UpdateClientError>
+    HasError + InjectClientTypeMismatchError + InjectUnknownMessageError + InjectUpdateClientError
 {
 }
