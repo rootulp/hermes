@@ -7,3 +7,11 @@ pub trait AfoErrorContext:
     HasError + InjectClientTypeMismatchError + InjectUnknownMessageError + InjectUpdateClientError
 {
 }
+
+impl<Context> AfoErrorContext for Context where
+    Context: HasError
+        + InjectClientTypeMismatchError
+        + InjectUnknownMessageError
+        + InjectUpdateClientError
+{
+}

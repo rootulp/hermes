@@ -1,4 +1,5 @@
 use crate::core::traits::handlers::update_client::HasAnyUpdateClientHandler;
+use crate::core::traits::messages::update_client::HasUpdateClientMessageHandler;
 use crate::core::traits::stores::client_reader::HasAnyClientReader;
 use crate::core::traits::stores::client_writer::HasAnyClientWriter;
 use crate::one_for_all::traits::chain::OfaChain;
@@ -25,4 +26,12 @@ where
 {
     type AnyUpdateClientHandler =
         <Chain::ClientComponents as OfaClientComponents<Chain>>::AnyUpdateClientHandler;
+}
+
+impl<Chain> HasUpdateClientMessageHandler for OfaChainWrapper<Chain>
+where
+    Chain: OfaChain,
+{
+    type UpdateClientMessageHandler =
+        <Chain::ChainComponents as OfaChainComponents<Chain>>::UpdateClientMessageHandler;
 }

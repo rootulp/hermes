@@ -3,9 +3,9 @@ use crate::one_for_all::impls::stores::{OfaClientReader, OfaClientWriter};
 use crate::one_for_all::traits::chain::OfaChain;
 use crate::one_for_all::traits::components::OfaChainComponents;
 
-pub struct DefaultComponents;
+pub struct DefaultChainComponents;
 
-impl<Chain> OfaChainComponents<Chain> for DefaultComponents
+impl<Chain> OfaChainComponents<Chain> for DefaultChainComponents
 where
     Chain: OfaChain,
 {
