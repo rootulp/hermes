@@ -1,4 +1,4 @@
-use crate::core::impls::message_handlers::dispatch::InjectUnknownMessageError;
+use crate::core::impls::message_handlers::dispatch::InjectDispatchError;
 use crate::core::impls::message_handlers::update_client::InjectUpdateClientError;
 use crate::core::traits::client::InjectClientTypeMismatchError;
 use crate::one_for_all::traits::chain::OfaChain;
@@ -13,12 +13,16 @@ where
     }
 }
 
-impl<Chain> InjectUnknownMessageError for OfaChainWrapper<Chain>
+impl<Chain> InjectDispatchError for OfaChainWrapper<Chain>
 where
     Chain: OfaChain,
 {
     fn unknown_message_error(message_type: &Self::MessageType) -> Self::Error {
         Chain::unknown_message_error(message_type)
+    }
+
+    fn parse_message_error(message_type: &Self::MessageType) -> Self::Error {
+        Chain::parse_message_error(message_type)
     }
 }
 

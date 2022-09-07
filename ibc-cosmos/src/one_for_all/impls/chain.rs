@@ -1,10 +1,7 @@
 use core::time::Duration;
 use ibc::core::ics02_client::client_type::ClientType;
-use ibc::core::ics02_client::msgs::update_client;
-use ibc::core::ics02_client::msgs::update_client::MsgUpdateClient;
 use ibc::core::ics23_commitment::merkle::MerkleProof;
 use ibc::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId, PortId};
-use ibc::events::IbcEvent;
 use ibc::signer::Signer;
 use ibc::timestamp::Timestamp;
 use ibc::Height;
@@ -12,11 +9,11 @@ use ibc_framework::core::traits::client::HasAnyClientMethods;
 use ibc_framework::core::traits::client::HasAnyClientTypes;
 use ibc_framework::one_for_all::components::default::DefaultChainComponents;
 use ibc_framework::one_for_all::traits::chain::{OfaChain, OfaChainTypes};
-use ibc_proto::google::protobuf::Any;
 
 use crate::one_for_all::traits::chain::OfaCosmosChain;
 use crate::one_for_all::types::chain::OfaCosmosChainWrapper;
-use crate::types::message::IbcMessageType;
+use crate::types::event::IbcEvent;
+use crate::types::message::{IbcMessage, IbcMessageType, UpdateClientMessage};
 
 impl<Chain> OfaChainTypes for OfaCosmosChainWrapper<Chain>
 where
@@ -24,7 +21,7 @@ where
 {
     type Error = Chain::Error;
 
-    type Event = IbcEvent;
+    type Event = IbcEvent<Chain::AnyClient>;
 
     type Height = Height;
 
@@ -32,7 +29,7 @@ where
 
     type Duration = Duration;
 
-    type Message = Any;
+    type Message = IbcMessage<Chain::AnyClient>;
 
     type MessageType = IbcMessageType;
 
@@ -58,7 +55,7 @@ where
 
     type AnyMisbehavior = <Chain::AnyClient as HasAnyClientTypes>::AnyMisbehavior;
 
-    type UpdateClientMessage = MsgUpdateClient;
+    type UpdateClientMessage = UpdateClientMessage<Chain::AnyClient>;
 }
 
 #[allow(unused_variables)]
@@ -70,7 +67,7 @@ where
 
     type ClientComponents = Chain::AnyClient;
 
-    fn emit_event(&self, event: &IbcEvent) {
+    fn emit_event(&self, event: &Self::Event) {
         self.chain.emit_event(event)
     }
 
@@ -86,11 +83,8 @@ where
         (*time + *duration).unwrap()
     }
 
-    fn message_type(message: &Any) -> IbcMessageType {
-        match message.type_url.as_str() {
-            update_client::TYPE_URL => IbcMessageType::UpdateClient,
-            _ => IbcMessageType::Unknown,
-        }
+    fn message_type(message: &Self::Message) -> IbcMessageType {
+        message.message_type()
     }
 
     fn client_state_type(client_state: &Self::AnyClientState) -> Self::ClientType {
@@ -187,6 +181,10 @@ where
         Chain::unknown_message_error(message_type)
     }
 
+    fn parse_message_error(message_type: &IbcMessageType) -> Self::Error {
+        Chain::parse_message_error(message_type)
+    }
+
     fn client_frozen_error(client_id: &ClientId) -> Self::Error {
         Chain::client_frozen_error(client_id)
     }
@@ -219,15 +217,21 @@ where
 
     const UPDATE_CLIENT_MESSAGE_TYPE: IbcMessageType = IbcMessageType::UpdateClient;
 
-    fn try_extract_update_client_message(message: &Any) -> Result<&MsgUpdateClient, Self::Error> {
-        todo!()
+    fn try_extract_update_client_message(
+        message: &IbcMessage<Chain::AnyClient>,
+    ) -> Option<&Self::UpdateClientMessage> {
+        match message {
+            IbcMessage::UpdateClient(message) => Some(message),
+        }
     }
 
-    fn update_client_message_client_id(message: &MsgUpdateClient) -> &ClientId {
-        todo!()
+    fn update_client_message_client_id(message: &Self::UpdateClientMessage) -> &ClientId {
+        &message.client_id
     }
 
-    fn update_client_message_client_header(message: &MsgUpdateClient) -> &Self::AnyClientHeader {
-        todo!()
+    fn update_client_message_client_header(
+        message: &Self::UpdateClientMessage,
+    ) -> &Self::AnyClientHeader {
+        &message.client_header
     }
 }

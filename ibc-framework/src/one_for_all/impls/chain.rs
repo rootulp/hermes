@@ -148,7 +148,7 @@ where
 
     fn try_extract_update_client_message(
         message: &Self::Message,
-    ) -> Result<&Self::UpdateClientMessage, Self::Error> {
+    ) -> Option<&Self::UpdateClientMessage> {
         Chain::try_extract_update_client_message(message)
     }
 

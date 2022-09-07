@@ -127,6 +127,8 @@ pub trait OfaChain: OfaChainTypes {
 
     fn unknown_message_error(message_type: &Self::MessageType) -> Self::Error;
 
+    fn parse_message_error(message_type: &Self::MessageType) -> Self::Error;
+
     fn client_frozen_error(client_id: &Self::ClientId) -> Self::Error;
 
     fn client_expired_error(
@@ -159,7 +161,7 @@ pub trait OfaChain: OfaChainTypes {
 
     fn try_extract_update_client_message(
         message: &Self::Message,
-    ) -> Result<&Self::UpdateClientMessage, Self::Error>;
+    ) -> Option<&Self::UpdateClientMessage>;
 
     fn update_client_message_client_id(message: &Self::UpdateClientMessage) -> &Self::ClientId;
 
