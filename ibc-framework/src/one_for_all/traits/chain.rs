@@ -1,5 +1,5 @@
 use crate::core::traits::sync::Async;
-use crate::one_for_all::traits::components::{OfaChainComponents, OfaClientComponents};
+use crate::one_for_all::traits::components::OfaChainComponents;
 
 pub trait OfaChainTypes: Async {
     type Error: Async;
@@ -44,7 +44,7 @@ pub trait OfaChainTypes: Async {
 pub trait OfaChain: OfaChainTypes {
     type ChainComponents: OfaChainComponents<Self>;
 
-    type ClientComponents: OfaClientComponents<Self>;
+    type ClientComponents;
 
     // EventEmitter methods
 

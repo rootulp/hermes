@@ -23,6 +23,7 @@ where
 impl<Chain> HasAnyUpdateClientHandler for OfaChainWrapper<Chain>
 where
     Chain: OfaChain,
+    Chain::ClientComponents: OfaClientComponents<Chain>,
 {
     type AnyUpdateClientHandler =
         <Chain::ClientComponents as OfaClientComponents<Chain>>::AnyUpdateClientHandler;

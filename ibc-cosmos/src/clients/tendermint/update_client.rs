@@ -82,58 +82,61 @@ where
             return Ok((client_state.clone(), new_consensus_state));
         }
 
-        let trusted_height = new_client_header.trusted_height;
+        {
+            let trusted_height = new_client_header.trusted_height;
 
-        let trusted_consensus_state = context
-            .get_consensus_state_at_height(client_id, &trusted_height)?
-            .ok_or_else(|| {
-                Context::inject_error(Error::ConsensusStateNotFound {
-                    height: trusted_height,
-                })
-            })?;
+            let trusted_consensus_state = context
+                .get_consensus_state_at_height(client_id, &trusted_height)?
+                .ok_or_else(|| {
+                    Context::inject_error(Error::ConsensusStateNotFound {
+                        height: trusted_height,
+                    })
+                })?;
 
-        let trusted_revision_height = trusted_height.revision_height();
+            let trusted_revision_height = trusted_height.revision_height();
 
-        let trusted_block_height =
-            BlockHeight::try_from(trusted_revision_height).map_err(|_| {
-                Context::inject_error(Error::RevisionHeightOverflow {
-                    height: trusted_revision_height,
-                })
-            })?;
+            let trusted_block_height =
+                BlockHeight::try_from(trusted_revision_height).map_err(|_| {
+                    Context::inject_error(Error::RevisionHeightOverflow {
+                        height: trusted_revision_height,
+                    })
+                })?;
 
-        let trusted_state = TrustedBlockState {
-            header_time: trusted_consensus_state.timestamp,
-            height: trusted_block_height,
-            next_validators: &new_client_header.trusted_validator_set,
-            next_validators_hash: trusted_consensus_state.next_validators_hash,
-        };
+            let trusted_state = TrustedBlockState {
+                header_time: trusted_consensus_state.timestamp,
+                height: trusted_block_height,
+                next_validators: &new_client_header.trusted_validator_set,
+                next_validators_hash: trusted_consensus_state.next_validators_hash,
+            };
 
-        let untrusted_state = UntrustedBlockState {
-            signed_header: &new_client_header.signed_header,
-            validators: &new_client_header.validator_set,
-            // NB: This will skip the
-            // VerificationPredicates::next_validators_match check for the
-            // untrusted state.
-            next_validators: None,
-        };
+            let untrusted_state = UntrustedBlockState {
+                signed_header: &new_client_header.signed_header,
+                validators: &new_client_header.validator_set,
+                // NB: This will skip the
+                // VerificationPredicates::next_validators_match check for the
+                // untrusted state.
+                next_validators: None,
+            };
 
-        let options = client_state.as_light_client_options().unwrap();
+            let options = client_state.as_light_client_options().unwrap();
 
-        let now = context.host_timestamp().into_tm_time().unwrap();
+            let now = context.host_timestamp().into_tm_time().unwrap();
 
-        let verdict = client_state
-            .verifier
-            .verify(untrusted_state, trusted_state, &options, now);
+            let verdict =
+                client_state
+                    .verifier
+                    .verify(untrusted_state, trusted_state, &options, now);
 
-        match verdict {
-            Verdict::Success => {}
-            Verdict::NotEnoughTrust(voting_power_tally) => {
-                return Err(Context::inject_error(Error::NotEnoughTrust {
-                    tally: voting_power_tally,
-                }));
-            }
-            Verdict::Invalid(detail) => {
-                return Err(Context::inject_error(Error::VerificationError { detail }))
+            match verdict {
+                Verdict::Success => {}
+                Verdict::NotEnoughTrust(voting_power_tally) => {
+                    return Err(Context::inject_error(Error::NotEnoughTrust {
+                        tally: voting_power_tally,
+                    }));
+                }
+                Verdict::Invalid(detail) => {
+                    return Err(Context::inject_error(Error::VerificationError { detail }))
+                }
             }
         }
 
