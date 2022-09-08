@@ -484,7 +484,7 @@ define_error! {
                 type_url: String
             }
             |e| {
-                format!("Failed to deserialize account of an unknown protobuf type: {0}", e.type_url)
+                format!("failed to deserialize account of an unknown protobuf type: {0}", e.type_url)
             },
 
         EmptyBaseAccount
@@ -521,10 +521,10 @@ define_error! {
                     "Query/DenomTrace RPC returned an empty denom trace for trace hash: {}", e.hash)
             },
 
-        MessageExceedsMaxTxSize
+        MessageTooBigForTx
             { len: usize }
             |e| {
-                format_args!("message length {} exceeds maximum transaction size", e.len)
+                format_args!("message with length {} is too large for a transaction", e.len)
             }
     }
 }

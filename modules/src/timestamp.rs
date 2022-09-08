@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 use core::cmp::Ordering;
-use core::fmt::Display;
+use core::fmt::{Display, Error as FmtError, Formatter};
 use core::hash::{Hash, Hasher};
 use core::num::ParseIntError;
 use core::ops::{Add, Sub};
@@ -167,7 +167,7 @@ impl Timestamp {
 }
 
 impl Display for Timestamp {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), FmtError> {
         write!(
             f,
             "Timestamp({})",
