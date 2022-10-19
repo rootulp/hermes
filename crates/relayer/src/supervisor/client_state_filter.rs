@@ -173,6 +173,7 @@ impl FilterPolicy {
 
         let permission = match state.trust_threshold() {
             Some(trust) if trust == TrustThreshold::ONE_THIRD => Permission::Allow,
+            Some(trust) if trust == TrustThreshold::ONE_HALF => Permission::Allow,
             Some(_) => {
                 trace!(
                     "client {} on chain {} has a trust threshold different than 1/3",

@@ -35,6 +35,11 @@ impl TrustThreshold {
         numerator: 1,
         denominator: 3,
     };
+    /// Constant for a trust threshold of 1/2.
+    pub const ONE_HALF: Self = Self {
+        numerator: 1,
+        denominator: 2,
+    };
 
     /// Constant for a trust threshold of 2/3.
     pub const TWO_THIRDS: Self = Self {
