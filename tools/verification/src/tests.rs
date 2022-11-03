@@ -18,6 +18,18 @@ use crate::utils::nondeterminism::any_natural;
    A very basic test to test the model checking capabilities of Kani.
 */
 
+fn foo() -> Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>> {
+    Box::pin(async {
+        let x = 3;
+    })
+}
+
+fn bar() -> Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>> {
+    let future = foo();
+    let mut list = vec![future];
+    list.pop().unwrap()
+}
+
 // #[kani::proof]
 // #[kani::unwind(10)]
 pub async fn test_kani() {
@@ -31,18 +43,34 @@ pub async fn test_kani() {
     // let spawner = TaskSpawner::new(&flag);
 
     // let cell = Cell::new(&flag, 8u8);
+
     let runtime = TestRuntime::new();
 
-    let (sender, receiver) = runtime.channel.new_channel::<u8>();
+    // let mut futures: Vec<Pin<Box<dyn Future<Output=()> + Send + Sync + 'static>>> = Vec::new();
 
-    runtime.spawner.spawn(async move {
-        sender.send(2);
-    });
+    // futures.push(foo());
+    // futures.push(bar());
+    // let future = futures.get_mut(0).unwrap();
 
-    runtime.spawner.spawn(async move {
-        let val = receiver.recv().await;
-        assert_ne!(val, 2);
-    });
+    // poll_future(future);
+
+    let mut future = bar();
+    poll_future(&mut future);
+
+    // let (sender, receiver) = runtime.channel.new_channel::<u8>();
+
+    // runtime.spawner.spawn(foo());
+
+    // runtime.spawner.resume_any_task();
+
+    // runtime.spawner.spawn(async move {
+    //     sender.send(2);
+    // });
+
+    // runtime.spawner.spawn(async move {
+    //     let val = receiver.recv().await;
+    //     assert_ne!(val, 2);
+    // });
 
     // while runtime.spawner.has_pending_tasks() {
     // runtime.spawner.resume_any_task();
@@ -76,6 +104,7 @@ pub async fn test_kani() {
 #[kani::proof]
 #[kani::unwind(10)]
 async fn run_test_kani() {
+    // format!("{}", 0);
     // let arr: Rc<RefCell<Vec<Pin<Box<dyn Future<Output=()> + Send + Sync + 'static>>>>> = Rc::new(RefCell::new(Vec::new()));
 
     test_kani().await;

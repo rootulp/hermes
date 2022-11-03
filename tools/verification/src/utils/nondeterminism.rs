@@ -21,6 +21,16 @@ pub fn any_natural() -> Natural {
 }
 
 #[cfg(kani)]
+pub fn any_usize() -> usize {
+    kani::any()
+}
+
+#[cfg(not(kani))]
+pub fn any_usize() -> usize {
+    unimplemented!()
+}
+
+#[cfg(kani)]
 pub fn assume(cond: bool) {
     kani::assume(cond)
 }
