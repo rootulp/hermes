@@ -8,8 +8,7 @@ use ibc_relayer_framework::base::chain::traits::types::{
 use ibc_relayer_framework::base::core::traits::error::HasError;
 
 use crate::std_prelude::*;
-
-pub type Natural = u8;
+use crate::types::aliases::Natural;
 
 #[derive(Debug)]
 pub enum MockError {}
