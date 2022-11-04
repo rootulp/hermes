@@ -5,6 +5,12 @@ use futures_task::noop_waker;
 
 use crate::std_prelude::*;
 
+pub fn pin_future<T>(
+    future: impl Future<Output = T> + Send + Sync + 'static,
+) -> Pin<Box<dyn Future<Output = T> + Send + Sync + 'static>> {
+    Box::pin(future)
+}
+
 pub fn poll_future<T>(
     future: &mut Pin<Box<dyn Future<Output = T> + Send + Sync + '_>>,
 ) -> Option<T> {

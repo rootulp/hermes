@@ -5,13 +5,12 @@ use core::pin::Pin;
 use ibc_relayer_framework::base::chain::traits::queries::status::CanQueryChainStatus;
 
 use crate::mock::{ChainStatus, MockChain};
+use crate::runtime::task::{resume_any_task, spawn};
 use crate::std_prelude::*;
 use crate::types::aliases::Natural;
 use crate::types::cell::Cell;
-use crate::types::runtime::TestRuntime;
-use crate::types::state_change::StateChangeFlag;
-use crate::types::task::TaskSpawner;
-use crate::utils::future::poll_future;
+use crate::types::once::new_channel_once;
+use crate::utils::future::{pin_future, poll_future};
 use crate::utils::nondeterminism::any_natural;
 
 /**
@@ -44,7 +43,7 @@ pub async fn test_kani() {
 
     // let cell = Cell::new(&flag, 8u8);
 
-    let runtime = TestRuntime::new();
+    // let runtime = TestRuntime::new();
 
     // let mut futures: Vec<Pin<Box<dyn Future<Output=()> + Send + Sync + 'static>>> = Vec::new();
 
@@ -54,26 +53,35 @@ pub async fn test_kani() {
 
     // poll_future(future);
 
-    let mut future = bar();
-    poll_future(&mut future);
+    // let mut future = bar();
+    // poll_future(&mut future);
 
-    // let (sender, receiver) = runtime.channel.new_channel::<u8>();
+    let (sender, receiver) = new_channel_once::<u8>();
 
-    // runtime.spawner.spawn(foo());
-
-    // runtime.spawner.resume_any_task();
-
-    // runtime.spawner.spawn(async move {
-    //     sender.send(2);
+    // let mut future = pin_future(async {
+    //     receiver.await;
     // });
+    // spawn(future);
+    // poll_future(&mut future);
 
-    // runtime.spawner.spawn(async move {
-    //     let val = receiver.recv().await;
-    //     assert_ne!(val, 2);
-    // });
+    // spawn(foo());
+
+    // resume_any_task();
+
+    spawn(pin_future(async move {
+        let val = receiver.await;
+        // assert_ne!(val, 2);
+    }));
+
+    spawn(pin_future(async move {
+        sender.send(2);
+    }));
 
     // while runtime.spawner.has_pending_tasks() {
-    // runtime.spawner.resume_any_task();
+    resume_any_task();
+    // resume_any_task();
+    // receiver.await;
+    // resume_any_task();
     // }
 
     // let init_height = any_natural();

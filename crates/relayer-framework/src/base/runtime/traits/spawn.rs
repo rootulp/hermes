@@ -14,3 +14,10 @@ pub trait Spawner: Async {
         F: Future + Send + 'static,
         F::Output: Send + 'static;
 }
+
+pub trait CanSpawnScoped: Async {
+    fn spawn_scoped<'a, F>(&'a self, task: F)
+    where
+        F: Future + Send + 'a,
+        F::Output: Send + 'a;
+}
