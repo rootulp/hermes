@@ -5,13 +5,13 @@ use core::task::{Context, Poll};
 use crate::runtime::task::spawn;
 use crate::std_prelude::*;
 use crate::types::cell::Cell;
-use crate::utils::future::{new_future, pin_future};
+use crate::utils::future::pin_future;
 
-pub struct ReceiverOnce<T> {
+pub struct ReceiverOnce<T: 'static> {
     cell: Cell<Option<T>>,
 }
 
-pub struct SenderOnce<T> {
+pub struct SenderOnce<T: 'static> {
     cell: Cell<Option<T>>,
 }
 
@@ -36,22 +36,6 @@ impl<T> Future for ReceiverOnce<T> {
         }
     }
 }
-
-// impl<T> ReceiverOnce<T> {
-//     pub async fn recv(self) -> T {
-//         let cell = self.cell;
-//         new_future(move || {
-//             let has_val = cell.borrow().is_some();
-
-//             if has_val {
-//                 cell.borrow_mut().take()
-//             } else {
-//                 None
-//             }
-//         })
-//         .await
-//     }
-// }
 
 impl<T: Send + Sync + 'static> SenderOnce<T> {
     pub fn send(self, val: T) {

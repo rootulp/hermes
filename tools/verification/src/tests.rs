@@ -69,17 +69,20 @@ pub async fn test_kani() {
     // resume_any_task();
 
     spawn(pin_future(async move {
-        let val = receiver.await;
-        // assert_ne!(val, 2);
-    }));
-
-    spawn(pin_future(async move {
         sender.send(2);
     }));
 
     // while runtime.spawner.has_pending_tasks() {
     resume_any_task();
-    // resume_any_task();
+    resume_any_task();
+
+    spawn(pin_future(async move {
+        let val = receiver.await;
+        // assert_ne!(val, 2);
+    }));
+
+    resume_any_task();
+
     // receiver.await;
     // resume_any_task();
     // }

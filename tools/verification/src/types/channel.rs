@@ -4,16 +4,16 @@ use crate::std_prelude::*;
 use crate::types::cell::Cell;
 use crate::types::once::{new_channel_once, ReceiverOnce, SenderOnce};
 
-struct Channel<T> {
+struct Channel<T: 'static> {
     send_queue: Cell<LinkedList<SenderOnce<T>>>,
     recv_queue: Cell<LinkedList<ReceiverOnce<T>>>,
 }
 
-pub struct Sender<T> {
+pub struct Sender<T: 'static> {
     channel: Channel<T>,
 }
 
-pub struct Receiver<T> {
+pub struct Receiver<T: 'static> {
     channel: Channel<T>,
 }
 
