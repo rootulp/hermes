@@ -1,7 +1,4 @@
-use alloc::collections::LinkedList;
-use core::char::MAX;
 use core::future::Future;
-use core::mem::MaybeUninit;
 use core::pin::Pin;
 
 use crate::runtime::future::poll_future;
@@ -10,29 +7,15 @@ use crate::runtime::globals::{
 };
 use crate::runtime::nondeterminism::{any_bool, any_usize, assume};
 use crate::std_prelude::*;
-use crate::types::cell::Cell;
+
+type Task = Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>;
+type TaskQueue = [Option<Task>; MAX_TASKS];
 
 const MAX_TASKS: usize = 4;
+const INIT_TASK: Option<Task> = None;
 
-type TaskQueue = [Option<Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>>; MAX_TASKS];
-
-static mut TASK_QUEUE_INITIALIZED: bool = false;
 static mut CURRENT_TASK_COUNT: usize = 0;
-static mut TASK_QUEUE: MaybeUninit<TaskQueue> = MaybeUninit::uninit();
-
-pub fn init_task_queue() {
-    unsafe {
-        assert!(!TASK_QUEUE_INITIALIZED);
-        TASK_QUEUE_INITIALIZED = true;
-        TASK_QUEUE.write(Default::default());
-    }
-}
-
-pub fn assert_task_queue_initialized() {
-    unsafe {
-        assert!(TASK_QUEUE_INITIALIZED);
-    }
-}
+static mut TASK_QUEUE: TaskQueue = [INIT_TASK; MAX_TASKS];
 
 fn increment_current_task_count() {
     let count = unsafe { &mut CURRENT_TASK_COUNT };
@@ -51,34 +34,32 @@ fn current_task_count() -> usize {
 }
 
 fn borrow_queue() -> &'static TaskQueue {
-    assert_task_queue_initialized();
-    unsafe { TASK_QUEUE.assume_init_ref() }
+    unsafe { &TASK_QUEUE }
 }
 
 fn borrow_mut_queue() -> &'static mut TaskQueue {
-    assert_task_queue_initialized();
     set_global_state_modified();
-    unsafe { TASK_QUEUE.assume_init_mut() }
+    unsafe { &mut TASK_QUEUE }
 }
 
 pub fn spawn(future: Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>) {
     increment_current_task_count();
 
-    for i in 0.. MAX_TASKS {
-        let m_task = &mut borrow_mut_queue()[i];
-        if m_task.is_none() {
-            *m_task = Some(future);
-            return;
-        }
-    }
+    // for i in 0..MAX_TASKS {
+    //     let m_task = &mut borrow_mut_queue()[i];
+    //     if m_task.is_none() {
+    //         *m_task = Some(future);
+    //         return;
+    //     }
+    // }
 
-    // let i = any_usize();
-    // assume(i < MAX_TASKS);
-    // // let i = 0;
+    let i = any_usize();
+    assume(i < MAX_TASKS);
+    // let i = 0;
 
-    // let m_task = &mut borrow_mut_queue()[i];
-    // assume(m_task.is_none());
-    // *m_task = Some(future);
+    let m_task = &mut borrow_mut_queue()[i];
+    assume(m_task.is_none());
+    *m_task = Some(future);
 }
 
 pub fn has_pending_tasks() -> bool {
@@ -89,7 +70,7 @@ pub fn has_pending_tasks() -> bool {
 //     list.remove(at)
 // }
 
-pub fn resume_any_task(i: usize) {
+pub fn resume_any_task() {
     let queue = borrow_mut_queue();
     if current_task_count() == 0 {
         return;
@@ -97,21 +78,23 @@ pub fn resume_any_task(i: usize) {
 
     clear_global_state_modified();
 
-    // let i = any_usize();
-    // assume(i < MAX_TASKS);
+    let i = any_usize();
+    assume(i < MAX_TASKS);
 
     // for i in 0..MAX_TASKS {
-        let m_task = &mut queue[i];
-        if let Some(task) = m_task.as_mut() {
-            let res = poll_future(task);
-            if res.is_some() {
-                decrement_current_task_count();
-                *m_task = None;
-                return;
-            } else if is_global_state_modified() {
-                return;
-            }
-        }
+    let m_task = &mut queue[i];
+    assume(m_task.is_some());
+    // if let Some(task) = m_task.as_mut() {
+    let task = m_task.as_mut().unwrap();
+    let res = poll_future(task);
+    if res.is_some() {
+        decrement_current_task_count();
+        *m_task = None;
+        return;
+    } else if is_global_state_modified() {
+        return;
+    }
+    // }
     // }
 
     // let i = any_usize();
