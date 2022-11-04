@@ -1,13 +1,14 @@
 use alloc::rc::Rc;
 use core::any;
 use core::cell::{Ref, RefCell, RefMut, UnsafeCell};
-use core::future::Future;
+use core::future::{Future, IntoFuture};
 use core::pin::Pin;
 use ibc_relayer_framework::base::chain::traits::queries::status::CanQueryChainStatus;
+use futures::future::FutureExt;
 
 use crate::mock::{ChainStatus, MockChain};
 use crate::runtime::future::{pin_future, poll_future};
-use crate::runtime::nondeterminism::{any_bool, any_natural};
+use crate::runtime::nondeterminism::{any_bool, any_natural, any_usize, assume};
 use crate::runtime::task::{init_task_queue, resume_any_task, spawn};
 use crate::std_prelude::*;
 use crate::types::aliases::Natural;
@@ -33,21 +34,24 @@ pub async fn test_kani() {
     // spawn(pin_future(async move {
     // }));
 
+
     spawn(pin_future(async move {
         sender.send(2);
     }));
 
-    resume_any_task();
+    spawn(pin_future(async move {
+        let val = receiver.await;
+        // assert_ne!(val, 2);
+    }));
+
+    resume_any_task(0);
+    resume_any_task(2);
+    resume_any_task(1);
 
     // while runtime.spawner.has_pending_tasks() {
     // resume_any_task();
 
-    // spawn(pin_future(async move {
-    //     let val = receiver.await;
-    //     // assert_ne!(val, 2);
-    // }));
-
-    resume_any_task();
+    // resume_any_task();
     // resume_any_task();
 
     // receiver.await;

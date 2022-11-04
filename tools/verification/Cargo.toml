@@ -19,6 +19,6 @@ all-features = true
 
 [dependencies]
 async-trait = "0.1.56"
-futures-task = "0.3.25"
+futures = "0.3.25"
 ibc-relayer-framework = { path = "../../crates/relayer-framework" }
 # kani = { git = "https://github.com/model-checking/kani", features = ["concrete_playback"] }

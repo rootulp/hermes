@@ -1,7 +1,7 @@
 use core::future::{poll_fn, Future};
 use core::pin::Pin;
 use core::task::{Context, Poll};
-use futures_task::noop_waker;
+use futures::task::noop_waker;
 
 use crate::std_prelude::*;
 

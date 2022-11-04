@@ -1,4 +1,5 @@
 use alloc::collections::LinkedList;
+use core::char::MAX;
 use core::future::Future;
 use core::mem::MaybeUninit;
 use core::pin::Pin;
@@ -11,7 +12,7 @@ use crate::runtime::nondeterminism::{any_bool, any_usize, assume};
 use crate::std_prelude::*;
 use crate::types::cell::Cell;
 
-const MAX_TASKS: usize = 8;
+const MAX_TASKS: usize = 4;
 
 type TaskQueue = [Option<Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>>; MAX_TASKS];
 
@@ -63,13 +64,21 @@ fn borrow_mut_queue() -> &'static mut TaskQueue {
 pub fn spawn(future: Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>) {
     increment_current_task_count();
 
+    for i in 0.. MAX_TASKS {
+        let m_task = &mut borrow_mut_queue()[i];
+        if m_task.is_none() {
+            *m_task = Some(future);
+            return;
+        }
+    }
+
     // let i = any_usize();
     // assume(i < MAX_TASKS);
-    let i = 0;
+    // // let i = 0;
 
-    let m_task = &mut borrow_mut_queue()[i];
+    // let m_task = &mut borrow_mut_queue()[i];
     // assume(m_task.is_none());
-    *m_task = Some(future);
+    // *m_task = Some(future);
 }
 
 pub fn has_pending_tasks() -> bool {
@@ -80,7 +89,7 @@ pub fn has_pending_tasks() -> bool {
 //     list.remove(at)
 // }
 
-pub fn resume_any_task() {
+pub fn resume_any_task(i: usize) {
     let queue = borrow_mut_queue();
     if current_task_count() == 0 {
         return;
@@ -90,13 +99,30 @@ pub fn resume_any_task() {
 
     // let i = any_usize();
     // assume(i < MAX_TASKS);
-    let i = 0;
 
-    let m_task = &mut queue[i];
-    // assume(m_task.is_some());
+    // for i in 0..MAX_TASKS {
+        let m_task = &mut queue[i];
+        if let Some(task) = m_task.as_mut() {
+            let res = poll_future(task);
+            if res.is_some() {
+                decrement_current_task_count();
+                *m_task = None;
+                return;
+            } else if is_global_state_modified() {
+                return;
+            }
+        }
+    // }
 
-    let task = m_task.as_mut().unwrap();
-    poll_future(task).unwrap();
+    // let i = any_usize();
+    // assume(i < MAX_TASKS);
+    // // let i = 0;
+
+    // let m_task = &mut queue[i];
+    // // assume(m_task.is_some());
+
+    // let task = m_task.as_mut().unwrap();
+    // poll_future(task);
 
     // for _ in 0..queue.len() {
     // let i = any_usize();
