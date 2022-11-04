@@ -8,7 +8,7 @@ use ibc_relayer_framework::base::chain::traits::queries::status::CanQueryChainSt
 use crate::mock::{ChainStatus, MockChain};
 use crate::runtime::future::{pin_future, poll_future};
 use crate::runtime::nondeterminism::{any_bool, any_natural};
-use crate::runtime::task::{resume_any_task, spawn};
+use crate::runtime::task::{init_task_queue, resume_any_task, spawn};
 use crate::std_prelude::*;
 use crate::types::aliases::Natural;
 use crate::types::cell::Cell;
@@ -19,6 +19,7 @@ use crate::types::once::new_channel_once;
 */
 
 pub async fn test_kani() {
+    init_task_queue();
     let (sender, receiver) = new_channel_once::<u8>();
 
     // let mut future = pin_future(async {
@@ -29,22 +30,24 @@ pub async fn test_kani() {
 
     // spawn(foo());
 
-    // resume_any_task();
+    // spawn(pin_future(async move {
+    // }));
 
     spawn(pin_future(async move {
         sender.send(2);
     }));
 
+    resume_any_task();
+
     // while runtime.spawner.has_pending_tasks() {
     // resume_any_task();
 
-    spawn(pin_future(async move {
-        let val = receiver.await;
-        // assert_ne!(val, 2);
-    }));
+    // spawn(pin_future(async move {
+    //     let val = receiver.await;
+    //     // assert_ne!(val, 2);
+    // }));
 
-    resume_any_task(any_bool());
-    resume_any_task(false);
+    resume_any_task();
     // resume_any_task();
 
     // receiver.await;
