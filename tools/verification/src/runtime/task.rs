@@ -2,13 +2,13 @@ use alloc::collections::LinkedList;
 use core::future::Future;
 use core::pin::Pin;
 
+use crate::runtime::future::poll_future;
 use crate::runtime::globals::{
     clear_global_state_modified, is_global_state_modified, set_global_state_modified,
 };
+use crate::runtime::nondeterminism::{any_bool, any_usize, assume};
 use crate::std_prelude::*;
 use crate::types::cell::Cell;
-use crate::utils::future::poll_future;
-use crate::utils::nondeterminism::{any_bool, any_usize, assume};
 
 type TaskQueue = LinkedList<Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>>;
 

@@ -2,10 +2,10 @@ use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
+use crate::runtime::future::pin_future;
 use crate::runtime::task::spawn;
 use crate::std_prelude::*;
 use crate::types::cell::Cell;
-use crate::utils::future::pin_future;
 
 pub struct ReceiverOnce<T: 'static> {
     cell: Cell<Option<T>>,

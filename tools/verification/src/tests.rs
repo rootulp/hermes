@@ -5,57 +5,19 @@ use core::pin::Pin;
 use ibc_relayer_framework::base::chain::traits::queries::status::CanQueryChainStatus;
 
 use crate::mock::{ChainStatus, MockChain};
+use crate::runtime::future::{pin_future, poll_future};
+use crate::runtime::nondeterminism::any_natural;
 use crate::runtime::task::{resume_any_task, spawn};
 use crate::std_prelude::*;
 use crate::types::aliases::Natural;
 use crate::types::cell::Cell;
 use crate::types::once::new_channel_once;
-use crate::utils::future::{pin_future, poll_future};
-use crate::utils::nondeterminism::any_natural;
 
 /**
    A very basic test to test the model checking capabilities of Kani.
 */
 
-fn foo() -> Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>> {
-    Box::pin(async {
-        let x = 3;
-    })
-}
-
-fn bar() -> Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>> {
-    let future = foo();
-    let mut list = vec![future];
-    list.pop().unwrap()
-}
-
-// #[kani::proof]
-// #[kani::unwind(10)]
 pub async fn test_kani() {
-    // let arr: &'static mut RefCell<Vec<Pin<Box<dyn Future<Output=()> + Send + Sync + 'static>>>> = Box::leak(Box::new(RefCell::new(Vec::new())));
-    // let flag = StateChangeFlag::new();
-    // let arr: Rc<Vec<Box<u8>>> = Rc::new(Vec::new());
-    // let arr: Vec<Cell<u8>> = Vec::new();
-    // let queue: Vec<Pin<Box<dyn Future<Output=()> + Send + Sync + 'static>>> =
-    //     Vec::new();
-    // let cell = Cell::new(&flag);
-    // let spawner = TaskSpawner::new(&flag);
-
-    // let cell = Cell::new(&flag, 8u8);
-
-    // let runtime = TestRuntime::new();
-
-    // let mut futures: Vec<Pin<Box<dyn Future<Output=()> + Send + Sync + 'static>>> = Vec::new();
-
-    // futures.push(foo());
-    // futures.push(bar());
-    // let future = futures.get_mut(0).unwrap();
-
-    // poll_future(future);
-
-    // let mut future = bar();
-    // poll_future(&mut future);
-
     let (sender, receiver) = new_channel_once::<u8>();
 
     // let mut future = pin_future(async {
