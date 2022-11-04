@@ -35,7 +35,7 @@ pub fn has_pending_tasks() -> bool {
 //     list.remove(at)
 // }
 
-pub fn resume_any_task() {
+pub fn resume_any_task(should_run_task: bool) {
     let queue = borrow_mut_queue();
     if queue.is_empty() {
         return;
@@ -43,14 +43,20 @@ pub fn resume_any_task() {
 
     clear_global_state_modified();
 
-    // for i in 0..queue.len() {
+    // for _ in 0..queue.len() {
     // let i = any_usize();
     // assume(i < queue.len());
 
     let mut task = queue.pop_front().unwrap();
-    // let mut task = remove(queue, i);
+    // let should_run_task = any_bool();
+    if should_run_task {
+        let res = poll_future(&mut task);
+    } else {
+        queue.push_back(task);
+    }
+
+    // let mut task = queue.remove(i);
     // assume(m_task.is_some());
-    let res = poll_future(&mut task).unwrap();
     // assume(res.is_some() || flag.is_state_modified());
 
     // if res.is_some() {

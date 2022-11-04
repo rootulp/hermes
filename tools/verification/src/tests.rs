@@ -1,4 +1,5 @@
 use alloc::rc::Rc;
+use core::any;
 use core::cell::{Ref, RefCell, RefMut, UnsafeCell};
 use core::future::Future;
 use core::pin::Pin;
@@ -6,7 +7,7 @@ use ibc_relayer_framework::base::chain::traits::queries::status::CanQueryChainSt
 
 use crate::mock::{ChainStatus, MockChain};
 use crate::runtime::future::{pin_future, poll_future};
-use crate::runtime::nondeterminism::any_natural;
+use crate::runtime::nondeterminism::{any_bool, any_natural};
 use crate::runtime::task::{resume_any_task, spawn};
 use crate::std_prelude::*;
 use crate::types::aliases::Natural;
@@ -35,15 +36,16 @@ pub async fn test_kani() {
     }));
 
     // while runtime.spawner.has_pending_tasks() {
-    resume_any_task();
-    resume_any_task();
+    // resume_any_task();
 
     spawn(pin_future(async move {
         let val = receiver.await;
         // assert_ne!(val, 2);
     }));
 
-    resume_any_task();
+    resume_any_task(any_bool());
+    resume_any_task(false);
+    // resume_any_task();
 
     // receiver.await;
     // resume_any_task();
