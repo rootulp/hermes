@@ -1,3 +1,4 @@
+use core::cell::UnsafeCell;
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
@@ -22,6 +23,18 @@ pub fn new_channel_once<T>() -> (SenderOnce<T>, ReceiverOnce<T>) {
     (sender, receiver)
 }
 
+pub const fn sender_once_from_static<T>(cell: &'static UnsafeCell<Option<T>>) -> SenderOnce<T> {
+    let cell = Cell::from_static(cell);
+    let sender = SenderOnce { cell };
+    sender
+}
+
+pub const fn receiver_once_from_static<T>(cell: &'static UnsafeCell<Option<T>>) -> ReceiverOnce<T> {
+    let cell = Cell::from_static(cell);
+    let receiver = ReceiverOnce { cell };
+    receiver
+}
+
 impl<T> Future for ReceiverOnce<T> {
     type Output = T;
 
@@ -40,6 +53,7 @@ impl<T> Future for ReceiverOnce<T> {
 impl<T: Send + Sync + 'static> SenderOnce<T> {
     pub fn send(self, val: T) {
         let cell = self.cell;
-        spawn(pin_future(async move { *cell.borrow_mut() = Some(val) }));
+        *cell.borrow_mut() = Some(val);
+        // spawn(pin_future(async move { *cell.borrow_mut() = Some(val) }));
     }
 }

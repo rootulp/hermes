@@ -20,10 +20,14 @@ unsafe impl<T: Send> Send for Cell<T> {}
 unsafe impl<T: Sync> Sync for Cell<T> {}
 
 impl<T> Cell<T> {
-    pub fn new(val: T) -> Cell<T> {
+    pub fn new(val: T) -> Self {
         Cell {
             cell: Box::leak(Box::new(UnsafeCell::new(val))),
         }
+    }
+
+    pub const fn from_static(cell: &'static UnsafeCell<T>) -> Self {
+        Cell { cell }
     }
 
     pub fn borrow_mut(&self) -> &mut T {

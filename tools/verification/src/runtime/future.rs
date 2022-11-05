@@ -24,6 +24,20 @@ pub fn poll_future<T>(
     }
 }
 
+pub fn poll_future_generic<F, T>(future: &mut Pin<Box<F>>) -> Option<T>
+where
+    F: Future<Output = T> + Send + Sync,
+{
+    let waker = noop_waker();
+    let mut context = Context::from_waker(&waker);
+
+    let poll = future.as_mut().poll(&mut context);
+    match poll {
+        Poll::Ready(res) => Some(res),
+        Poll::Pending => None,
+    }
+}
+
 pub async fn new_future<T, F>(poller: F) -> T
 where
     F: Fn() -> Option<T>,

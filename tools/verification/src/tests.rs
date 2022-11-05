@@ -5,22 +5,107 @@ use core::future::{Future, IntoFuture};
 use core::pin::Pin;
 use futures::future::FutureExt;
 use ibc_relayer_framework::base::chain::traits::queries::status::CanQueryChainStatus;
+use ibc_relayer_framework::base::transaction::impls::poll;
 
 use crate::mock::{ChainStatus, MockChain};
-use crate::runtime::future::{pin_future, poll_future};
+use crate::runtime::future::{pin_future, poll_future, poll_future_generic};
 use crate::runtime::nondeterminism::{any_bool, any_natural, any_usize, assume};
 use crate::runtime::task::{resume_any_task, spawn};
 use crate::std_prelude::*;
 use crate::types::aliases::Natural;
 use crate::types::cell::Cell;
-use crate::types::once::new_channel_once;
+use crate::types::once::{
+    new_channel_once, receiver_once_from_static, sender_once_from_static, ReceiverOnce, SenderOnce,
+};
+
+static mut CHANNEL_CELL: UnsafeCell<Option<u8>> = UnsafeCell::new(None);
 
 /**
    A very basic test to test the model checking capabilities of Kani.
 */
 
 pub async fn test_kani() {
-    let (sender, receiver) = new_channel_once::<u8>();
+    // let (sender, receiver) = new_channel_once::<u8>();
+
+    let sender = unsafe { sender_once_from_static(&CHANNEL_CELL) };
+    let receiver = unsafe { receiver_once_from_static(&CHANNEL_CELL) };
+
+    let mut task1 = Some(Box::pin(async move {
+        sender.send(2);
+    }));
+
+    let mut task2 = Some(Box::pin(async move {
+        let val = receiver.await;
+        assert!(val == 2);
+    }));
+
+    if any_bool() {
+        assume(task1.is_some());
+        let task = task1.as_mut().unwrap();
+        let res = poll_future_generic(task);
+        if res.is_some() {
+            task1 = None;
+        }
+    } else {
+        assume(task2.is_some());
+        let task = task2.as_mut().unwrap();
+        let res = poll_future_generic(task);
+        if res.is_some() {
+            task2 = None;
+        }
+    }
+
+    if task1.is_none() && task2.is_none() {
+        // panic!("execution completed");
+        return;
+    }
+
+    if any_bool() {
+        assume(task1.is_some());
+        let task = task1.as_mut().unwrap();
+        let res = poll_future_generic(task);
+        if res.is_some() {
+            task1 = None;
+        }
+    } else {
+        assume(task2.is_some());
+        let task = task2.as_mut().unwrap();
+        let res = poll_future_generic(task);
+        if res.is_some() {
+            task2 = None;
+        }
+    }
+
+    if task1.is_none() && task2.is_none() {
+        // panic!("execution completed");
+        return;
+    }
+
+    if any_bool() {
+        assume(task1.is_some());
+        let task = task1.as_mut().unwrap();
+        let res = poll_future_generic(task);
+        if res.is_some() {
+            task1 = None;
+        }
+    } else {
+        assume(task2.is_some());
+        let task = task2.as_mut().unwrap();
+        let res = poll_future_generic(task);
+        if res.is_some() {
+            task2 = None;
+        }
+    }
+
+    assert!(task1.is_none() && task2.is_none());
+
+    // if task1.is_none() && task2.is_none() {
+    //     // panic!("execution completed");
+    //     return
+    // }
+
+    // poll_future_generic(&mut task1).unwrap();
+    // poll_future_generic(&mut task2).unwrap();
 
     // let mut future = pin_future(async {
     //     receiver.await;
@@ -33,16 +118,16 @@ pub async fn test_kani() {
     // spawn(pin_future(async move {
     // }));
 
-    spawn(pin_future(async move {
-        sender.send(2);
-    }));
+    // spawn(pin_future(async move {
+    //     sender.send(2);
+    // }));
 
-    spawn(pin_future(async move {
-        let val = receiver.await;
-        assert!(val != 2);
-    }));
+    // spawn(pin_future(async move {
+    //     let val = receiver.await;
+    //     assert!(val != 2);
+    // }));
 
-    resume_any_task();
+    // resume_any_task();
     // resume_any_task();
     // resume_any_task();
     // resume_any_task(2);
