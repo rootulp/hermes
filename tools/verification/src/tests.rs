@@ -34,7 +34,8 @@ where
     } else if task1.is_none() && task2.is_none() {
         true
     } else {
-        if any_bool() {
+        let should_run_first_task = any_bool();
+        if should_run_first_task {
             assume(task1.is_some());
             let task = task1.as_mut().unwrap();
             let res = poll_future_generic(task);
@@ -68,10 +69,11 @@ pub async fn test_kani() {
     let done = run_any_task(&mut task1, &mut task2, false);
     let done = run_any_task(&mut task1, &mut task2, done);
     // let done = run_any_task(&mut task1, &mut task2, done);
+    // let done = run_any_task(&mut task1, &mut task2, done);
 
     // panic!("done");
 
-    assert!(!(task1.is_none() && task2.is_none()));
+    assert!((task1.is_none() && task2.is_none()));
 
     // if task1.is_none() && task2.is_none() {
     //     // panic!("execution completed");
