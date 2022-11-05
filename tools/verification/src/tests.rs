@@ -14,21 +14,14 @@ use crate::runtime::task::{resume_any_task, spawn};
 use crate::std_prelude::*;
 use crate::types::aliases::Natural;
 use crate::types::cell::Cell;
-use crate::types::once::{
-    new_channel_once, receiver_once_from_static, sender_once_from_static, ReceiverOnce, SenderOnce,
-};
-
-static mut CHANNEL_CELL: UnsafeCell<Option<u8>> = UnsafeCell::new(None);
+use crate::types::once::{new_channel_once, ReceiverOnce, SenderOnce};
 
 /**
    A very basic test to test the model checking capabilities of Kani.
 */
 
 pub async fn test_kani() {
-    // let (sender, receiver) = new_channel_once::<u8>();
-
-    let sender = unsafe { sender_once_from_static(&CHANNEL_CELL) };
-    let receiver = unsafe { receiver_once_from_static(&CHANNEL_CELL) };
+    let (sender, receiver) = new_channel_once::<u8>();
 
     let mut task1 = Some(Box::pin(async move {
         sender.send(2);
@@ -39,63 +32,30 @@ pub async fn test_kani() {
         assert!(val == 2);
     }));
 
-    if any_bool() {
-        assume(task1.is_some());
-        let task = task1.as_mut().unwrap();
-        let res = poll_future_generic(task);
-        if res.is_some() {
-            task1 = None;
+    for i in 0..4 {
+        if task1.is_none() && task2.is_none() {
+            // panic!("execution completed");
+            break;
         }
-    } else {
-        assume(task2.is_some());
-        let task = task2.as_mut().unwrap();
-        let res = poll_future_generic(task);
-        if res.is_some() {
-            task2 = None;
+
+        if any_bool() {
+            assume(task1.is_some());
+            let task = task1.as_mut().unwrap();
+            let res = poll_future_generic(task);
+            if res.is_some() {
+                task1 = None;
+            }
+        } else {
+            assume(task2.is_some());
+            let task = task2.as_mut().unwrap();
+            let res = poll_future_generic(task);
+            if res.is_some() {
+                task2 = None;
+            }
         }
     }
 
-    if task1.is_none() && task2.is_none() {
-        // panic!("execution completed");
-        return;
-    }
-
-    if any_bool() {
-        assume(task1.is_some());
-        let task = task1.as_mut().unwrap();
-        let res = poll_future_generic(task);
-        if res.is_some() {
-            task1 = None;
-        }
-    } else {
-        assume(task2.is_some());
-        let task = task2.as_mut().unwrap();
-        let res = poll_future_generic(task);
-        if res.is_some() {
-            task2 = None;
-        }
-    }
-
-    if task1.is_none() && task2.is_none() {
-        // panic!("execution completed");
-        return;
-    }
-
-    if any_bool() {
-        assume(task1.is_some());
-        let task = task1.as_mut().unwrap();
-        let res = poll_future_generic(task);
-        if res.is_some() {
-            task1 = None;
-        }
-    } else {
-        assume(task2.is_some());
-        let task = task2.as_mut().unwrap();
-        let res = poll_future_generic(task);
-        if res.is_some() {
-            task2 = None;
-        }
-    }
+    // panic!("done");
 
     assert!(task1.is_none() && task2.is_none());
 

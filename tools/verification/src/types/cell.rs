@@ -26,10 +26,6 @@ impl<T> Cell<T> {
         }
     }
 
-    pub const fn from_static(cell: &'static UnsafeCell<T>) -> Self {
-        Cell { cell }
-    }
-
     pub fn borrow_mut(&self) -> &mut T {
         set_global_state_modified();
         unsafe { transmute(self.cell.get()) }

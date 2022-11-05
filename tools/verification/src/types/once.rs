@@ -23,18 +23,6 @@ pub fn new_channel_once<T>() -> (SenderOnce<T>, ReceiverOnce<T>) {
     (sender, receiver)
 }
 
-pub const fn sender_once_from_static<T>(cell: &'static UnsafeCell<Option<T>>) -> SenderOnce<T> {
-    let cell = Cell::from_static(cell);
-    let sender = SenderOnce { cell };
-    sender
-}
-
-pub const fn receiver_once_from_static<T>(cell: &'static UnsafeCell<Option<T>>) -> ReceiverOnce<T> {
-    let cell = Cell::from_static(cell);
-    let receiver = ReceiverOnce { cell };
-    receiver
-}
-
 impl<T> Future for ReceiverOnce<T> {
     type Output = T;
 
