@@ -10,7 +10,7 @@ use ibc_relayer_framework::base::transaction::impls::poll;
 use crate::mock::{ChainStatus, MockChain};
 use crate::runtime::future::{pin_future, poll_future, poll_future_generic};
 use crate::runtime::nondeterminism::{any_bool, any_natural, any_usize, assume};
-use crate::runtime::task::{resume_any_task, spawn};
+// use crate::runtime::task::{resume_any_task, spawn};
 use crate::std_prelude::*;
 use crate::types::aliases::Natural;
 use crate::types::cell::Cell;
@@ -19,6 +19,39 @@ use crate::types::once::{new_channel_once, ReceiverOnce, SenderOnce};
 /**
    A very basic test to test the model checking capabilities of Kani.
 */
+
+fn run_any_task<F1, F2>(
+    task1: &mut Option<Pin<Box<F1>>>,
+    task2: &mut Option<Pin<Box<F2>>>,
+    done: bool,
+) -> bool
+where
+    F1: Future<Output = ()>,
+    F2: Future<Output = ()>,
+{
+    if done {
+        true
+    } else if task1.is_none() && task2.is_none() {
+        true
+    } else {
+        if any_bool() {
+            assume(task1.is_some());
+            let task = task1.as_mut().unwrap();
+            let res = poll_future_generic(task);
+            if res.is_some() {
+                *task1 = None;
+            }
+        } else {
+            assume(task2.is_some());
+            let task = task2.as_mut().unwrap();
+            let res = poll_future_generic(task);
+            if res.is_some() {
+                *task2 = None;
+            }
+        }
+        false
+    }
+}
 
 pub async fn test_kani() {
     let (sender, receiver) = new_channel_once::<u8>();
@@ -32,32 +65,13 @@ pub async fn test_kani() {
         assert!(val == 2);
     }));
 
-    for i in 0..4 {
-        if task1.is_none() && task2.is_none() {
-            // panic!("execution completed");
-            break;
-        }
-
-        if any_bool() {
-            assume(task1.is_some());
-            let task = task1.as_mut().unwrap();
-            let res = poll_future_generic(task);
-            if res.is_some() {
-                task1 = None;
-            }
-        } else {
-            assume(task2.is_some());
-            let task = task2.as_mut().unwrap();
-            let res = poll_future_generic(task);
-            if res.is_some() {
-                task2 = None;
-            }
-        }
-    }
+    let done = run_any_task(&mut task1, &mut task2, false);
+    let done = run_any_task(&mut task1, &mut task2, done);
+    // let done = run_any_task(&mut task1, &mut task2, done);
 
     // panic!("done");
 
-    assert!(task1.is_none() && task2.is_none());
+    assert!(!(task1.is_none() && task2.is_none()));
 
     // if task1.is_none() && task2.is_none() {
     //     // panic!("execution completed");

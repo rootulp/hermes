@@ -26,7 +26,7 @@ pub fn poll_future<T>(
 
 pub fn poll_future_generic<F, T>(future: &mut Pin<Box<F>>) -> Option<T>
 where
-    F: Future<Output = T> + Send + Sync,
+    F: Future<Output = T>,
 {
     let waker = noop_waker();
     let mut context = Context::from_waker(&waker);

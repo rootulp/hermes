@@ -1,10 +1,7 @@
-use core::cell::UnsafeCell;
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
-use crate::runtime::future::pin_future;
-use crate::runtime::task::spawn;
 use crate::std_prelude::*;
 use crate::types::cell::Cell;
 
