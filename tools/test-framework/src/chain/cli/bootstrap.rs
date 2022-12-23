@@ -5,7 +5,7 @@ use std::process::{Command, Stdio};
 use std::str;
 use std::thread::sleep;
 
-use crate::chain::exec::simple_exec;
+use crate::chain::exec::{exec_with_input, simple_exec};
 use crate::error::Error;
 use crate::types::process::ChildProcess;
 use crate::util::file::pipe_to_file;
@@ -46,6 +46,39 @@ pub fn add_wallet(
             "--output",
             "json",
         ],
+    )?;
+
+    // gaia6 somehow displays result in stderr instead of stdout
+    if output.stdout.is_empty() {
+        Ok(output.stderr)
+    } else {
+        Ok(output.stdout)
+    }
+}
+
+pub fn recover_wallet(
+    chain_id: &str,
+    command_path: &str,
+    home_path: &str,
+    wallet_id: &str,
+    input: &str,
+) -> Result<String, Error> {
+    let output = exec_with_input(
+        chain_id,
+        command_path,
+        &[
+            "--home",
+            home_path,
+            "keys",
+            "add",
+            "--keyring-backend",
+            "test",
+            "--recover",
+            wallet_id,
+            "--output",
+            "json",
+        ],
+        input,
     )?;
 
     // gaia6 somehow displays result in stderr instead of stdout

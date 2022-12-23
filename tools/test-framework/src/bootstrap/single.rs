@@ -43,6 +43,7 @@ pub fn bootstrap_single_node(
     config_modifier: impl FnOnce(&mut toml::Value) -> Result<(), Error>,
     genesis_modifier: impl FnOnce(&mut serde_json::Value) -> Result<(), Error>,
     chain_number: usize,
+    mnemonics: Option<&str>,
 ) -> Result<FullNode, Error> {
     let stake_denom = Denom::base("stake");
 
@@ -66,20 +67,24 @@ pub fn bootstrap_single_node(
 
     chain_driver.update_genesis_file("genesis.json", genesis_modifier)?;
 
+    let user1 = if mnemonics.is_some() {
+        recover_wallet(&chain_driver, "admin", mnemonics.unwrap())?
+    } else {
+        add_wallet(&chain_driver, "user1", use_random_id)?
+    };
+    let user2 = add_wallet(&chain_driver, "user2", use_random_id)?;
     let validator = add_wallet(&chain_driver, "validator", use_random_id)?;
     let relayer = add_wallet(&chain_driver, "relayer", use_random_id)?;
-    let user1 = add_wallet(&chain_driver, "user1", use_random_id)?;
-    let user2 = add_wallet(&chain_driver, "user2", use_random_id)?;
-
-    chain_driver.add_genesis_account(&validator.address, &[&initial_stake])?;
-
-    chain_driver.add_genesis_validator(&validator.id, &initial_stake)?;
 
     chain_driver.add_genesis_account(&user1.address, &[&initial_stake, &initial_coin])?;
+
+    chain_driver.add_genesis_account(&validator.address, &[&initial_stake])?;
 
     chain_driver.add_genesis_account(&user2.address, &[&initial_stake, &initial_coin])?;
 
     chain_driver.add_genesis_account(&relayer.address, &[&initial_stake, &initial_coin])?;
+
+    chain_driver.add_genesis_validator(&user1.id, &initial_stake)?;
 
     chain_driver.collect_gen_txs()?;
 
@@ -155,4 +160,8 @@ fn add_wallet(driver: &ChainDriver, prefix: &str, use_random_id: bool) -> Result
     } else {
         driver.add_wallet(prefix)
     }
+}
+
+fn recover_wallet(driver: &ChainDriver, prefix: &str, mnemonics: &str) -> Result<Wallet, Error> {
+    driver.recover_wallet(prefix, mnemonics)
 }

@@ -2,6 +2,7 @@ use core::str::FromStr;
 
 use eyre::eyre;
 use hdpath::StandardHDPath;
+use ibc_relayer::config::AddressType;
 use serde_json as json;
 use std::fs;
 use std::path::PathBuf;
@@ -13,7 +14,7 @@ use ibc_relayer::keyring::{Secp256k1KeyPair, SigningKeyPair};
 
 use crate::chain::cli::bootstrap::{
     add_genesis_account, add_genesis_validator, add_wallet, collect_gen_txs, initialize,
-    start_chain,
+    recover_wallet, start_chain,
 };
 use crate::chain::driver::ChainDriver;
 use crate::error::{handle_generic_error, Error};
@@ -68,6 +69,8 @@ pub trait ChainBootstrapMethodsExt {
        Add a wallet with the given ID to the full node's keyring.
     */
     fn add_wallet(&self, wallet_id: &str) -> Result<Wallet, Error>;
+
+    fn recover_wallet(&self, wallet_id: &str, mnemonics: &str) -> Result<Wallet, Error>;
 
     /**
        Add a wallet address to the genesis account list for an uninitialized
@@ -177,6 +180,38 @@ impl ChainBootstrapMethodsExt for ChainDriver {
 
         let key = Secp256k1KeyPair::from_seed_file(&seed_content, &hd_path)
             .map_err(handle_generic_error)?;
+
+        Ok(Wallet::new(wallet_id.to_string(), wallet_address, key))
+    }
+
+    fn recover_wallet(&self, wallet_id: &str, mnemonics: &str) -> Result<Wallet, Error> {
+        let seed_content = recover_wallet(
+            self.chain_id.as_str(),
+            &self.command_path,
+            &self.home_path,
+            wallet_id,
+            mnemonics,
+        )?;
+
+        tracing::info!("seed_content: {}", seed_content);
+
+        let json_val: json::Value = json::from_str(&seed_content).map_err(handle_generic_error)?;
+
+        tracing::info!("JSON value: {}", json_val);
+
+        let wallet_address = json_val
+            .get("address")
+            .ok_or_else(|| eyre!("expect address string field to be present in json result"))?
+            .as_str()
+            .ok_or_else(|| eyre!("expect address string field to be present in json result"))?
+            .to_string();
+
+        let hd_path = StandardHDPath::from_str(self.chain_type.hd_path())
+            .map_err(|e| eyre!("failed to create StandardHDPath: {:?}", e))?;
+
+        let key =
+            Secp256k1KeyPair::from_mnemonic(mnemonics, &hd_path, &AddressType::Cosmos, "cosmos")
+                .map_err(|e| Error::generic(eyre!("key from mnemonic error: {}", e)))?;
 
         Ok(Wallet::new(wallet_id.to_string(), wallet_address, key))
     }

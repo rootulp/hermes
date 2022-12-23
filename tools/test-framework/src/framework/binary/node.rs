@@ -117,6 +117,7 @@ where
             |config| self.test.get_overrides().modify_node_config(config),
             |genesis| self.test.get_overrides().modify_genesis_file(genesis),
             0,
+            Some("fiction perfect rapid steel bundle giant blade grain eagle wing cannon fever must humble dance kitchen lazy episode museum faith off notable rate flavor"),
         )?;
 
         let node_b = bootstrap_single_node(
@@ -126,6 +127,7 @@ where
             |config| self.test.get_overrides().modify_node_config(config),
             |genesis| self.test.get_overrides().modify_genesis_file(genesis),
             1,
+            Some("tone cause tribe this switch near host damage idle fragile antique tail soda alien depth write wool they rapid unfold body scan pledge soft"),
         )?;
 
         let _node_process_a = node_a.process.clone();
@@ -151,6 +153,7 @@ where
             |config| self.test.get_overrides().modify_node_config(config),
             |genesis| self.test.get_overrides().modify_genesis_file(genesis),
             0,
+            None,
         )?;
 
         let _node_process = node.process.clone();
