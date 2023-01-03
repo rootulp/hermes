@@ -1,5 +1,23 @@
+use crate::base::chain::traits::types::packet::HasIbcPacketTypes;
 use crate::base::chain::traits::types::{HasChainTypes, HasIbcChainTypes};
 use crate::base::core::traits::sync::Async;
+
+pub trait HasSendPacketEvent<Counterparty>: HasIbcPacketTypes<Counterparty>
+where
+    Counterparty: HasIbcPacketTypes<
+        Self,
+        IncomingPacket = Self::OutgoingPacket,
+        OutgoingPacket = Self::IncomingPacket,
+    >,
+{
+    type SendPacketEvent: Async;
+
+    fn try_extract_send_packet_event(event: Self::Event) -> Option<Self::SendPacketEvent>;
+
+    fn extract_packet_from_send_packet_event(
+        event: &Self::SendPacketEvent,
+    ) -> &Self::OutgoingPacket;
+}
 
 /**
    Indicates that a chain context's
@@ -12,7 +30,7 @@ use crate::base::core::traits::sync::Async;
    will be added into this trait when it is necessary to define
    abstract components that make use of these events.
 */
-pub trait HasIbcEvents<Counterparty>: HasIbcChainTypes<Counterparty>
+pub trait HasWriteAcknowledgementEvent<Counterparty>: HasIbcChainTypes<Counterparty>
 where
     Counterparty: HasChainTypes,
 {

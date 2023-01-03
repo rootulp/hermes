@@ -1,4 +1,4 @@
-use crate::base::chain::traits::ibc_event::HasIbcEvents;
+use crate::base::chain::traits::ibc_event::{HasSendPacketEvent, HasWriteAcknowledgementEvent};
 use crate::base::chain::traits::types::{
     CanEstimateMessageSize, HasChainTypes, HasEventType, HasIbcChainTypes, HasIbcPacketTypes,
     HasMessageType,
@@ -145,7 +145,8 @@ where
     }
 }
 
-impl<Chain, Counterparty> HasIbcEvents<OfaChainWrapper<Counterparty>> for OfaChainWrapper<Chain>
+impl<Chain, Counterparty> HasWriteAcknowledgementEvent<OfaChainWrapper<Counterparty>>
+    for OfaChainWrapper<Chain>
 where
     Chain: OfaIbcChain<Counterparty>,
     Counterparty: OfaIbcChain<
@@ -162,3 +163,19 @@ where
         Chain::try_extract_write_acknowledgement_event(event)
     }
 }
+
+// impl<Relay> CanRelayEvents for OfaRelayWrapper<Relay> {
+//     async fn relay_chain_events(
+//         &self,
+//         event_source: &<Target::TargetChain as HasEventSource>::EventSource,
+//     ) -> Result<(), Self::Error> {
+//         SequentialSendPacketEventRelayer::relay_chain_events(self, event_source).await
+//     }
+// }
+
+// impl<Chain, Counterparty> HasSendPacketEvent<OfaChainWrapper<Counterparty>> for OfaChainWrapper<Chain>
+// where
+
+// {
+
+// }

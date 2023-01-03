@@ -1,4 +1,8 @@
+use async_trait::async_trait;
+
+use crate::base::core::traits::error::HasErrorType;
 use crate::base::core::traits::sync::Async;
+use crate::std_prelude::*;
 
 /**
    This is used for the chain context and the transaction context to declare
@@ -32,10 +36,17 @@ pub trait HasEventType: Async {
 
        Using dependency injection, we can impose additional constraints on what
        properties the `Event` type should have at the use site. An example use
-       of this is the [`HasIbcEvent`](crate::base::chain::traits::ibc_event::HasIbcEvents)
+       of this is the [`HasIbcEvent`](crate::base::chain::traits::ibc_event::WriteAcknowledgementEvent)
        trait, which contains the IBC event variant types like
-       [`WriteAcknowledgementEvent`](crate::base::chain::traits::ibc_event::HasIbcEvents::WriteAcknowledgementEvent),
+       [`WriteAcknowledgementEvent`](crate::base::chain::traits::ibc_event::WriteAcknowledgementEvent::WriteAcknowledgementEvent),
        and _extraction_ methods to parse the variant information from the event.
     */
     type Event: Async;
+}
+
+#[async_trait]
+pub trait HasEventSource: HasEventType + HasErrorType {
+    type EventSource: Async;
+
+    async fn receive_event(event_source: &Self::EventSource) -> Result<Self::Event, Self::Error>;
 }
