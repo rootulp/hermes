@@ -1746,6 +1746,7 @@ impl ChainEndpoint for CosmosSdkChain {
                 &request,
             )),
             Qualified::SmallerEqual(_) => {
+                warn!("query_packets_from_txs");
                 let tx_events = self.block_on(query_packets_from_txs(
                     self.id(),
                     &self.rpc_client,

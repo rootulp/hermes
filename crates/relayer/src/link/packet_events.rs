@@ -95,6 +95,8 @@ pub fn query_send_packet_events<ChainA: ChainHandle>(
     )
     .entered();
 
+    warn!("will do QueryPacketEventDataRequest from src_chain");
+
     let query = QueryPacketEventDataRequest {
         event_id: WithBlockDataType::SendPacket,
         source_port_id: path.counterparty_port_id.clone(),

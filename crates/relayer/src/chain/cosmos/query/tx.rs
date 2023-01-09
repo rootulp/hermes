@@ -109,6 +109,8 @@ pub async fn query_packets_from_txs(
 
     for seq in &request.sequences {
         // query first (and only) Tx that includes the event specified in the query request
+        tracing::warn!("/tx_search for request {:?}", request);
+
         let mut response = rpc_client
             .tx_search(
                 packet_query(request, *seq),
