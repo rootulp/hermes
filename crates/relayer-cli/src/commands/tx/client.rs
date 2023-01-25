@@ -141,11 +141,23 @@ pub struct TxUpdateClientCmd {
         help = "The trusted height of the client update. Leave unspecified for latest height."
     )]
     trusted_height: Option<u64>,
+
+    #[clap(
+    long = "number-of-updates",
+    value_name = "REFERENCE_TRUSTED_HEIGHT",
+    help = "The number of client updates at height starting with --height."
+    )]
+    number_updates: Option<u64>,
 }
 
 impl Runnable for TxUpdateClientCmd {
     fn run(&self) {
         let config = app_config();
+
+        let number_updates = match self.number_updates {
+            None => 1,
+            Some(n) => n,
+        };
 
         let dst_chain = match spawn_chain_runtime(&config, &self.dst_chain_id) {
             Ok(handle) => handle,
@@ -192,6 +204,22 @@ impl Runnable for TxUpdateClientCmd {
         let res = client
             .build_update_client_and_send(target_height, trusted_height)
             .map_err(Error::foreign_client);
+        for _ in 0..number_updates {
+            let next_height = match target_height {
+                QueryHeight::Latest => {
+                    let latest_height = client
+                        .src_chain()
+                        .query_latest_height()
+                        .unwrap_or_else(exit_with_unrecoverable_error);
+                    QueryHeight::Specific(latest_height.increment())
+                }
+                QueryHeight::Specific(height) => QueryHeight::Specific(height.increment()),
+            };
+
+            let _resn = client
+                .build_update_client_and_send2(next_height, trusted_height)
+                .map_err(Error::foreign_client);
+        }
 
         match res {
             Ok(events) => Output::success(events).exit(),

@@ -1240,7 +1240,59 @@ impl<DstChain: ChainHandle, SrcChain: ChainHandle> ForeignClient<DstChain, SrcCh
                 )
             })?;
 
+        if events.first().is_some() {
+            dbg!(events.first().unwrap());
+        }
         Ok(events.into_iter().map(|ev| ev.event).collect())
+    }
+
+    #[instrument(
+    name = "foreign_client.build_update_client_and_send_2",
+    level = "error",
+    skip_all,
+    fields(client = %self, %target_query_height)
+    )]
+    pub fn build_update_client_and_send2(
+        &self,
+        target_query_height: QueryHeight,
+        trusted_height: Option<Height>,
+    ) -> Result<(), ForeignClientError> {
+        let target_height = match target_query_height {
+            QueryHeight::Latest => self.src_chain.query_latest_height().map_err(|e| {
+                ForeignClientError::client_update(
+                    self.src_chain.id(),
+                    "failed while querying src chain ({}) for latest height".to_string(),
+                    e,
+                )
+            })?,
+            QueryHeight::Specific(height) => height,
+        };
+
+        let new_msgs =
+            self.wait_and_build_update_client_with_trusted(target_height, trusted_height)?;
+
+        if new_msgs.is_empty() {
+            return Err(ForeignClientError::client_already_up_to_date(
+                self.id.clone(),
+                self.src_chain.id(),
+                target_height,
+            ));
+        }
+
+        let tm = TrackedMsgs::new_static(new_msgs, "update client");
+
+        let _events = self
+            .dst_chain()
+            .send_messages_and_wait_check_tx(tm)
+            .map_err(|e| {
+                ForeignClientError::client_update(
+                    self.dst_chain.id(),
+                    "failed sending message to dst chain".to_string(),
+                    e,
+                )
+            })?;
+
+        Ok(())
     }
 
     /// Attempts to update a client using header from the latest height of its source chain.
