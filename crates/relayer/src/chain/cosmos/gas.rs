@@ -25,12 +25,10 @@ pub fn gas_amount_to_fee(config: &GasConfig, gas_amount: u64) -> Fee {
     }
 }
 
-pub fn calculate_fee(adjusted_gas_amount: u64, gas_price: &GasPrice) -> Coin {
-    let fee_amount = mul_ceil(adjusted_gas_amount, gas_price.price);
-
+pub fn calculate_fee(_adjusted_gas_amount: u64, gas_price: &GasPrice) -> Coin {
     Coin {
         denom: gas_price.denom.to_string(),
-        amount: fee_amount.to_string(),
+        amount: 0.to_string(),
     }
 }
 
