@@ -71,6 +71,13 @@ pub struct TxCreateClientCmd {
     /// and trusted validator set is sufficient for a commit to be accepted going forward.
     #[clap(long = "trust-threshold", value_name = "TRUST_THRESHOLD", parse(try_from_str = parse_trust_threshold))]
     trust_threshold: Option<TrustThreshold>,
+
+    #[clap(
+        long = "initial-height",
+        value_name = "INITIAL_HEIGHT",
+        help = "The height of the initial trusted state for the new client. Leave unspecified for latest height."
+    )]
+    trusted_height: Option<u64>,
 }
 
 /// Sample to run this tx:
@@ -88,12 +95,18 @@ impl Runnable for TxCreateClientCmd {
             Err(e) => Output::error(format!("{}", e)).exit(),
         };
 
+        let target_height = self.trusted_height.map(|height| {
+            Height::new(chains.src.id().version(), height)
+                .unwrap_or_else(exit_with_unrecoverable_error)
+        });
+
         let client = ForeignClient::restore(ClientId::default(), chains.dst, chains.src);
 
         let options = CreateOptions {
             max_clock_drift: self.clock_drift.map(Into::into),
             trusting_period: self.trusting_period.map(Into::into),
             trust_threshold: self.trust_threshold.map(Into::into),
+            target_height,
         };
 
         // Trigger client creation via the "build" interface, so that we obtain the resulting event
@@ -592,7 +605,8 @@ mod tests {
                 src_chain_id: ChainId::from_string("reference_chain"),
                 clock_drift: None,
                 trusting_period: None,
-                trust_threshold: None
+                trust_threshold: None,
+                trusted_height: None,
             },
             TxCreateClientCmd::parse_from([
                 "test",
@@ -612,7 +626,8 @@ mod tests {
                 src_chain_id: ChainId::from_string("reference_chain"),
                 clock_drift: Some("5s".parse::<Duration>().unwrap()),
                 trusting_period: None,
-                trust_threshold: None
+                trust_threshold: None,
+                trusted_height: None,
             },
             TxCreateClientCmd::parse_from([
                 "test",
@@ -630,7 +645,8 @@ mod tests {
                 src_chain_id: ChainId::from_string("reference_chain"),
                 clock_drift: Some("3s".parse::<Duration>().unwrap()),
                 trusting_period: None,
-                trust_threshold: None
+                trust_threshold: None,
+                trusted_height: None,
             },
             TxCreateClientCmd::parse_from([
                 "test",
@@ -652,7 +668,8 @@ mod tests {
                 src_chain_id: ChainId::from_string("reference_chain"),
                 clock_drift: None,
                 trusting_period: Some("5s".parse::<Duration>().unwrap()),
-                trust_threshold: None
+                trust_threshold: None,
+                trusted_height: None,
             },
             TxCreateClientCmd::parse_from([
                 "test",
@@ -670,7 +687,8 @@ mod tests {
                 src_chain_id: ChainId::from_string("reference_chain"),
                 clock_drift: None,
                 trusting_period: Some("3s".parse::<Duration>().unwrap()),
-                trust_threshold: None
+                trust_threshold: None,
+                trusted_height: None,
             },
             TxCreateClientCmd::parse_from([
                 "test",
@@ -692,7 +710,8 @@ mod tests {
                 src_chain_id: ChainId::from_string("reference_chain"),
                 clock_drift: None,
                 trusting_period: None,
-                trust_threshold: Some(TrustThreshold::new(1, 2).unwrap())
+                trust_threshold: Some(TrustThreshold::new(1, 2).unwrap()),
+                trusted_height: None,
             },
             TxCreateClientCmd::parse_from([
                 "test",
@@ -714,7 +733,8 @@ mod tests {
                 src_chain_id: ChainId::from_string("reference_chain"),
                 clock_drift: Some("5s".parse::<Duration>().unwrap()),
                 trusting_period: Some("3s".parse::<Duration>().unwrap()),
-                trust_threshold: Some(TrustThreshold::new(1, 2).unwrap())
+                trust_threshold: Some(TrustThreshold::new(1, 2).unwrap()),
+                trusted_height: None,
             },
             TxCreateClientCmd::parse_from([
                 "test",

@@ -310,6 +310,7 @@ pub struct CreateOptions {
     pub max_clock_drift: Option<Duration>,
     pub trusting_period: Option<Duration>,
     pub trust_threshold: Option<TrustThreshold>,
+    pub target_height: Option<Height>,
 }
 
 /// Captures the diagnostic of verifying whether a certain
@@ -568,13 +569,16 @@ impl<DstChain: ChainHandle, SrcChain: ChainHandle> ForeignClient<DstChain, SrcCh
         })?;
 
         // Build client create message with the data from source chain at latest height.
-        let latest_height = self.src_chain.query_latest_height().map_err(|e| {
-            ForeignClientError::client_create(
-                self.src_chain.id(),
-                "failed while querying src chain for latest height".to_string(),
-                e,
-            )
-        })?;
+        let latest_height = match options.target_height {
+            Some(h) => h,
+            None => self.src_chain.query_latest_height().map_err(|e| {
+                ForeignClientError::client_create(
+                    self.src_chain.id(),
+                    "failed while fetching the latest height from source chain".to_string(),
+                    e,
+                )
+            })?,
+        };
 
         // Calculate client state settings from the chain configurations and
         // optional user overrides.
