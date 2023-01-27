@@ -1,5 +1,7 @@
 use itertools::Itertools;
 
+use tendermint_light_client::components::clock::Clock;
+use tendermint_light_client::contracts::is_within_trust_period;
 use tendermint_light_client::{
     components::{self, io::AtHeight},
     light_client::LightClient as TmLightClient,
@@ -62,7 +64,7 @@ impl super::LightClient<CosmosSdkChain> for LightClient {
             TMHeight::try_from(target.revision_height()).map_err(Error::invalid_height)?;
 
         let client = self.prepare_client(client_state)?;
-        let mut state = self.prepare_state(trusted)?;
+        let mut state = self.prepare_state(trusted, client_state)?;
 
         // Verify the target header
         let target = client
@@ -208,12 +210,25 @@ impl LightClient {
         ))
     }
 
-    fn prepare_state(&self, trusted: ICSHeight) -> Result<LightClientState, Error> {
+    fn prepare_state(
+        &self,
+        trusted: ICSHeight,
+        client_state: &AnyClientState,
+    ) -> Result<LightClientState, Error> {
         let trusted_height =
             TMHeight::try_from(trusted.revision_height()).map_err(Error::invalid_height)?;
 
         let trusted_block = self.fetch_light_block(AtHeight::At(trusted_height))?;
 
+        let client_state =
+            downcast!(client_state => AnyClientState::Tendermint).ok_or_else(|| {
+                Error::client_type_mismatch(ClientType::Tendermint, client_state.client_type())
+            })?;
+        let clock = components::clock::SystemClock;
+        let now = clock.now();
+        if !is_within_trust_period(&trusted_block, client_state.trusting_period, now) {
+            return Err(Error::invalid_height_no_source());
+        }
         let mut store = MemoryStore::new();
         store.insert(trusted_block, Status::Trusted);
 
