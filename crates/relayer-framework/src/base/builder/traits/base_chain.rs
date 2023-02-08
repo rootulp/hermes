@@ -11,6 +11,6 @@ pub trait HasBaseChain: Async {
 }
 
 #[async_trait]
-pub trait CanBuildChain: HasBaseChain + HasErrorType {
-    async fn build_chain(self) -> Result<Self::Chain, Self::Error>;
+pub trait CanBuildBaseChain: HasBaseChain + HasErrorType {
+    async fn build_base_chain(self) -> Result<Self::Chain, Self::Error>;
 }

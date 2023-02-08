@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
-use crate::base::builder::traits::base_chain::{CanBuildChain, HasBaseChain};
-use crate::base::builder::traits::ofa_chain::{CanBuildOfaChain, HasOfaBaseChain};
+use crate::base::builder::traits::base_chain::{CanBuildBaseChain, HasBaseChain};
+use crate::base::builder::traits::ofa_chain::{CanBuildOfaBaseChain, HasOfaBaseChain};
 use crate::base::core::traits::error::HasErrorType;
 use crate::base::one_for_all::types::chain::OfaChainWrapper;
 use crate::std_prelude::*;
@@ -26,12 +26,12 @@ where
 }
 
 #[async_trait]
-impl<InBuilder> CanBuildChain for OfaChainToChainBuilder<InBuilder>
+impl<InBuilder> CanBuildBaseChain for OfaChainToChainBuilder<InBuilder>
 where
-    InBuilder: CanBuildOfaChain,
+    InBuilder: CanBuildOfaBaseChain,
 {
-    async fn build_chain(self) -> Result<Self::Chain, Self::Error> {
-        let chain = self.in_builder.build_ofa_chain().await?;
+    async fn build_base_chain(self) -> Result<Self::Chain, Self::Error> {
+        let chain = self.in_builder.build_ofa_base_chain().await?;
 
         Ok(OfaChainWrapper::new(chain))
     }

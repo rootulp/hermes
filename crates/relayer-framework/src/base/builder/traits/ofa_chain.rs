@@ -18,6 +18,6 @@ pub trait HasOfaBaseChain: Async {
 }
 
 #[async_trait]
-pub trait CanBuildOfaChain: HasOfaBaseChain + HasErrorType {
-    async fn build_ofa_chain(self) -> Result<Self::Chain, Self::Error>;
+pub trait CanBuildOfaBaseChain: HasOfaBaseChain + HasErrorType {
+    async fn build_ofa_base_chain(self) -> Result<Self::Chain, Self::Error>;
 }
