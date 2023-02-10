@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
-use crate::base::builder::traits::base_relay::{CanBuildBaseRelay, HasBaseRelay};
-use crate::base::builder::traits::ofa_relay::{CanBuildOfaBaseRelay, HasOfaBaseRelay};
+use crate::base::builder::traits::one_for_all::relay::{CanBuildOfaBaseRelay, HasOfaBaseRelay};
+use crate::base::builder::traits::relay::{CanBuildBaseRelay, HasBaseRelay};
 use crate::base::core::traits::error::HasErrorType;
 use crate::base::one_for_all::types::relay::OfaRelayWrapper;
 use crate::std_prelude::*;

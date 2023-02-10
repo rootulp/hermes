@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
-use crate::base::builder::traits::base_chain::{CanBuildBaseChain, HasBaseChain};
-use crate::base::builder::traits::ofa_chain::{CanBuildOfaBaseChain, HasOfaBaseChain};
+use crate::base::builder::traits::chain::{CanBuildBaseChain, HasBaseChain};
+use crate::base::builder::traits::one_for_all::chain::{CanBuildOfaBaseChain, HasOfaBaseChain};
 use crate::base::core::traits::error::HasErrorType;
 use crate::base::one_for_all::types::chain::OfaChainWrapper;
 use crate::std_prelude::*;
