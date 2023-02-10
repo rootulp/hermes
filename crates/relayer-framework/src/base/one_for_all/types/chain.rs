@@ -10,6 +10,10 @@ impl<Chain> OfaChainWrapper<Chain> {
             chain: Arc::new(chain),
         }
     }
+
+    pub fn from_arc(chain: Arc<Chain>) -> Self {
+        Self { chain }
+    }
 }
 
 impl<Chain> Clone for OfaChainWrapper<Chain> {

@@ -10,6 +10,10 @@ impl<Relay> OfaRelayWrapper<Relay> {
             relay: Arc::new(relay),
         }
     }
+
+    pub fn from_arc(relay: Arc<Relay>) -> Self {
+        Self { relay }
+    }
 }
 
 impl<Relay> Clone for OfaRelayWrapper<Relay> {
