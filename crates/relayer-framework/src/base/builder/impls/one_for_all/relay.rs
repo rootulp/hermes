@@ -29,7 +29,7 @@ impl<InBuilder> CanBuildBaseRelay for OfaRelayToRelayBuilder<InBuilder>
 where
     InBuilder: CanBuildOfaBaseRelay,
 {
-    async fn build_base_relay(self) -> Result<Self::Relay, Self::Error> {
+    async fn build_base_relay(&self) -> Result<Self::Relay, Self::Error> {
         let relay = self.in_builder.build_ofa_base_relay().await?;
         Ok(OfaRelayWrapper::new(relay))
     }

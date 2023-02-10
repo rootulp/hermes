@@ -13,5 +13,5 @@ pub trait HasOfaBaseRelay: Async {
 
 #[async_trait]
 pub trait CanBuildOfaBaseRelay: HasOfaBaseRelay + HasErrorType {
-    async fn build_ofa_base_relay(self) -> Result<Self::Relay, Self::Error>;
+    async fn build_ofa_base_relay(&self) -> Result<Self::Relay, Self::Error>;
 }

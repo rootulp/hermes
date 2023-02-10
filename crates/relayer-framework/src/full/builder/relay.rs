@@ -19,7 +19,7 @@ where
 
 #[async_trait]
 pub trait CanBuildFullRelay: HasFullRelay + HasErrorType {
-    async fn build_full_relay(self) -> Result<Self::Relay, Self::Error>;
+    async fn build_full_relay(&self) -> Result<Self::Relay, Self::Error>;
 }
 
 #[async_trait]
@@ -27,7 +27,7 @@ impl<Builder> CanBuildFullRelay for Builder
 where
     Builder: HasFullRelay + CanBuildBaseRelay,
 {
-    async fn build_full_relay(self) -> Result<Self::Relay, Self::Error> {
+    async fn build_full_relay(&self) -> Result<Self::Relay, Self::Error> {
         self.build_base_relay().await
     }
 }

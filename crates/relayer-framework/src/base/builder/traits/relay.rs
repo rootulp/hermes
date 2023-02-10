@@ -11,5 +11,5 @@ pub trait HasBaseRelay: Async {
 
 #[async_trait]
 pub trait CanBuildBaseRelay: HasBaseRelay + HasErrorType {
-    async fn build_base_relay(self) -> Result<Self::Relay, Self::Error>;
+    async fn build_base_relay(&self) -> Result<Self::Relay, Self::Error>;
 }

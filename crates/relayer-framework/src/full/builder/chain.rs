@@ -19,7 +19,7 @@ where
 
 #[async_trait]
 pub trait CanBuildFullChain: HasFullChain + HasErrorType {
-    async fn build_full_chain(self) -> Result<Self::Chain, Self::Error>;
+    async fn build_full_chain(&self) -> Result<Self::Chain, Self::Error>;
 }
 
 #[async_trait]
@@ -27,7 +27,7 @@ impl<Builder> CanBuildFullChain for Builder
 where
     Builder: HasFullChain + CanBuildBaseChain,
 {
-    async fn build_full_chain(self) -> Result<Self::Chain, Self::Error> {
+    async fn build_full_chain(&self) -> Result<Self::Chain, Self::Error> {
         self.build_base_chain().await
     }
 }

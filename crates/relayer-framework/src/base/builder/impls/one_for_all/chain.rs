@@ -30,7 +30,7 @@ impl<InBuilder> CanBuildBaseChain for OfaChainToChainBuilder<InBuilder>
 where
     InBuilder: CanBuildOfaBaseChain,
 {
-    async fn build_base_chain(self) -> Result<Self::Chain, Self::Error> {
+    async fn build_base_chain(&self) -> Result<Self::Chain, Self::Error> {
         let chain = self.in_builder.build_ofa_base_chain().await?;
 
         Ok(OfaChainWrapper::new(chain))
