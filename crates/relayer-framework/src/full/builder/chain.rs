@@ -9,12 +9,12 @@ pub trait HasFullChain: HasBaseChain<Chain = Self::FullChain> {
     type FullChain: AfoFullChain<Self::Counterparty>;
 }
 
-impl<Context> HasFullChain for Context
+impl<Builder> HasFullChain for Builder
 where
-    Context: HasBaseChain,
-    Context::Chain: AfoFullChain<Context::Counterparty>,
+    Builder: HasBaseChain,
+    Builder::Chain: AfoFullChain<Builder::Counterparty>,
 {
-    type FullChain = Context::Chain;
+    type FullChain = Builder::Chain;
 }
 
 #[async_trait]
@@ -23,9 +23,9 @@ pub trait CanBuildFullChain: HasFullChain + HasErrorType {
 }
 
 #[async_trait]
-impl<Context> CanBuildFullChain for Context
+impl<Builder> CanBuildFullChain for Builder
 where
-    Context: HasFullChain + CanBuildBaseChain,
+    Builder: HasFullChain + CanBuildBaseChain,
 {
     async fn build_full_chain(self) -> Result<Self::Chain, Self::Error> {
         self.build_base_chain().await
