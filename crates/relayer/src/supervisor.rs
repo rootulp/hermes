@@ -3,7 +3,7 @@ use alloc::sync::Arc;
 use core::convert::Infallible;
 use core::ops::Deref;
 use core::time::Duration;
-use ibc_proto::ibc::apps::fee::v1::QueryIncentivizedPacketsRequest;
+use ibc_proto::ibc::{apps::fee::v1::{QueryIncentivizedPacketsRequest, QueryIncentivizedPacketRequest}, core::channel::v1::PacketId};
 use std::sync::RwLock;
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
@@ -768,23 +768,27 @@ fn process_batch<Chain: ChainHandle>(
             pagination: None,
             query_height: batch.height.revision_height(),
         };
-        match src.query_incentivized_packets(request.clone()) {
+        let src1 = src.clone();
+        let src2 = src.clone();
+        let dst1 = dst.clone();
+        let dst2 = dst.clone();
+        match src1.query_incentivized_packets(request.clone()) {
             Ok(ev) => {
-                tracing::warn!("SOURCE Queried event");
+                tracing::warn!("SOURCE Queried events");
                 tracing::warn!("{ev:#?}");
             }
             Err(e) => {
-                tracing::warn!("SOURCE Queried event error");
+                tracing::warn!("SOURCE Queried events error");
                 tracing::warn!("{e}");
             }
         }
-        match dst.query_incentivized_packets(request) {
+        match dst1.query_incentivized_packets(request) {
             Ok(ev) => {
-                tracing::warn!("DESTINATION Queried event");
+                tracing::warn!("DESTINATION Queried events");
                 tracing::warn!("{ev:#?}");
             }
             Err(e) => {
-                tracing::warn!("DESTINATION Queried event error");
+                tracing::warn!("DESTINATION Queried events error");
                 tracing::warn!("{e}");
             }
         }
@@ -795,6 +799,37 @@ fn process_batch<Chain: ChainHandle>(
         }
 
         let worker = workers.get_or_spawn(object, src, dst, config);
+
+        for event_with_height in events_with_heights.clone() {
+
+            if let Some(event) = event_with_height.event.packet() {
+                tracing::warn!("Query at height: {} with sequence: {}", event_with_height.height.revision_height(), event.sequence);
+                let packet_id = PacketId{ port_id: event.source_port.to_string(), channel_id: event.source_channel.to_string(), sequence: event.sequence.into() };
+                let request = QueryIncentivizedPacketRequest { packet_id: Some(packet_id), query_height: event_with_height.height.revision_height() };
+
+                match src2.query_incentivized_packet(request.clone()) {
+                    Ok(ev) => {
+                        tracing::warn!("SOURCE Queried event");
+                        tracing::warn!("{ev:#?}");
+                    },
+                    Err(e) => {
+                        tracing::warn!("SOURCE Queried event error");
+                        tracing::warn!("{e}");
+                    }
+                }
+                match dst2.query_incentivized_packet(request.clone()) {
+                    Ok(ev) => {
+                        tracing::warn!("DESTINATION Queried event");
+                        tracing::warn!("{ev:#?}");
+                    },
+                    Err(e) => {
+                        tracing::warn!("DESTINATION Queried event error");
+                        tracing::warn!("{e}");
+                    }
+                }
+
+            }
+        }
 
         worker.send_events(
             batch.height,
