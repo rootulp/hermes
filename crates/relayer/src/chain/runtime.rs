@@ -1,4 +1,7 @@
 use alloc::sync::Arc;
+use ibc_proto::ibc::apps::fee::v1::{
+    IdentifiedPacketFees, QueryIncentivizedPacketRequest, QueryIncentivizedPacketsRequest,
+};
 use std::thread;
 
 use crossbeam_channel as channel;
@@ -341,6 +344,14 @@ where
 
                         ChainRequest::CrossChainQuery { request, reply_to } => {
                             self.cross_chain_query(request, reply_to)?
+                        }
+
+                        ChainRequest::IncentivizedPacketQuery { request, reply_to } => {
+                            self.query_incentivized_packet(request, reply_to)?
+                        }
+
+                        ChainRequest::IncentivizedPacketsQuery { request, reply_to } => {
+                            self.query_incentivized_packets(request, reply_to)?
                         }
                     }
                 },
@@ -828,6 +839,28 @@ where
         reply_to: ReplyTo<Vec<CrossChainQueryResponse>>,
     ) -> Result<(), Error> {
         let result = self.chain.cross_chain_query(request);
+        reply_to.send(result).map_err(Error::send)?;
+
+        Ok(())
+    }
+
+    fn query_incentivized_packet(
+        &self,
+        request: QueryIncentivizedPacketRequest,
+        reply_to: ReplyTo<IdentifiedPacketFees>,
+    ) -> Result<(), Error> {
+        let result = self.chain.query_incentivized_packet(request);
+        reply_to.send(result).map_err(Error::send)?;
+
+        Ok(())
+    }
+
+    fn query_incentivized_packets(
+        &self,
+        request: QueryIncentivizedPacketsRequest,
+        reply_to: ReplyTo<Vec<IdentifiedPacketFees>>,
+    ) -> Result<(), Error> {
+        let result = self.chain.query_incentivized_packets(request);
         reply_to.send(result).map_err(Error::send)?;
 
         Ok(())

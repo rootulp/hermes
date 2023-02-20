@@ -1,5 +1,8 @@
 use core::fmt::{Display, Error as FmtError, Formatter};
 use crossbeam_channel as channel;
+use ibc_proto::ibc::apps::fee::v1::IdentifiedPacketFees;
+use ibc_proto::ibc::apps::fee::v1::QueryIncentivizedPacketRequest;
+use ibc_proto::ibc::apps::fee::v1::QueryIncentivizedPacketsRequest;
 use tracing::Span;
 
 use ibc_relayer_types::applications::ics31_icq::response::CrossChainQueryResponse;
@@ -500,5 +503,19 @@ impl<Handle: ChainHandle> ChainHandle for CachingChainHandle<Handle> {
         request: Vec<CrossChainQueryRequest>,
     ) -> Result<Vec<CrossChainQueryResponse>, Error> {
         self.inner.cross_chain_query(request)
+    }
+
+    fn query_incentivized_packet(
+        &self,
+        request: QueryIncentivizedPacketRequest,
+    ) -> Result<IdentifiedPacketFees, Error> {
+        self.inner.query_incentivized_packet(request)
+    }
+
+    fn query_incentivized_packets(
+        &self,
+        request: QueryIncentivizedPacketsRequest,
+    ) -> Result<Vec<IdentifiedPacketFees>, Error> {
+        self.inner.query_incentivized_packets(request)
     }
 }

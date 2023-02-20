@@ -564,7 +564,10 @@ define_error! {
             { key_type: KeyType }
             |e| {
                 format!("Invalid key type {} for the current chain", e.key_type)
-            }
+            },
+
+        NoIncentivizedPacket
+            |_| { "No Incentivized Packets found" }
     }
 }
 

@@ -14,9 +14,14 @@ use tokio::runtime::Runtime as TokioRuntime;
 use tonic::{codegen::http::Uri, metadata::AsciiMetadataValue};
 use tracing::{error, instrument, trace, warn};
 
-use ibc_proto::cosmos::base::node::v1beta1::ConfigResponse;
 use ibc_proto::cosmos::staking::v1beta1::Params as StakingParams;
 use ibc_proto::protobuf::Protobuf;
+use ibc_proto::{
+    cosmos::base::node::v1beta1::ConfigResponse,
+    ibc::apps::fee::v1::{
+        IdentifiedPacketFees, QueryIncentivizedPacketRequest, QueryIncentivizedPacketsRequest,
+    },
+};
 use ibc_relayer_types::applications::ics31_icq::response::CrossChainQueryResponse;
 use ibc_relayer_types::clients::ics07_tendermint::client_state::{
     AllowUpdate, ClientState as TmClientState,
@@ -95,6 +100,8 @@ use crate::misbehaviour::MisbehaviourEvidence;
 use crate::util::pretty::{
     PrettyIdentifiedChannel, PrettyIdentifiedClientState, PrettyIdentifiedConnection,
 };
+
+use self::query::fee::{query_all_incentivized_packets, query_incentivized_packet};
 
 pub mod batch;
 pub mod client;
@@ -1882,6 +1889,27 @@ impl ChainEndpoint for CosmosSdkChain {
             .collect::<Vec<CrossChainQueryResponse>>();
 
         Ok(responses)
+    }
+
+    fn query_incentivized_packet(
+        &self,
+        request: QueryIncentivizedPacketRequest,
+    ) -> Result<IdentifiedPacketFees, Error> {
+        let response = self
+            .rt
+            .block_on(query_incentivized_packet(&self.grpc_addr.clone(), request))?;
+        Ok(response)
+    }
+
+    fn query_incentivized_packets(
+        &self,
+        request: QueryIncentivizedPacketsRequest,
+    ) -> Result<Vec<IdentifiedPacketFees>, Error> {
+        let response = self.rt.block_on(query_all_incentivized_packets(
+            &self.grpc_addr.clone(),
+            request,
+        ))?;
+        Ok(response)
     }
 }
 

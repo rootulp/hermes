@@ -1,5 +1,8 @@
 use alloc::sync::Arc;
 use core::convert::TryFrom;
+use ibc_proto::ibc::apps::fee::v1::{
+    IdentifiedPacketFees, QueryIncentivizedPacketRequest, QueryIncentivizedPacketsRequest,
+};
 
 use tokio::runtime::Runtime as TokioRuntime;
 
@@ -625,4 +628,14 @@ pub trait ChainEndpoint: Sized {
         &self,
         requests: Vec<CrossChainQueryRequest>,
     ) -> Result<Vec<CrossChainQueryResponse>, Error>;
+
+    fn query_incentivized_packet(
+        &self,
+        request: QueryIncentivizedPacketRequest,
+    ) -> Result<IdentifiedPacketFees, Error>;
+
+    fn query_incentivized_packets(
+        &self,
+        request: QueryIncentivizedPacketsRequest,
+    ) -> Result<Vec<IdentifiedPacketFees>, Error>;
 }

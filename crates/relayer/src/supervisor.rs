@@ -3,6 +3,7 @@ use alloc::sync::Arc;
 use core::convert::Infallible;
 use core::ops::Deref;
 use core::time::Duration;
+use ibc_proto::ibc::apps::fee::v1::QueryIncentivizedPacketsRequest;
 use std::sync::RwLock;
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
@@ -318,6 +319,25 @@ fn relay_on_object<Chain: ChainHandle>(
                 // Forbid relaying packets on that channel
                 return false;
             }
+            /*
+                let src = registry
+                    .get_or_spawn(object.src_chain_id())
+                    .map_err(Error::spawn)?;
+
+
+            tracing::warn!("Query at height: {}", batch.height.revision_height());
+            let PacketId = PacketId{ port_id: p.src_port_id, channel_id: p.src_channel_id, sequence: p }
+            let request = QueryIncentivizedPacketRequest { pagination: None, query_height: batch.height.revision_height() };
+            match src.query_incentivized_packet(request.clone()) {
+                Ok(ev) => {
+                    tracing::warn!("SOURCE Queried event");
+                    tracing::warn!("{ev:#?}");
+                },
+                Err(e) => {
+                    tracing::warn!("SOURCE Queried event error");
+                    tracing::warn!("{e}");
+                }
+            }*/
         }
         Object::Channel(c) => {
             if !is_channel_allowed(config, chain_id, &c.src_port_id, &c.src_channel_id) {
@@ -742,6 +762,32 @@ fn process_batch<Chain: ChainHandle>(
         let dst = registry
             .get_or_spawn(object.dst_chain_id())
             .map_err(Error::spawn)?;
+
+        tracing::warn!("Query at height: {}", batch.height.revision_height());
+        let request = QueryIncentivizedPacketsRequest {
+            pagination: None,
+            query_height: batch.height.revision_height(),
+        };
+        match src.query_incentivized_packets(request.clone()) {
+            Ok(ev) => {
+                tracing::warn!("SOURCE Queried event");
+                tracing::warn!("{ev:#?}");
+            }
+            Err(e) => {
+                tracing::warn!("SOURCE Queried event error");
+                tracing::warn!("{e}");
+            }
+        }
+        match dst.query_incentivized_packets(request) {
+            Ok(ev) => {
+                tracing::warn!("DESTINATION Queried event");
+                tracing::warn!("{ev:#?}");
+            }
+            Err(e) => {
+                tracing::warn!("DESTINATION Queried event error");
+                tracing::warn!("{e}");
+            }
+        }
 
         if let Object::Packet(ref _path) = object {
             // Update telemetry info

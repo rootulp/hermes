@@ -21,6 +21,9 @@
 */
 
 use crossbeam_channel as channel;
+use ibc_proto::ibc::apps::fee::v1::{
+    IdentifiedPacketFees, QueryIncentivizedPacketRequest, QueryIncentivizedPacketsRequest,
+};
 use tracing::Span;
 
 use ibc_relayer::account::Balance;
@@ -419,5 +422,19 @@ where
         request: Vec<CrossChainQueryRequest>,
     ) -> Result<Vec<CrossChainQueryResponse>, Error> {
         self.value().cross_chain_query(request)
+    }
+
+    fn query_incentivized_packet(
+        &self,
+        request: QueryIncentivizedPacketRequest,
+    ) -> Result<IdentifiedPacketFees, Error> {
+        self.value().query_incentivized_packet(request)
+    }
+
+    fn query_incentivized_packets(
+        &self,
+        request: QueryIncentivizedPacketsRequest,
+    ) -> Result<Vec<IdentifiedPacketFees>, Error> {
+        self.value().query_incentivized_packets(request)
     }
 }

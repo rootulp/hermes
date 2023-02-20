@@ -3,6 +3,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use crossbeam_channel as channel;
+use ibc_proto::ibc::apps::fee::v1::{
+    IdentifiedPacketFees, QueryIncentivizedPacketRequest, QueryIncentivizedPacketsRequest,
+};
 use tracing::{debug, Span};
 
 use ibc_relayer_types::applications::ics31_icq::response::CrossChainQueryResponse;
@@ -491,5 +494,21 @@ impl<Handle: ChainHandle> ChainHandle for CountingChainHandle<Handle> {
     ) -> Result<Vec<CrossChainQueryResponse>, Error> {
         self.inc_metric("cross_chain_query");
         self.inner.cross_chain_query(request)
+    }
+
+    fn query_incentivized_packet(
+        &self,
+        request: QueryIncentivizedPacketRequest,
+    ) -> Result<IdentifiedPacketFees, Error> {
+        self.inc_metric("query_incentivized_packet");
+        self.inner.query_incentivized_packet(request)
+    }
+
+    fn query_incentivized_packets(
+        &self,
+        request: QueryIncentivizedPacketsRequest,
+    ) -> Result<Vec<IdentifiedPacketFees>, Error> {
+        self.inc_metric("query_incentivized_packets");
+        self.inner.query_incentivized_packets(request)
     }
 }

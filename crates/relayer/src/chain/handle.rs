@@ -1,5 +1,8 @@
 use alloc::sync::Arc;
 use core::fmt::{self, Debug, Display};
+use ibc_proto::ibc::apps::fee::v1::{
+    IdentifiedPacketFees, QueryIncentivizedPacketRequest, QueryIncentivizedPacketsRequest,
+};
 
 use crossbeam_channel as channel;
 use tracing::Span;
@@ -359,6 +362,16 @@ pub enum ChainRequest {
         request: Vec<CrossChainQueryRequest>,
         reply_to: ReplyTo<Vec<CrossChainQueryResponse>>,
     },
+
+    IncentivizedPacketQuery {
+        request: QueryIncentivizedPacketRequest,
+        reply_to: ReplyTo<IdentifiedPacketFees>,
+    },
+
+    IncentivizedPacketsQuery {
+        request: QueryIncentivizedPacketsRequest,
+        reply_to: ReplyTo<Vec<IdentifiedPacketFees>>,
+    },
 }
 
 pub trait ChainHandle: Clone + Display + Send + Sync + Debug + 'static {
@@ -665,4 +678,14 @@ pub trait ChainHandle: Clone + Display + Send + Sync + Debug + 'static {
         &self,
         request: Vec<CrossChainQueryRequest>,
     ) -> Result<Vec<CrossChainQueryResponse>, Error>;
+
+    fn query_incentivized_packet(
+        &self,
+        request: QueryIncentivizedPacketRequest,
+    ) -> Result<IdentifiedPacketFees, Error>;
+
+    fn query_incentivized_packets(
+        &self,
+        request: QueryIncentivizedPacketsRequest,
+    ) -> Result<Vec<IdentifiedPacketFees>, Error>;
 }
