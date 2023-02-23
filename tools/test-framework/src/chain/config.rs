@@ -136,13 +136,56 @@ pub fn set_mode(config: &mut Value, mode: &str) -> Result<(), Error> {
     Ok(())
 }
 
+/// A change between `simd` version `v6.1.0` and `v7.0.0-beta2` requires specific handling when
+/// updating the `max_deposit_period`. A new key `params` is added in `v7.0.0-beta2` and the
+/// previous `deposit_params` is set to `null`.
+///
+/// Up until v6.1.0 the `genesis.json` value for `deposit_period` is initialized to:
+///
+/// "gov": {
+///   "deposit_params": {
+///     "min_deposit": [
+///       {
+///         "denom": "stake",
+///         "amount": "10000000"
+///         }
+///     ],
+///     "max_deposit_period": "172800s"
+///   },
+///     ...
+/// }
+///
+/// From v7.0.0-beta2 the `genesis.json` value for `deposit_period` is initialized to:
+///
+/// "gov": {
+///   "deposit_params": null,
+///   "params": {
+///     "min_deposit": [
+///       {
+///         "denom": "stake",
+///         "amount": "10000000"
+///       }
+///     ],
+///     "max_deposit_period": "172800s",
+///     ...
+///   }
+///   ...
+/// }
 pub fn set_max_deposit_period(genesis: &mut serde_json::Value, period: &str) -> Result<(), Error> {
-    let max_deposit_period = genesis
+    let max_deposit_period = match genesis
         .get_mut("app_state")
         .and_then(|app_state| app_state.get_mut("gov"))
         .and_then(|gov| gov.get_mut("deposit_params"))
         .and_then(|deposit_params| deposit_params.as_object_mut())
-        .ok_or_else(|| eyre!("failed to update max_deposit_period in genesis file"))?;
+    {
+        Some(deposit_params) => deposit_params,
+        None => genesis
+            .get_mut("app_state")
+            .and_then(|app_state| app_state.get_mut("gov"))
+            .and_then(|gov| gov.get_mut("params"))
+            .and_then(|params| params.as_object_mut())
+            .ok_or_else(|| eyre!("could not find `deposit_params` or `params` objects"))?,
+    };
 
     max_deposit_period
         .insert(
@@ -154,13 +197,44 @@ pub fn set_max_deposit_period(genesis: &mut serde_json::Value, period: &str) -> 
     Ok(())
 }
 
+/// A change between `simd` version `v6.1.0` and `v7.0.0-beta2` requires specific handling when
+/// updating the `max_deposit_period`. A new key `params` is added in `v7.0.0-beta2` and the
+/// previous `deposit_params` is set to `null`.
+///
+/// Up until v6.1.0 the `genesis.json` value for `deposit_period` is initialized to:
+///
+/// "gov": {
+///   "voting_params": {
+///     "voting_period": "10s"
+///   }
+///   ...
+/// }
+///
+/// From v7.0.0-beta2 the `genesis.json` value for `deposit_period` is initialized to:
+///
+/// "gov": {
+///   "deposit_params": null,
+///   "params": {
+///     "voting_period": "172800s",
+///     ...
+///   }
+///   ...
+/// }
 pub fn set_voting_period(genesis: &mut serde_json::Value, period: &str) -> Result<(), Error> {
-    let voting_period = genesis
+    let voting_period = match genesis
         .get_mut("app_state")
         .and_then(|app_state| app_state.get_mut("gov"))
         .and_then(|gov| gov.get_mut("voting_params"))
         .and_then(|voting_params| voting_params.as_object_mut())
-        .ok_or_else(|| eyre!("failed to update voting_period in genesis file"))?;
+    {
+        Some(deposit_params) => deposit_params,
+        None => genesis
+            .get_mut("app_state")
+            .and_then(|app_state| app_state.get_mut("gov"))
+            .and_then(|gov| gov.get_mut("params"))
+            .and_then(|params| params.as_object_mut())
+            .ok_or_else(|| eyre!("could not find `voting_period` or `params` objects"))?,
+    };
 
     voting_period
         .insert(

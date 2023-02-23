@@ -150,9 +150,6 @@ pub fn get_all_events(
 
             for abci_event in &tx_result.result.events {
                 if let Ok(ibc_event) = ibc_event_try_from_abci_event(abci_event) {
-                    if let IbcEvent::IncentivizedPacket(ip) = ibc_event.clone() {
-                        telemetry!(fee_packets, chain_id, &ip.channel_id, &ip.port_id,);
-                    }
                     if query == queries::ibc_client().to_string()
                         && event_is_type_client(&ibc_event)
                     {
@@ -189,7 +186,7 @@ pub fn get_all_events(
                         if let IbcEvent::DistributeFeePacket(dist) = ibc_event {
                             let amount = dist.fee;
                             let receiver = dist.receiver;
-                            telemetry!(fees_amount, chain_id, &receiver, amount,);
+                            telemetry!(fees_amount, chain_id, &receiver, amount);
                         }
                     }
                 }
