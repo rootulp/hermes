@@ -136,56 +136,13 @@ pub fn set_mode(config: &mut Value, mode: &str) -> Result<(), Error> {
     Ok(())
 }
 
-/// A change between `simd` version `v6.1.0` and `v7.0.0-beta2` requires specific handling when
-/// updating the `max_deposit_period`. A new key `params` is added in `v7.0.0-beta2` and the
-/// previous `deposit_params` is set to `null`.
-///
-/// Up until v6.1.0 the `genesis.json` value for `deposit_period` is initialized to:
-///
-/// "gov": {
-///   "deposit_params": {
-///     "min_deposit": [
-///       {
-///         "denom": "stake",
-///         "amount": "10000000"
-///         }
-///     ],
-///     "max_deposit_period": "172800s"
-///   },
-///     ...
-/// }
-///
-/// From v7.0.0-beta2 the `genesis.json` value for `deposit_period` is initialized to:
-///
-/// "gov": {
-///   "deposit_params": null,
-///   "params": {
-///     "min_deposit": [
-///       {
-///         "denom": "stake",
-///         "amount": "10000000"
-///       }
-///     ],
-///     "max_deposit_period": "172800s",
-///     ...
-///   }
-///   ...
-/// }
 pub fn set_max_deposit_period(genesis: &mut serde_json::Value, period: &str) -> Result<(), Error> {
-    let max_deposit_period = match genesis
+    let max_deposit_period = genesis
         .get_mut("app_state")
         .and_then(|app_state| app_state.get_mut("gov"))
-        .and_then(|gov| gov.get_mut("deposit_params"))
+        .and_then(|gov| get_mut_with_fallback(gov, "params", "deposit_params"))
         .and_then(|deposit_params| deposit_params.as_object_mut())
-    {
-        Some(deposit_params) => deposit_params,
-        None => genesis
-            .get_mut("app_state")
-            .and_then(|app_state| app_state.get_mut("gov"))
-            .and_then(|gov| gov.get_mut("params"))
-            .and_then(|params| params.as_object_mut())
-            .ok_or_else(|| eyre!("could not find `deposit_params` or `params` objects"))?,
-    };
+        .ok_or_else(|| eyre!("failed to update max_deposit_period in genesis file"))?;
 
     max_deposit_period
         .insert(
@@ -197,44 +154,88 @@ pub fn set_max_deposit_period(genesis: &mut serde_json::Value, period: &str) -> 
     Ok(())
 }
 
-/// A change between `simd` version `v6.1.0` and `v7.0.0-beta2` requires specific handling when
-/// updating the `max_deposit_period`. A new key `params` is added in `v7.0.0-beta2` and the
-/// previous `deposit_params` is set to `null`.
-///
-/// Up until v6.1.0 the `genesis.json` value for `deposit_period` is initialized to:
-///
-/// "gov": {
-///   "voting_params": {
-///     "voting_period": "10s"
-///   }
-///   ...
-/// }
-///
-/// From v7.0.0-beta2 the `genesis.json` value for `deposit_period` is initialized to:
-///
-/// "gov": {
-///   "deposit_params": null,
-///   "params": {
-///     "voting_period": "172800s",
-///     ...
-///   }
-///   ...
-/// }
+pub fn set_staking_bond_denom(genesis: &mut serde_json::Value, denom: &str) -> Result<(), Error> {
+    let bond_denom = genesis
+        .get_mut("app_state")
+        .and_then(|app_state| app_state.get_mut("staking"))
+        .and_then(|staking| staking.get_mut("params"))
+        .and_then(|params| params.as_object_mut())
+        .ok_or_else(|| eyre!("failed to update bond_denom in genesis file"))?;
+
+    bond_denom
+        .insert(
+            "bond_denom".to_owned(),
+            serde_json::Value::String(denom.to_string()),
+        )
+        .ok_or_else(|| eyre!("failed to update bond_denom in genesis file"))?;
+
+    Ok(())
+}
+
+pub fn set_staking_max_entries(
+    genesis: &mut serde_json::Value,
+    entries: &str,
+) -> Result<(), Error> {
+    let max_entries = genesis
+        .get_mut("app_state")
+        .and_then(|app_state| app_state.get_mut("staking"))
+        .and_then(|staking| staking.get_mut("params"))
+        .and_then(|params| params.as_object_mut())
+        .ok_or_else(|| eyre!("failed to update max_entries in genesis file"))?;
+
+    max_entries
+        .insert(
+            "max_entries".to_owned(),
+            serde_json::Value::String(entries.to_string()),
+        )
+        .ok_or_else(|| eyre!("failed to update max_entries in genesis file"))?;
+
+    Ok(())
+}
+
+pub fn set_mint_mint_denom(genesis: &mut serde_json::Value, denom: &str) -> Result<(), Error> {
+    let mint_denom = genesis
+        .get_mut("app_state")
+        .and_then(|app_state| app_state.get_mut("mint"))
+        .and_then(|mint| mint.get_mut("params"))
+        .and_then(|params| params.as_object_mut())
+        .ok_or_else(|| eyre!("failed to update mint_denom in genesis file"))?;
+
+    mint_denom
+        .insert(
+            "mint_denom".to_owned(),
+            serde_json::Value::String(denom.to_string()),
+        )
+        .ok_or_else(|| eyre!("failed to update mint_denom in genesis file"))?;
+
+    Ok(())
+}
+
+pub fn set_crisis_denom(genesis: &mut serde_json::Value, crisis_denom: &str) -> Result<(), Error> {
+    let denom = genesis
+        .get_mut("app_state")
+        .and_then(|app_state| app_state.get_mut("crisis"))
+        .and_then(|crisis| crisis.get_mut("constant_fee"))
+        .and_then(|constant_fee| constant_fee.as_object_mut())
+        .ok_or_else(|| eyre!("failed to update denom in genesis file"))?;
+
+    denom
+        .insert(
+            "denom".to_owned(),
+            serde_json::Value::String(crisis_denom.to_string()),
+        )
+        .ok_or_else(|| eyre!("failed to update denom in genesis file"))?;
+
+    Ok(())
+}
+
 pub fn set_voting_period(genesis: &mut serde_json::Value, period: &str) -> Result<(), Error> {
-    let voting_period = match genesis
+    let voting_period = genesis
         .get_mut("app_state")
         .and_then(|app_state| app_state.get_mut("gov"))
-        .and_then(|gov| gov.get_mut("voting_params"))
+        .and_then(|gov| get_mut_with_fallback(gov, "params", "voting_params"))
         .and_then(|voting_params| voting_params.as_object_mut())
-    {
-        Some(deposit_params) => deposit_params,
-        None => genesis
-            .get_mut("app_state")
-            .and_then(|app_state| app_state.get_mut("gov"))
-            .and_then(|gov| gov.get_mut("params"))
-            .and_then(|params| params.as_object_mut())
-            .ok_or_else(|| eyre!("could not find `voting_period` or `params` objects"))?,
-    };
+        .ok_or_else(|| eyre!("failed to update voting_period in genesis file"))?;
 
     voting_period
         .insert(
@@ -244,4 +245,31 @@ pub fn set_voting_period(genesis: &mut serde_json::Value, period: &str) -> Resul
         .ok_or_else(|| eyre!("failed to update voting_period in genesis file"))?;
 
     Ok(())
+}
+
+/// Look up a key in a JSON object, falling back to the second key if the first one cannot be found.
+///
+/// This lets us support both Tendermint 0.34 and 0.37, which sometimes use different keys for the
+/// same configuration object in the genesis file.
+///
+/// Eg. in 0.34, the voting params are at `app_state.gov.voting_params`,
+/// but in 0.37 they are at `app_state.gov.params`.
+///
+/// Note: This function is needed to avoid having to inline its code every time we need it.
+/// The more obvious way to write it inline would be:
+///
+/// value.get_mut(key_034).or_else(|| value.get_mut(key_037))
+///
+/// but that does not work because of the first `get_mut` borrows `value` mutably, which
+/// prevents the second `get_mut` from borrowing it again.
+fn get_mut_with_fallback<'a>(
+    value: &'a mut serde_json::Value,
+    key: &str,
+    fallback_key: &str,
+) -> Option<&'a mut serde_json::Value> {
+    let key = match value.get(key) {
+        Some(value) if !value.is_null() => key,
+        _ => fallback_key,
+    };
+    value.get_mut(key)
 }

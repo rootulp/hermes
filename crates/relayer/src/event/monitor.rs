@@ -12,8 +12,8 @@ use tokio::{runtime::Runtime as TokioRuntime, sync::mpsc};
 use tracing::{debug, error, info, instrument, trace};
 
 use tendermint_rpc::{
-    event::Event as RpcEvent, query::Query, Error as RpcError, SubscriptionClient, Url,
-    WebSocketClient, WebSocketClientDriver,
+    client::CompatMode, client::WebSocketConfig, event::Event as RpcEvent, query::Query,
+    Error as RpcError, SubscriptionClient, Url, WebSocketClient, WebSocketClientDriver,
 };
 
 use ibc_relayer_types::{
@@ -78,12 +78,12 @@ impl TxMonitorCmd {
 
     pub fn subscribe(&self) -> Result<Subscription> {
         let (tx, rx) = crossbeam_channel::bounded(1);
+
         self.0
             .send(MonitorCmd::Subscribe(tx))
             .map_err(|_| Error::channel_send_failed())?;
 
         let subscription = rx.recv().map_err(|_| Error::channel_recv_failed())?;
-
         Ok(subscription)
     }
 }
@@ -117,6 +117,8 @@ pub struct EventMonitor {
     rx_cmd: channel::Receiver<MonitorCmd>,
     /// Node Address
     node_addr: Url,
+    /// RPC compatibility mode
+    rpc_compat: CompatMode,
     /// Queries
     event_queries: Vec<Query>,
     /// All subscriptions combined in a single stream
@@ -174,14 +176,19 @@ impl EventMonitor {
     pub fn new(
         chain_id: ChainId,
         node_addr: Url,
+        rpc_compat: CompatMode,
         rt: Arc<TokioRuntime>,
     ) -> Result<(Self, TxMonitorCmd)> {
         let event_bus = EventBus::new();
         let (tx_cmd, rx_cmd) = channel::unbounded();
 
-        let ws_addr = node_addr.clone();
+        let config = WebSocketConfig {
+            compat: rpc_compat,
+            ..Default::default()
+        };
+
         let (client, driver) = rt
-            .block_on(async move { WebSocketClient::new(ws_addr).await })
+            .block_on(WebSocketClient::new_with_config(node_addr.clone(), config))
             .map_err(|_| Error::client_creation_failed(chain_id.clone(), node_addr.clone()))?;
 
         let (tx_err, rx_err) = mpsc::unbounded_channel();
@@ -201,6 +208,7 @@ impl EventMonitor {
             tx_err,
             rx_cmd,
             node_addr,
+            rpc_compat,
             subscriptions: Box::new(futures::stream::empty()),
         };
 
@@ -248,9 +256,17 @@ impl EventMonitor {
         );
 
         // Try to reconnect
+        let config = WebSocketConfig {
+            compat: self.rpc_compat,
+            ..Default::default()
+        };
+
         let (mut client, driver) = self
             .rt
-            .block_on(WebSocketClient::new(self.node_addr.clone()))
+            .block_on(WebSocketClient::new_with_config(
+                self.node_addr.clone(),
+                config,
+            ))
             .map_err(|_| {
                 Error::client_creation_failed(self.chain_id.clone(), self.node_addr.clone())
             })?;
@@ -378,7 +394,11 @@ impl EventMonitor {
             if let Ok(cmd) = self.rx_cmd.try_recv() {
                 match cmd {
                     MonitorCmd::Shutdown => return Next::Abort,
-                    MonitorCmd::Subscribe(tx) => tx.send(self.event_bus.subscribe()).unwrap(),
+                    MonitorCmd::Subscribe(tx) => {
+                        if let Err(e) = tx.send(self.event_bus.subscribe()) {
+                            error!("failed to send back subscription: {e}");
+                        }
+                    }
                 }
             }
 
@@ -388,12 +408,6 @@ impl EventMonitor {
                     Some(e) = self.rx_err.recv() => Err(Error::web_socket_driver(e)),
                 }
             });
-
-            // Repeat check of shutdown command here, as previous recv()
-            // may block for a long time.
-            if let Ok(MonitorCmd::Shutdown) = self.rx_cmd.try_recv() {
-                return Next::Abort;
-            }
 
             match result {
                 Ok(batch) => self.process_batch(batch),
