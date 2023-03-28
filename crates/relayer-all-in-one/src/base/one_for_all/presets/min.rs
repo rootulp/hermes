@@ -11,6 +11,11 @@ use ibc_relayer_components::relay::impls::packet_relayers::general::log::LoggerR
 use crate::base::one_for_all::impls::chain::queries::consensus_state::SendConsensusStateQueryToOfa;
 use crate::base::one_for_all::impls::chain::queries::status::SendChainStatusQueryToOfa;
 
+/// The minimal preset is a bare-bones relayer instance that is best suited for simple
+/// relaying tasks. It does not include many of the bells and whistles that the [`FullPreset`]
+/// comes with, such as packet filtering or telemetry. This preset also utilizes the 
+/// concurrent auto-relayer variants as opposed to the more complex parallel auto-relayer
+/// variants.
 pub struct MinimalPreset;
 
 pub type ChainStatusQuerier = SendChainStatusQueryToOfa;

@@ -16,6 +16,11 @@ use crate::base::one_for_all::impls::chain::queries::consensus_state::SendConsen
 use crate::base::one_for_all::impls::chain::queries::status::SendChainStatusQueryToOfa;
 use crate::extra::one_for_all::impls::packet_filter::FilterPacketFromOfa;
 
+/// The full preset can be thought of as a batteries-included full-featured relayer 
+/// instance with many bells and whistles included. Features such as telemetry, 
+/// logging, as well as packet filtering, come included with this preset. It also 
+/// opts to utilize the parallel auto-relayer variants as opposed to the simpler 
+/// concurrent auto-relayer variants. 
 pub struct FullPreset;
 
 pub type ChainStatusQuerier = ChainStatusTelemetryQuerier<SendChainStatusQueryToOfa>;
