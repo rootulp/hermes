@@ -206,7 +206,7 @@ pub fn add_key(
             check_key_exists(&keyring, key_name, overwrite);
 
             let key_contents =
-                fs::read_to_string(file).map_err(|_| eyre!("error reading the key file"))?;
+                fs::read_to_string(file).map_err(|e| eyre!("error reading the key file: {e}"))?;
             let key_pair = Secp256k1KeyPair::from_seed_file(&key_contents, hd_path)?;
 
             keyring.add_key(key_name, key_pair.clone())?;
@@ -225,7 +225,7 @@ pub fn restore_key(
     overwrite: bool,
 ) -> eyre::Result<AnySigningKeyPair> {
     let mnemonic_content =
-        fs::read_to_string(mnemonic).map_err(|_| eyre!("error reading the mnemonic file"))?;
+        fs::read_to_string(mnemonic).map_err(|e| eyre!("error reading the mnemonic file: {e}"))?;
 
     let key_pair = match config.r#type {
         ChainType::CosmosSdk => {
