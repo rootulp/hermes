@@ -18,7 +18,7 @@ default-run = "hermes"
 name = "hermes"
 
 [features]
-default     = ["telemetry", "rest-server", "std", "eyre_tracer",]
+default     = ["telemetry", "rest-server", "std", "eyre_tracer"]
 std         = ["flex-error/std"]
 eyre_tracer = ["flex-error/eyre_tracer"]
 profiling   = ["ibc-relayer/profiling"]
@@ -59,15 +59,15 @@ tracing                  = "0.1.36"
 tracing-subscriber       = { version = "0.3.14", features = ["fmt", "env-filter", "json"]}
 
 [dependencies.tendermint]
-version = "0.30.0"
+version = "0.32.0"
 features = ["secp256k1"]
 
 [dependencies.tendermint-rpc]
-version = "0.30.0"
+version = "0.32.0"
 features = ["http-client", "websocket-client"]
 
 [dependencies.tendermint-light-client-verifier]
-version = "0.30.0"
+version = "0.32.0"
 
 [dependencies.abscissa_core]
 version = "=0.6.0"
