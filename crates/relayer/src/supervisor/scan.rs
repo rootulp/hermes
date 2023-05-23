@@ -26,7 +26,7 @@ use crate::{
     },
     client_state::IdentifiedAnyClientState,
     config::{
-        filter::{ChannelFilters, ChannelPolicy},
+        filter::{ChannelFilters, ChannelPolicy, ConnectionFilters, ConnectionPolicy},
         ChainConfig, Config,
     },
     path::PathIdentifiers,
@@ -288,6 +288,12 @@ impl<'a, Chain: ChainHandle> ChainScanner<'a, Chain> {
     }
 
     pub fn scan_chains(mut self) -> ChainsScan {
+        crate::time!(
+            "scan_chains",
+            {
+                "src_chain": "all",
+            }
+        );
         let mut scans = ChainsScan {
             chains: Vec::with_capacity(self.config.chains.len()),
         };
@@ -300,6 +306,12 @@ impl<'a, Chain: ChainHandle> ChainScanner<'a, Chain> {
     }
 
     pub fn scan_chain(&mut self, chain_config: &ChainConfig) -> Result<ChainScan, Error> {
+        crate::time!(
+            "scan_chain",
+            {
+                "src_chain": chain_config.id,
+            }
+        );
         let span = error_span!("scan.chain", chain = %chain_config.id);
         let _guard = span.enter();
 
@@ -320,6 +332,17 @@ impl<'a, Chain: ChainHandle> ChainScanner<'a, Chain> {
         };
 
         let mut scan = ChainScan::new(chain_config.id.clone());
+
+        match self.use_connection_filter(chain_config) {
+            Some(conn_filter) if self.scan_mode == ScanMode::Auto => {
+                info!("connection filter enabled");
+
+                self.query_allowed_connections(&chain, conn_filter, &mut scan)?;
+            }
+            _ => {
+                info!("connection filter not enabled");
+            }
+        }
 
         match self.use_allow_list(chain_config) {
             Some(spec) if self.scan_mode == ScanMode::Auto => {
@@ -345,6 +368,12 @@ impl<'a, Chain: ChainHandle> ChainScanner<'a, Chain> {
         filters: &ChannelFilters,
         scan: &mut ChainScan,
     ) -> Result<(), Error> {
+        crate::time!(
+            "query_allowed_channels",
+            {
+                "src_chain": chain.id(),
+            }
+        );
         info!("querying allowed channels...");
 
         for (port_id, channel_id) in filters.iter_exact() {
@@ -396,7 +425,57 @@ impl<'a, Chain: ChainHandle> ChainScanner<'a, Chain> {
         Ok(())
     }
 
+    pub fn query_allowed_connections(
+        &mut self,
+        chain: &Chain,
+        filters: &ConnectionFilters,
+        scan: &mut ChainScan,
+    ) -> Result<(), Error> {
+        crate::time!(
+            "query_allowed_connections",
+            {
+                "src_chain": chain.id(),
+            }
+        );
+        info!("querying allowed channels...");
+
+        for connection_id in filters.iter_exact() {
+            let result = scan_allowed_connection(self.registry, chain, connection_id);
+
+            match result {
+                Ok(ScannedConnection {
+                    connection,
+                    counterparty_connection_state,
+                    client,
+                }) => {
+                    let client_scan = scan
+                        .clients
+                        .entry(client.client_id.clone())
+                        .or_insert_with(|| ClientScan::new(client));
+
+                    client_scan
+                        .connections
+                        .entry(connection.connection_id.clone())
+                        .or_insert_with(|| {
+                            ConnectionScan::new(connection, counterparty_connection_state)
+                        });
+                }
+                Err(e) => {
+                    error!(connection = %connection_id, "failed to scan connection, reason: {}", e)
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn scan_all_clients(&mut self, chain: &Chain, scan: &mut ChainScan) -> Result<(), Error> {
+        crate::time!(
+            "scan_all_clients",
+            {
+                "src_chain": chain.id(),
+            }
+        );
         info!("scanning all clients...");
 
         let clients = query_all_clients(chain)?;
@@ -437,6 +516,12 @@ impl<'a, Chain: ChainHandle> ChainScanner<'a, Chain> {
         chain: &Chain,
         client: IdentifiedAnyClientState,
     ) -> Result<Option<ClientScan>, Error> {
+        crate::time!(
+            "scan_client",
+            {
+                "src_chain": chain.id(),
+            }
+        );
         let span = error_span!("scan.client", client = %client.client_id);
         let _guard = span.enter();
 
@@ -486,6 +571,12 @@ impl<'a, Chain: ChainHandle> ChainScanner<'a, Chain> {
         client: &IdentifiedAnyClientState,
         connection: IdentifiedConnectionEnd,
     ) -> Result<Option<ConnectionScan>, Error> {
+        crate::time!(
+            "scan_connection",
+            {
+                "src_chain": chain.id(),
+            }
+        );
         let span = error_span!("scan.connection", connection = %connection.connection_id);
         let _guard = span.enter();
 
@@ -577,6 +668,7 @@ impl<'a, Chain: ChainHandle> ChainScanner<'a, Chain> {
         Ok(counterparty_state)
     }
 
+    // TODO: Why is this required ?
     fn filtering_enabled(&self) -> bool {
         // filtering is always enabled
         true
@@ -589,6 +681,20 @@ impl<'a, Chain: ChainHandle> ChainScanner<'a, Chain> {
 
         match chain_config.packet_filter.channel_policy {
             ChannelPolicy::Allow(ref filters) if filters.is_exact() => Some(filters),
+            _ => None,
+        }
+    }
+
+    fn use_connection_filter<'b>(
+        &self,
+        chain_config: &'b ChainConfig,
+    ) -> Option<&'b ConnectionFilters> {
+        if !self.filtering_enabled() {
+            return None;
+        }
+
+        match chain_config.packet_filter.connection_policy {
+            ConnectionPolicy::Allow(ref filters) if filters.is_exact() => Some(filters),
             _ => None,
         }
     }
@@ -658,6 +764,71 @@ impl<'a, Chain: ChainHandle> ChainScanner<'a, Chain> {
     }
 }
 
+struct ScannedConnection {
+    connection: IdentifiedConnectionEnd,
+    counterparty_connection_state: Option<ConnectionState>,
+    client: IdentifiedAnyClientState,
+}
+
+fn scan_allowed_connection<Chain: ChainHandle>(
+    registry: &'_ mut Registry<Chain>,
+    chain: &Chain,
+    connection_id: &ConnectionId,
+) -> Result<ScannedConnection, Error> {
+    crate::time!(
+        "scan_allowed_connection",
+        {
+            "src_chain": chain.id(),
+        }
+    );
+    let span = error_span!("scan.connection", connection = %connection_id);
+    let _guard = span.enter();
+
+    let connection = query_connection(chain, connection_id)?;
+    let client_id = connection.connection_end.client_id();
+
+    info!(
+        connection = %connection.connection_id, client = %client_id,
+        "found connection and client",
+    );
+
+    info!(client = %client_id, "querying client...");
+    let client = query_client(chain, client_id)?;
+
+    let counterparty_chain_id = client.client_state.chain_id();
+
+    info!(
+        client = %client_id,
+        counterparty_chain = %counterparty_chain_id,
+        "found counterparty chain for client",
+    );
+
+    let counterparty_chain = registry
+        .get_or_spawn(&counterparty_chain_id)
+        .map_err(Error::spawn)?;
+
+    let counterparty_connection_state =
+        connection_state_on_destination(&connection, &counterparty_chain)
+            .map(Some)
+            .unwrap_or_default();
+
+    let counterparty_connection_name = counterparty_connection_state
+        .as_ref()
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "<none>".to_string());
+
+    info!(
+        counterparty_connection_state = %counterparty_connection_name,
+        "found counterparty connection state"
+    );
+
+    Ok(ScannedConnection {
+        connection,
+        counterparty_connection_state,
+        client,
+    })
+}
+
 struct ScannedChannel {
     channel: IdentifiedChannelEnd,
     counterparty_channel: Option<IdentifiedChannelEnd>,
@@ -672,6 +843,12 @@ fn scan_allowed_channel<Chain: ChainHandle>(
     port_id: &PortId,
     channel_id: &ChannelId,
 ) -> Result<ScannedChannel, Error> {
+    crate::time!(
+        "scan_allowed_channel",
+        {
+            "src_chain": chain.id(),
+        }
+    );
     let span = error_span!("scan.channel", port = %port_id, channel = %channel_id);
     let _guard = span.enter();
 

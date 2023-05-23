@@ -4,7 +4,7 @@ use std::str::FromStr;
 use serde::Serialize;
 
 use ibc_relayer::config::{
-    filter::{ChannelFilters, ChannelPolicy, FilterPattern},
+    filter::{ChannelFilters, ChannelPolicy, ConnectionPolicy, FilterPattern},
     PacketFilter,
 };
 use ibc_relayer_types::core::ics04_channel::channel::State;
@@ -28,6 +28,7 @@ fn test_ica_filter_allow() -> Result<(), Error> {
             FilterPattern::Wildcard("*".parse().unwrap()),
         )])),
         HashMap::new(),
+        ConnectionPolicy::default(),
     )))
 }
 

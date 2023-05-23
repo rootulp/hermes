@@ -103,6 +103,12 @@ impl<'a, Chain: ChainHandle> SpawnContext<'a, Chain> {
         client: &IdentifiedAnyClientState,
         connection_scan: ConnectionScan,
     ) {
+        crate::time!(
+            "spawn_workers_for_connection",
+            {
+                "src_chain": chain.id(),
+            }
+        );
         let _span =
             tracing::error_span!("connection", connection = %connection_scan.id()).entered();
 
@@ -159,6 +165,12 @@ impl<'a, Chain: ChainHandle> SpawnContext<'a, Chain> {
         client: IdentifiedAnyClientState,
         connection: IdentifiedConnectionEnd,
     ) -> Result<bool, Error> {
+        crate::time!(
+            "spawn_connection_workers",
+            {
+                "src_chain": chain.id(),
+            }
+        );
         let config_conn_enabled = self.config.mode.connections.enabled;
 
         let counterparty_chain = self
@@ -220,6 +232,12 @@ impl<'a, Chain: ChainHandle> SpawnContext<'a, Chain> {
         client: &IdentifiedAnyClientState,
         channel_scan: ChannelScan,
     ) -> Result<bool, Error> {
+        crate::time!(
+            "spawn_workers_for_channel",
+            {
+                "src_chain": chain.id(),
+            }
+        );
         let _span = tracing::error_span!("channel", channel = %channel_scan.id()).entered();
 
         let mode = &self.config.mode;

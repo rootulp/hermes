@@ -140,6 +140,12 @@ pub fn spawn_supervisor_tasks<Chain: ChainHandle>(
     cmd_rx: Receiver<SupervisorCmd>,
     options: SupervisorOptions,
 ) -> Result<Vec<TaskHandle>, Error> {
+    crate::time!(
+        "spawn_supervisor_tasks",
+        {
+            "src_chain": "all",
+        }
+    );
     if options.health_check {
         health_check(&config, &mut registry.write());
     }
@@ -204,6 +210,12 @@ fn spawn_batch_workers<Chain: ChainHandle>(
     workers: Arc<RwLock<WorkerMap>>,
     subscriptions: Vec<(Chain, Subscription)>,
 ) -> Vec<TaskHandle> {
+    crate::time!(
+        "spawn_batch_workers",
+        {
+            "src_chain": "all",
+        }
+    );
     let mut handles = Vec::with_capacity(subscriptions.len());
 
     for (chain, subscription) in subscriptions {
@@ -611,6 +623,12 @@ fn init_subscriptions<Chain: ChainHandle>(
     config: &Config,
     registry: &mut Registry<Chain>,
 ) -> Result<Vec<(Chain, Subscription)>, Error> {
+    crate::time!(
+        "init_subscriptions",
+        {
+            "src_chain": "all",
+        }
+    );
     let chains = &config.chains;
 
     let mut subscriptions = Vec::with_capacity(chains.len());

@@ -9,7 +9,7 @@ use std::hash::Hash;
 
 use ibc_relayer_types::applications::transfer::RawCoin;
 use ibc_relayer_types::bigint::U256;
-use ibc_relayer_types::core::ics24_host::identifier::{ChannelId, PortId};
+use ibc_relayer_types::core::ics24_host::identifier::{ChannelId, ConnectionId, PortId};
 use ibc_relayer_types::events::IbcEventType;
 
 /// Represents all the filtering policies for packets.
@@ -19,6 +19,8 @@ pub struct PacketFilter {
     pub channel_policy: ChannelPolicy,
     #[serde(default)]
     pub min_fees: HashMap<ChannelFilterMatch, FeePolicy>,
+    #[serde(default)]
+    pub connection_policy: ConnectionPolicy,
 }
 
 impl Default for PacketFilter {
@@ -27,6 +29,7 @@ impl Default for PacketFilter {
         Self {
             channel_policy: ChannelPolicy::default(),
             min_fees: HashMap::new(),
+            connection_policy: ConnectionPolicy::default(),
         }
     }
 }
@@ -35,17 +38,28 @@ impl PacketFilter {
     pub fn new(
         channel_policy: ChannelPolicy,
         min_fees: HashMap<ChannelFilterMatch, FeePolicy>,
+        connection_policy: ConnectionPolicy,
     ) -> Self {
         Self {
             channel_policy,
             min_fees,
+            connection_policy,
         }
     }
 
-    pub fn allow(filters: Vec<(PortFilterMatch, ChannelFilterMatch)>) -> PacketFilter {
+    pub fn allow_channel(filters: Vec<(PortFilterMatch, ChannelFilterMatch)>) -> PacketFilter {
         PacketFilter::new(
             ChannelPolicy::Allow(ChannelFilters::new(filters)),
             HashMap::new(),
+            ConnectionPolicy::AllowAll,
+        )
+    }
+
+    pub fn allow_connection(filters: Vec<ConnectionFilterMatch>) -> PacketFilter {
+        PacketFilter::new(
+            ChannelPolicy::AllowAll,
+            HashMap::new(),
+            ConnectionPolicy::Allow(ConnectionFilters::new(filters)),
         )
     }
 }
@@ -63,6 +77,23 @@ pub enum ChannelPolicy {
     Allow(ChannelFilters),
     /// Deny packets from the specified channels.
     Deny(ChannelFilters),
+    /// Allow any & all packets.
+    AllowAll,
+}
+
+/// Represents the ways in which packets can be filtered.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    rename_all = "lowercase",
+    tag = "policy",
+    content = "list",
+    deny_unknown_fields
+)]
+pub enum ConnectionPolicy {
+    /// Allow packets from the specified channels.
+    Allow(ConnectionFilters),
+    /// Deny packets from the specified channels.
+    Deny(ConnectionFilters),
     /// Allow any & all packets.
     AllowAll,
 }
@@ -111,6 +142,13 @@ impl MinFee {
 }
 
 impl Default for ChannelPolicy {
+    /// By default, allows all channels & ports.
+    fn default() -> Self {
+        Self::AllowAll
+    }
+}
+
+impl Default for ConnectionPolicy {
     /// By default, allows all channels & ports.
     fn default() -> Self {
         Self::AllowAll
@@ -225,6 +263,78 @@ impl Serialize for ChannelFilters {
                 a: port,
                 b: channel,
             })?;
+        }
+
+        outer_seq.end()
+    }
+}
+
+/// The internal representation of channel filter policies.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectionFilters(Vec<ConnectionFilterMatch>);
+
+impl ConnectionFilters {
+    /// Create a new filter from the given list of connection filters.
+    pub fn new(filters: Vec<ConnectionFilterMatch>) -> Self {
+        Self(filters)
+    }
+
+    /// Returns the number of filters.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns true if there are no filters, false otherwise.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn matches(&self, connection: &ConnectionId) -> bool {
+        let connection_id = connection;
+        self.0
+            .iter()
+            .any(|conn_filter| conn_filter.matches(connection_id))
+    }
+
+    /// Indicates whether this filter policy contains only exact patterns.
+    #[inline]
+    pub fn is_exact(&self) -> bool {
+        self.0.iter().all(|conn_filter| conn_filter.is_exact())
+    }
+
+    pub fn iter_exact(&self) -> impl Iterator<Item = &ConnectionId> {
+        self.0.iter().filter_map(|conn_filter| {
+            if let FilterPattern::Exact(conn_id) = conn_filter {
+                Some(conn_id)
+            } else {
+                None
+            }
+        })
+    }
+}
+
+impl fmt::Display for ConnectionFilters {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.0.iter().map(|cid| format!("{cid}")).join(", ")
+        )
+    }
+}
+
+impl Serialize for ConnectionFilters {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::SerializeSeq;
+
+        let mut outer_seq = serializer.serialize_seq(Some(self.0.len()))?;
+
+        for connection in &self.0 {
+            outer_seq.serialize_element(&connection)?;
         }
 
         outer_seq.end()
@@ -359,6 +469,8 @@ pub type PortFilterMatch = FilterPattern<PortId>;
 /// Type alias for a [`FilterPattern`] containing a [`ChannelId`].
 pub type ChannelFilterMatch = FilterPattern<ChannelId>;
 
+pub type ConnectionFilterMatch = FilterPattern<ConnectionId>;
+
 impl<'de> Deserialize<'de> for PortFilterMatch {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<PortFilterMatch, D::Error> {
         deserializer.deserialize_string(port::PortFilterMatchVisitor)
@@ -368,6 +480,14 @@ impl<'de> Deserialize<'de> for PortFilterMatch {
 impl<'de> Deserialize<'de> for ChannelFilterMatch {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<ChannelFilterMatch, D::Error> {
         deserializer.deserialize_string(channel::ChannelFilterMatchVisitor)
+    }
+}
+
+impl<'de> Deserialize<'de> for ConnectionFilterMatch {
+    fn deserialize<D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<ConnectionFilterMatch, D::Error> {
+        deserializer.deserialize_string(connection::ConnectionFilterMatchVisitor)
     }
 }
 
@@ -418,6 +538,34 @@ pub(crate) mod channel {
             } else {
                 let wildcard = v.parse().map_err(E::custom)?;
                 Ok(ChannelFilterMatch::Wildcard(wildcard))
+            }
+        }
+
+        fn visit_string<E: de::Error>(self, v: String) -> Result<Self::Value, E> {
+            self.visit_str(&v)
+        }
+    }
+}
+
+pub(crate) mod connection {
+    use super::*;
+    use ibc_relayer_types::core::ics24_host::identifier::ConnectionId;
+
+    pub struct ConnectionFilterMatchVisitor;
+
+    impl<'de> de::Visitor<'de> for ConnectionFilterMatchVisitor {
+        type Value = ConnectionFilterMatch;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("valid ConnectionId or wildcard")
+        }
+
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+            if let Ok(connection_id) = ConnectionId::from_str(v) {
+                Ok(ConnectionFilterMatch::Exact(connection_id))
+            } else {
+                let wildcard = v.parse().map_err(E::custom)?;
+                Ok(ConnectionFilterMatch::Wildcard(wildcard))
             }
         }
 

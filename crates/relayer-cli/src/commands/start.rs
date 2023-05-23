@@ -227,6 +227,12 @@ fn make_supervisor<Chain: ChainHandle>(
     config: Config,
     options: SupervisorOptions,
 ) -> Result<SupervisorHandle, Box<dyn Error + Send + Sync>> {
+    ibc_relayer::time!(
+        "make_supervisor",
+        {
+            "src_chain": "all",
+        }
+    );
     let registry = SharedRegistry::<Chain>::new(config.clone());
 
     spawn_telemetry_server(&config);

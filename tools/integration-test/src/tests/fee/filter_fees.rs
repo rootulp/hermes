@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use ibc_relayer::config::filter::{ChannelPolicy, FeePolicy, FilterPattern, MinFee};
+use ibc_relayer::config::filter::{
+    ChannelPolicy, ConnectionPolicy, FeePolicy, FilterPattern, MinFee,
+};
 use ibc_relayer::config::PacketFilter;
 use ibc_relayer_types::core::ics04_channel::version::Version;
 use ibc_test_framework::prelude::*;
@@ -25,7 +27,11 @@ impl TestOverrides for FilterIncentivizedFeesRelayerTest {
         let fees_filters = FeePolicy::new(vec![recv_fee]);
         let min_fees =
             HashMap::from([(FilterPattern::Wildcard("*".parse().unwrap()), fees_filters)]);
-        let packet_filter = PacketFilter::new(ChannelPolicy::default(), min_fees);
+        let packet_filter = PacketFilter::new(
+            ChannelPolicy::default(),
+            min_fees,
+            ConnectionPolicy::default(),
+        );
         for chain_config in config.chains.iter_mut() {
             chain_config.packet_filter = packet_filter.clone();
         }
@@ -173,7 +179,11 @@ impl TestOverrides for FilterByChannelIncentivizedFeesRelayerTest {
             FilterPattern::Wildcard("other-channel*".parse().unwrap()),
             fees_filters,
         )]);
-        let packet_filter = PacketFilter::new(ChannelPolicy::default(), min_fees);
+        let packet_filter = PacketFilter::new(
+            ChannelPolicy::default(),
+            min_fees,
+            ConnectionPolicy::default(),
+        );
         for chain_config in config.chains.iter_mut() {
             chain_config.packet_filter = packet_filter.clone();
         }

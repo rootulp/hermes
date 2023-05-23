@@ -45,6 +45,12 @@ list = [
   ['transfer', 'channel-0'],
 ]
 
+[chains.packet_filter.connection_policy]
+policy = 'allow'
+list = [
+  'connection-0',
+]
+
 [[chains]]
 id = 'chain_B'
 rpc_addr = 'http://127.0.0.1:26557'

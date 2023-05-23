@@ -56,7 +56,7 @@ fn construct_packet_filters(ibc_paths: Vec<IBCPath>) -> HashMap<String, PacketFi
 
     packet_filters
         .into_iter()
-        .map(|(k, v)| (k, PacketFilter::allow(v)))
+        .map(|(k, v)| (k, PacketFilter::allow_channel(v)))
         .collect()
 }
 
