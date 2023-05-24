@@ -86,6 +86,12 @@ impl super::LightClient<CosmosSdkChain> for LightClient {
         client_state: &AnyClientState,
         now: Time,
     ) -> Result<Verified<LightBlock>, Error> {
+        crate::time!(
+            "verify",
+            {
+                "src_chain": self.chain_id,
+            }
+        );
         trace!(%trusted_height, %target_height, "light client verification");
 
         if !self.enable_verification {
