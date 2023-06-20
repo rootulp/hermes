@@ -1,8 +1,7 @@
-use crate::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use ibc_proto::interchain_security::ccv::provider::v1::MsgSubmitConsumerMisbehaviour as RawIcsMisbehaviour;
 use ibc_proto::protobuf::Protobuf;
-use serde::{Deserialize, Serialize};
 
 use crate::applications::ics28_ccv::msgs::error::Error;
 use crate::clients::ics07_tendermint::misbehaviour::Misbehaviour;

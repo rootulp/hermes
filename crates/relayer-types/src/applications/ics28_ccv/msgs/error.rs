@@ -1,7 +1,6 @@
-use crate::prelude::*;
+use flex_error::define_error;
 
 use crate::signer::SignerError;
-use flex_error::define_error;
 
 define_error! {
     #[derive(Debug, PartialEq, Eq)]
