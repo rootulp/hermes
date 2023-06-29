@@ -6,9 +6,9 @@ use std::sync::{Arc, Mutex};
 
 use eyre::eyre;
 
-use crate::relayer_mock::base::error::{BaseError, Error};
-use crate::relayer_mock::base::types::aliases::MockTimestamp;
-use crate::relayer_mock::util::mutex::MutexUtil;
+use crate::base::error::{BaseError, Error};
+use crate::base::types::aliases::MockTimestamp;
+use crate::util::mutex::MutexUtil;
 
 pub struct MockClock {
     timestamp: Arc<Mutex<MockTimestamp>>,

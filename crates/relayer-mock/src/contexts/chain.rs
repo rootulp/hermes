@@ -17,19 +17,19 @@ use std::{collections::HashMap, sync::Arc};
 
 use eyre::eyre;
 
-use crate::relayer_mock::base::error::{BaseError, Error};
-use crate::relayer_mock::base::types::aliases::{
+use crate::base::error::{BaseError, Error};
+use crate::base::types::aliases::{
     ChainState, ChannelId, ClientId, MockTimestamp, PortId, Sequence, StateStore,
 };
-use crate::relayer_mock::base::types::events::Event;
-use crate::relayer_mock::base::types::height::Height;
-use crate::relayer_mock::base::types::message::Message as MockMessage;
-use crate::relayer_mock::base::types::runtime::MockRuntimeContext;
-use crate::relayer_mock::base::types::{
+use crate::base::types::events::Event;
+use crate::base::types::height::Height;
+use crate::base::types::message::Message as MockMessage;
+use crate::base::types::runtime::MockRuntimeContext;
+use crate::base::types::{
     height::Height as MockHeight, packet::PacketKey, state::State,
 };
-use crate::relayer_mock::util::clock::MockClock;
-use crate::relayer_mock::util::mutex::MutexUtil;
+use crate::util::clock::MockClock;
+use crate::util::mutex::MutexUtil;
 
 pub struct MockChainContext {
     pub name: String,

@@ -7,11 +7,11 @@ use ibc_relayer_components::relay::traits::packet_relayer::CanRelayPacket;
 use ibc_relayer_components::runtime::traits::sleep::CanSleep;
 use tracing::info;
 
-use crate::relayer_mock::base::error::Error;
-use crate::relayer_mock::base::types::aliases::MockTimestamp;
-use crate::relayer_mock::base::types::events::Event;
-use crate::relayer_mock::base::types::height::Height as MockHeight;
-use crate::relayer_mock::base::types::message::Message as MockMessage;
+use crate::base::error::Error;
+use crate::base::types::aliases::MockTimestamp;
+use crate::base::types::events::Event;
+use crate::base::types::height::Height as MockHeight;
+use crate::base::types::message::Message as MockMessage;
 use crate::tests::util::context::build_mock_relay_context;
 
 #[tokio::test]

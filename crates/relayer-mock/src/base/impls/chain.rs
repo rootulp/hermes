@@ -42,17 +42,17 @@ use ibc_relayer_runtime::tokio::error::Error as TokioError;
 use ibc_relayer_runtime::tokio::logger::tracing::TracingLogger;
 use ibc_relayer_runtime::tokio::logger::value::LogValue;
 
-use crate::relayer_mock::base::error::{BaseError, Error};
-use crate::relayer_mock::base::types::aliases::{
+use crate::base::error::{BaseError, Error};
+use crate::base::types::aliases::{
     ChainStatus, ChannelId, ClientId, ConsensusState, MockTimestamp, PortId, Sequence,
 };
-use crate::relayer_mock::base::types::chain::MockChainStatus;
-use crate::relayer_mock::base::types::events::{Event, SendPacketEvent, WriteAcknowledgementEvent};
-use crate::relayer_mock::base::types::height::Height as MockHeight;
-use crate::relayer_mock::base::types::message::Message as MockMessage;
-use crate::relayer_mock::base::types::packet::PacketKey;
-use crate::relayer_mock::base::types::runtime::MockRuntimeContext;
-use crate::relayer_mock::contexts::chain::MockChainContext;
+use crate::base::types::chain::MockChainStatus;
+use crate::base::types::events::{Event, SendPacketEvent, WriteAcknowledgementEvent};
+use crate::base::types::height::Height as MockHeight;
+use crate::base::types::message::Message as MockMessage;
+use crate::base::types::packet::PacketKey;
+use crate::base::types::runtime::MockRuntimeContext;
+use crate::contexts::chain::MockChainContext;
 
 impl HasErrorType for MockChainContext {
     type Error = Error;

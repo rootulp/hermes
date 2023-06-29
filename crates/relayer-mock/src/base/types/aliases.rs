@@ -3,8 +3,8 @@ use std::convert::From;
 use std::fmt::{self, Display};
 
 use super::height::Height;
-use crate::relayer_mock::base::types::chain::MockChainStatus;
-use crate::relayer_mock::base::types::state::State;
+use crate::base::types::chain::MockChainStatus;
+use crate::base::types::state::State;
 
 pub type PacketUID = (PortId, ChannelId, Sequence);
 pub type ConsensusState = State;

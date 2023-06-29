@@ -1,10 +1,10 @@
 use alloc::string::{String, ToString};
 use std::sync::Arc;
 
-use crate::relayer_mock::base::types::runtime::MockRuntimeContext;
-use crate::relayer_mock::contexts::chain::MockChainContext;
-use crate::relayer_mock::contexts::relay::MockRelayContext;
-use crate::relayer_mock::util::clock::MockClock;
+use crate::base::types::runtime::MockRuntimeContext;
+use crate::contexts::chain::MockChainContext;
+use crate::contexts::relay::MockRelayContext;
+use crate::util::clock::MockClock;
 
 pub fn build_mock_relay_context() -> (
     MockRelayContext,

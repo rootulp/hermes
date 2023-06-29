@@ -8,7 +8,7 @@ use ibc_relayer_components::relay::impls::packet_relayers::receive::base_receive
 use ibc_relayer_components::relay::impls::packet_relayers::receive::skip_received_packet::SkipReceivedPacketRelayer;
 use ibc_relayer_components::relay::impls::packet_relayers::timeout_unordered::timeout_unordered_packet::BaseTimeoutUnorderedPacketRelayer;
 
-use crate::relayer_mock::base::impls::relay::MockBuildUpdateClientMessage;
+use crate::base::impls::relay::MockBuildUpdateClientMessage;
 
 pub type IbcMessageSender = SendIbcMessagesWithUpdateClient<SendIbcMessagesToChain>;
 

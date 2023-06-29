@@ -1,8 +1,8 @@
 use alloc::string::String;
 use std::sync::Arc;
 
-use crate::relayer_mock::base::types::runtime::MockRuntimeContext;
-use crate::relayer_mock::contexts::chain::MockChainContext;
+use crate::base::types::runtime::MockRuntimeContext;
+use crate::contexts::chain::MockChainContext;
 
 pub struct MockRelayContext {
     pub src_chain: Arc<MockChainContext>,

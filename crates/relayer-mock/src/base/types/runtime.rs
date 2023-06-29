@@ -8,8 +8,8 @@ use ibc_relayer_components::runtime::traits::time::HasTime;
 use async_trait::async_trait;
 use ibc_relayer_runtime::tokio::error::Error as TokioError;
 
-use crate::relayer_mock::base::types::aliases::MockTimestamp;
-use crate::relayer_mock::util::clock::MockClock;
+use crate::base::types::aliases::MockTimestamp;
+use crate::util::clock::MockClock;
 
 pub struct MockRuntimeContext {
     pub clock: Arc<MockClock>,

@@ -2,7 +2,10 @@ extern crate alloc;
 extern crate std;
 
 #[forbid(clippy::unwrap_used)]
-pub mod relayer_mock;
+pub mod base;
+pub mod components;
+pub mod contexts;
+pub mod util;
 
 #[cfg(test)]
 pub mod tests;

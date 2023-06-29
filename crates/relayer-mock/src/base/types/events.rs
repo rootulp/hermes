@@ -1,5 +1,5 @@
-use crate::relayer_mock::base::types::aliases::MockTimestamp;
-use crate::relayer_mock::base::types::height::Height;
+use crate::base::types::aliases::MockTimestamp;
+use crate::base::types::height::Height;
 
 #[derive(Debug, PartialEq)]
 pub enum Event {
