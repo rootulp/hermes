@@ -25,5 +25,6 @@ ibc-relayer-components-extra = { version = "0.1.0", path = "../relayer-component
 ibc-telemetry = { version = "0.24.1", path = "../telemetry" }
 
 async-trait = "0.1.56"
+ics23 = "0.10.1"
 tokio = "1.24"
 tracing = "0.1.36"
