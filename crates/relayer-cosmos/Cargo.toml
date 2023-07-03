@@ -9,7 +9,7 @@ repository   = "https://github.com/informalsystems/ibc-rs"
 authors      = ["Informal Systems <hello@informal.systems>"]
 rust-version = "1.68"
 description  = """
-    Implementation of an IBC Relayer in Rust, as a library
+    An IBC relayer for relaying to and from Cosmos chains, implemented using Informal Systems' relayer framework.
 """
 
 [package.metadata.docs.rs]

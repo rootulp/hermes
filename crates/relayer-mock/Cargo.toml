@@ -9,7 +9,7 @@ repository   = "https://github.com/informalsystems/ibc-rs"
 authors      = ["Informal Systems <hello@informal.systems>"]
 rust-version = "1.68"
 description  = """
-    TBD
+    A mock IBC relayer implementation intended for ensuring the relayer framework is tested and correct.
 """
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

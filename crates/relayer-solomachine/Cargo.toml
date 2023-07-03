@@ -1,8 +1,29 @@
 [package]
-name = "relayer-solomachine"
+name = "ibc-relayer-solomachine"
 version = "0.1.0"
 edition = "2021"
+license      = "Apache-2.0"
+readme       = "README.md"
+keywords     = ["blockchain", "consensus", "cosmos", "ibc", "tendermint"]
+repository   = "https://github.com/informalsystems/hermes"
+authors      = ["Informal Systems <hello@informal.systems>"]
+rust-version = "1.68"
+description  = """
+    An IBC relayer for relaying to and from Solomachine chains, implemented using Informal Systems' relayer framework.
+"""
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ibc-proto = { version = "0.32.0" }
+ibc-relayer = { version = "0.24.1", path = "../relayer" }
+ibc-relayer-types = { version = "0.24.1", path = "../relayer-types" }
+ibc-relayer-runtime = { version = "0.1.0", path = "../relayer-runtime" }
+ibc-relayer-all-in-one = { version = "0.1.0", path = "../relayer-all-in-one" }
+ibc-relayer-components = { version = "0.1.0", path = "../relayer-components" }
+ibc-relayer-components-extra = { version = "0.1.0", path = "../relayer-components-extra" }
+ibc-telemetry = { version = "0.24.1", path = "../telemetry" }
+
+async-trait = "0.1.56"
+tokio = "1.24"
+tracing = "0.1.36"
