@@ -8,7 +8,7 @@
    [context-generic programming](https://informalsystems.github.io/context-generic-programming/).
 
    In its essence, context-generic programming takes regular methods
-   implemented in object-oriented programming (OOP) style, and turn
+   implemented in object-oriented programming (OOP) style, and turns
    them into modular components that can work over a generic context.
 
    For example, consider the following OOP-style code:
@@ -53,7 +53,7 @@
    provider module. This may come with many downsides, in particular if the
    `AppContext` type implemented by the `provider` module is very complex.
    Aside from `perform_action`, the `provider` module may also implement
-   many other methods, which the `consumer` module do not really need,
+   many other methods, which the `consumer` module might not actually need,
    such as `perform_another_action`.
 
    Context-generic programming offers a way to break down the monolithic design

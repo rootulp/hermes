@@ -13,7 +13,7 @@
     There is currently one official concrete implementation of the relayer,
     `ibc-relayer-cosmos`, which implements IBC relaying between two Cosmos
     SDK chains. There are also plans to provide other implementations of the
-    relayer, such as support for non-SDK chains and non-Cosmos chains.
+    relayer, such as ones that provide support for non-SDK chains and non-Cosmos chains.
 
     ## Context-Generic Programming
 
@@ -42,7 +42,7 @@
     _[all-in-one traits](crate::docs::context_generic_programming#all-in-one-traits)_
     for users to
     easily implement and use custom relayers. The all-in-one traits are
-    configured with a _preset_ list of components, and is best suited
+    configured with a _preset_ list of components, and are best suited
     for users who find the presets to be sufficient.
 
     A good starting point to learn about the all-in-one traits is to look at
@@ -51,7 +51,7 @@
     [`OfaBaseRelay`](base::one_for_all::traits::relay::OfaBaseRelay).
 
     There are currently two all-in-one variants of the relayer. The
-    [`base`] or minimal variant expose the minimal set of requirements
+    [`base`], or minimal, variant exposes the minimal set of requirements
     that a context needs to implement in order to construct a minimal
     relayer. The [`extra`] variant requires the context to implement
     additional traits, such as
