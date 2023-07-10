@@ -15,6 +15,7 @@ description  = """
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+basecoin-rs = { git = "https://github.com/informalsystems/basecoin-rs.git" }
 ibc-proto = { version = "0.32.0" }
 ibc-relayer = { version = "0.24.1", path = "../relayer" }
 ibc-relayer-types = { version = "0.24.1", path = "../relayer-types" }
