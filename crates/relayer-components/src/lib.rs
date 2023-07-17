@@ -9,6 +9,7 @@ extern crate alloc;
 pub mod builder;
 pub mod chain;
 pub mod core;
+pub mod link;
 pub mod logger;
 pub mod relay;
 pub mod runtime;

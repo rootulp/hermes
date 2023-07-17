@@ -7,16 +7,9 @@
 
 pub mod chain;
 pub mod chain_id;
-pub mod channel;
-pub mod client_state;
 pub mod commitment;
-pub mod connection;
-pub mod consensus_state;
 pub mod event;
 pub mod height;
-pub mod ibc;
-pub mod ibc_events;
 pub mod message;
-pub mod packet;
 pub mod status;
 pub mod timestamp;
