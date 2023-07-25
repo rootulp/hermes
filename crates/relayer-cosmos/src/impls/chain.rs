@@ -1,17 +1,14 @@
 use alloc::sync::Arc;
-
 use async_trait::async_trait;
-use ibc_relayer::chain::counterparty::counterparty_chain_from_channel;
+use ibc_relayer::chain::client::ClientSettings;
 use ibc_relayer::chain::endpoint::ChainStatus;
 use ibc_relayer::chain::handle::ChainHandle;
-use ibc_relayer::chain::requests::{
-    IncludeProof, Qualified, QueryConsensusStateRequest, QueryHeight, QueryUnreceivedPacketsRequest,
+use ibc_relayer::event::{
+    channel_open_init_try_from_abci_event, channel_open_try_try_from_abci_event,
+    connection_open_ack_try_from_abci_event, connection_open_try_try_from_abci_event,
+    extract_packet_and_write_ack_from_tx,
 };
-use ibc_relayer::consensus_state::AnyConsensusState;
-use ibc_relayer::event::extract_packet_and_write_ack_from_tx;
-use ibc_relayer::link::packet_events::query_write_ack_events;
-use ibc_relayer::path::PathIdentifiers;
-use ibc_relayer_all_in_one::one_for_all::traits::chain::{OfaChain, OfaIbcChain};
+use ibc_relayer_all_in_one::one_for_all::traits::chain::{OfaChain, OfaChainTypes, OfaIbcChain};
 use ibc_relayer_all_in_one::one_for_all::types::runtime::OfaRuntimeWrapper;
 use ibc_relayer_all_in_one::one_for_all::types::telemetry::OfaTelemetryWrapper;
 use ibc_relayer_components::chain::traits::message_sender::CanSendMessages;
@@ -20,33 +17,68 @@ use ibc_relayer_runtime::tokio::context::TokioRuntimeContext;
 use ibc_relayer_runtime::tokio::error::Error as TokioError;
 use ibc_relayer_runtime::tokio::logger::tracing::TracingLogger;
 use ibc_relayer_runtime::tokio::logger::value::LogValue;
+use ibc_relayer_types::clients::ics07_tendermint::client_state::ClientState;
 use ibc_relayer_types::clients::ics07_tendermint::consensus_state::ConsensusState;
+use ibc_relayer_types::core::ics02_client::events::CLIENT_ID_ATTRIBUTE_KEY;
+use ibc_relayer_types::core::ics03_connection::connection::ConnectionEnd;
+use ibc_relayer_types::core::ics03_connection::version::Version as ConnectionVersion;
 use ibc_relayer_types::core::ics04_channel::events::{SendPacket, WriteAcknowledgement};
-use ibc_relayer_types::core::ics04_channel::msgs::acknowledgement::MsgAcknowledgement;
-use ibc_relayer_types::core::ics04_channel::msgs::recv_packet::MsgRecvPacket;
-use ibc_relayer_types::core::ics04_channel::msgs::timeout::MsgTimeout;
 use ibc_relayer_types::core::ics04_channel::packet::Packet;
-use ibc_relayer_types::core::ics04_channel::packet::PacketMsgType;
 use ibc_relayer_types::core::ics04_channel::packet::Sequence;
 use ibc_relayer_types::core::ics04_channel::timeout::TimeoutHeight;
 use ibc_relayer_types::core::ics24_host::identifier::{
     ChainId, ChannelId, ClientId, ConnectionId, PortId,
 };
-use ibc_relayer_types::events::{IbcEvent, IbcEventType};
+use ibc_relayer_types::events::IbcEventType;
 use ibc_relayer_types::signer::Signer;
 use ibc_relayer_types::timestamp::Timestamp;
-use ibc_relayer_types::tx_msg::Msg;
 use ibc_relayer_types::Height;
 use prost::Message as _;
 use tendermint::abci::Event as AbciEvent;
 
 use crate::contexts::chain::CosmosChain;
+use crate::methods::chain::query_chain_status;
+use crate::methods::channel::{
+    build_channel_open_ack_message, build_channel_open_ack_payload,
+    build_channel_open_confirm_message, build_channel_open_confirm_payload,
+    build_channel_open_init_message, build_channel_open_try_message,
+    build_channel_open_try_payload, query_chain_id_from_channel_id,
+};
+use crate::methods::client_state::query_client_state;
+use crate::methods::connection::{
+    build_connection_open_ack_message, build_connection_open_ack_payload,
+    build_connection_open_confirm_message, build_connection_open_confirm_payload,
+    build_connection_open_init_message, build_connection_open_init_payload,
+    build_connection_open_try_message, build_connection_open_try_payload,
+};
+use crate::methods::consensus_state::{find_consensus_state_height_before, query_consensus_state};
+use crate::methods::create_client::{build_create_client_message, build_create_client_payload};
+use crate::methods::packet::{
+    build_ack_packet_message, build_ack_packet_payload, build_receive_packet_message,
+    build_receive_packet_payload, build_timeout_unordered_packet_message,
+    build_timeout_unordered_packet_payload, query_is_packet_received,
+    query_write_acknowledgement_event, CosmosAckPacketPayload, CosmosReceivePacketPayload,
+    CosmosTimeoutUnorderedPacketPayload,
+};
+use crate::methods::update_client::{build_update_client_message, build_update_client_payload};
+use crate::traits::message::CosmosMessage;
+use crate::types::channel::{
+    CosmosChannelOpenAckPayload, CosmosChannelOpenConfirmPayload, CosmosChannelOpenInitEvent,
+    CosmosChannelOpenTryEvent, CosmosChannelOpenTryPayload, CosmosInitChannelOptions,
+};
+use crate::types::client::{
+    CosmosCreateClientEvent, CosmosCreateClientPayload, CosmosUpdateClientPayload,
+};
+use crate::types::connection::{
+    CosmosConnectionOpenAckPayload, CosmosConnectionOpenConfirmPayload,
+    CosmosConnectionOpenInitEvent, CosmosConnectionOpenInitPayload, CosmosConnectionOpenTryEvent,
+    CosmosConnectionOpenTryPayload, CosmosInitConnectionOptions,
+};
 use crate::types::error::{BaseError, Error};
-use crate::types::message::CosmosIbcMessage;
 use crate::types::telemetry::CosmosTelemetry;
 
 #[async_trait]
-impl<Chain> OfaChain for CosmosChain<Chain>
+impl<Chain> OfaChainTypes for CosmosChain<Chain>
 where
     Chain: ChainHandle,
 {
@@ -62,7 +94,7 @@ where
 
     type Timestamp = Timestamp;
 
-    type Message = CosmosIbcMessage;
+    type Message = Arc<dyn CosmosMessage>;
 
     type Event = Arc<AbciEvent>;
 
@@ -86,6 +118,62 @@ where
 
     type SendPacketEvent = SendPacket;
 
+    type IncomingPacket = Packet;
+
+    type OutgoingPacket = Packet;
+
+    type ClientState = ClientState;
+
+    type CreateClientPayloadOptions = ClientSettings;
+
+    type CreateClientPayload = CosmosCreateClientPayload;
+
+    type CreateClientEvent = CosmosCreateClientEvent;
+
+    type UpdateClientPayload = CosmosUpdateClientPayload;
+
+    type ConnectionVersion = ConnectionVersion;
+
+    type ConnectionDetails = ConnectionEnd;
+
+    type ConnectionOpenInitEvent = CosmosConnectionOpenInitEvent;
+
+    type ConnectionOpenTryEvent = CosmosConnectionOpenTryEvent;
+
+    type InitConnectionOptions = CosmosInitConnectionOptions;
+
+    type ConnectionOpenInitPayload = CosmosConnectionOpenInitPayload;
+
+    type ConnectionOpenTryPayload = CosmosConnectionOpenTryPayload;
+
+    type ConnectionOpenAckPayload = CosmosConnectionOpenAckPayload;
+
+    type ConnectionOpenConfirmPayload = CosmosConnectionOpenConfirmPayload;
+
+    type InitChannelOptions = CosmosInitChannelOptions;
+
+    type ChannelOpenTryPayload = CosmosChannelOpenTryPayload;
+
+    type ChannelOpenAckPayload = CosmosChannelOpenAckPayload;
+
+    type ChannelOpenConfirmPayload = CosmosChannelOpenConfirmPayload;
+
+    type ChannelOpenInitEvent = CosmosChannelOpenInitEvent;
+
+    type ChannelOpenTryEvent = CosmosChannelOpenTryEvent;
+
+    type ReceivePacketPayload = CosmosReceivePacketPayload;
+
+    type AckPacketPayload = CosmosAckPacketPayload;
+
+    type TimeoutUnorderedPacketPayload = CosmosTimeoutUnorderedPacketPayload;
+}
+
+#[async_trait]
+impl<Chain> OfaChain for CosmosChain<Chain>
+where
+    Chain: ChainHandle,
+{
     fn runtime(&self) -> &OfaRuntimeWrapper<TokioRuntimeContext> {
         &self.runtime
     }
@@ -106,12 +194,14 @@ where
         &self.telemetry
     }
 
-    fn increment_height(height: &Self::Height) -> Result<Self::Height, Self::Error> {
+    fn increment_height(height: &Height) -> Result<Height, Error> {
         Ok(height.increment())
     }
 
-    fn estimate_message_size(message: &CosmosIbcMessage) -> Result<usize, Error> {
-        let raw = (message.to_protobuf_fn)(&Signer::dummy()).map_err(BaseError::encode)?;
+    fn estimate_message_size(message: &Arc<dyn CosmosMessage>) -> Result<usize, Error> {
+        let raw = message
+            .encode_protobuf(&Signer::dummy())
+            .map_err(BaseError::encode)?;
 
         Ok(raw.encoded_len())
     }
@@ -125,8 +215,8 @@ where
     }
 
     fn try_extract_write_acknowledgement_event(
-        event: &Self::Event,
-    ) -> Option<Self::WriteAcknowledgementEvent> {
+        event: &Arc<AbciEvent>,
+    ) -> Option<WriteAcknowledgement> {
         if let IbcEventType::WriteAck = event.kind.parse().ok()? {
             let (packet, write_ack) = extract_packet_and_write_ack_from_tx(event).ok()?;
 
@@ -141,51 +231,200 @@ where
         }
     }
 
+    fn try_extract_send_packet_event(event: &Arc<AbciEvent>) -> Option<SendPacket> {
+        let event_type = event.kind.parse().ok()?;
+
+        if let IbcEventType::SendPacket = event_type {
+            let (packet, _) = extract_packet_and_write_ack_from_tx(event).ok()?;
+
+            let send_packet_event = SendPacket { packet };
+
+            Some(send_packet_event)
+        } else {
+            None
+        }
+    }
+
+    fn extract_packet_from_send_packet_event(event: &SendPacket) -> Packet {
+        event.packet.clone()
+    }
+
+    fn extract_packet_from_write_acknowledgement_event(ack: &WriteAcknowledgement) -> &Packet {
+        &ack.packet
+    }
+
+    fn try_extract_create_client_event(event: Arc<AbciEvent>) -> Option<CosmosCreateClientEvent> {
+        let event_type = event.kind.parse().ok()?;
+
+        if let IbcEventType::CreateClient = event_type {
+            for tag in &event.attributes {
+                let key = tag.key.as_str();
+                let value = tag.value.as_str();
+                if key == CLIENT_ID_ATTRIBUTE_KEY {
+                    let client_id = value.parse().ok()?;
+
+                    return Some(CosmosCreateClientEvent { client_id });
+                }
+            }
+
+            None
+        } else {
+            None
+        }
+    }
+
+    fn create_client_event_client_id(event: &CosmosCreateClientEvent) -> &ClientId {
+        &event.client_id
+    }
+
+    fn try_extract_connection_open_init_event(
+        event: Arc<AbciEvent>,
+    ) -> Option<CosmosConnectionOpenInitEvent> {
+        let event_type = event.kind.parse().ok()?;
+
+        if let IbcEventType::OpenInitConnection = event_type {
+            let open_ack_event = connection_open_ack_try_from_abci_event(&event).ok()?;
+
+            let connection_id = open_ack_event.connection_id()?.clone();
+
+            Some(CosmosConnectionOpenInitEvent { connection_id })
+        } else {
+            None
+        }
+    }
+
+    fn connection_open_init_event_connection_id(
+        event: &CosmosConnectionOpenInitEvent,
+    ) -> &ConnectionId {
+        &event.connection_id
+    }
+
+    fn try_extract_connection_open_try_event(
+        event: Arc<AbciEvent>,
+    ) -> Option<CosmosConnectionOpenTryEvent> {
+        let event_type = event.kind.parse().ok()?;
+
+        if let IbcEventType::OpenTryConnection = event_type {
+            let open_try_event = connection_open_try_try_from_abci_event(&event).ok()?;
+
+            let connection_id = open_try_event.connection_id()?.clone();
+
+            Some(CosmosConnectionOpenTryEvent { connection_id })
+        } else {
+            None
+        }
+    }
+
+    fn connection_open_try_event_connection_id(
+        event: &CosmosConnectionOpenTryEvent,
+    ) -> &ConnectionId {
+        &event.connection_id
+    }
+
+    fn try_extract_channel_open_init_event(
+        event: Arc<AbciEvent>,
+    ) -> Option<CosmosChannelOpenInitEvent> {
+        let event_type = event.kind.parse().ok()?;
+
+        if let IbcEventType::OpenInitChannel = event_type {
+            let open_init_event = channel_open_init_try_from_abci_event(&event).ok()?;
+
+            let channel_id = open_init_event.channel_id()?.clone();
+
+            Some(CosmosChannelOpenInitEvent { channel_id })
+        } else {
+            None
+        }
+    }
+
+    fn channel_open_try_event_channel_id(event: &CosmosChannelOpenTryEvent) -> &ChannelId {
+        &event.channel_id
+    }
+
+    fn try_extract_channel_open_try_event(
+        event: Arc<AbciEvent>,
+    ) -> Option<CosmosChannelOpenTryEvent> {
+        let event_type = event.kind.parse().ok()?;
+
+        if let IbcEventType::OpenTryChannel = event_type {
+            let open_try_event = channel_open_try_try_from_abci_event(&event).ok()?;
+
+            let channel_id = open_try_event.channel_id()?.clone();
+
+            Some(CosmosChannelOpenTryEvent { channel_id })
+        } else {
+            None
+        }
+    }
+
+    fn channel_open_init_event_channel_id(event: &CosmosChannelOpenInitEvent) -> &ChannelId {
+        &event.channel_id
+    }
+
     fn chain_id(&self) -> &ChainId {
         &self.chain_id
     }
 
     async fn send_messages(
         &self,
-        messages: Vec<CosmosIbcMessage>,
+        messages: Vec<Arc<dyn CosmosMessage>>,
     ) -> Result<Vec<Vec<Arc<AbciEvent>>>, Error> {
         let events = self.tx_context.send_messages(messages).await?;
 
         Ok(events)
     }
 
-    async fn query_chain_status(&self) -> Result<ChainStatus, Self::Error> {
-        let chain_handle = self.handle.clone();
-
-        self.runtime
-            .runtime
-            .runtime
-            .spawn_blocking(move || {
-                let status = chain_handle
-                    .query_application_status()
-                    .map_err(BaseError::relayer)?;
-
-                Ok(status)
-            })
-            .await
-            .map_err(BaseError::join)?
+    async fn query_chain_status(&self) -> Result<ChainStatus, Error> {
+        query_chain_status(self).await
     }
 
-    fn event_subscription(&self) -> &Arc<dyn Subscription<Item = (Self::Height, Self::Event)>> {
+    fn event_subscription(&self) -> &Arc<dyn Subscription<Item = (Height, Arc<AbciEvent>)>> {
         &self.subscription
+    }
+
+    async fn query_write_acknowledgement_event(
+        &self,
+        packet: &Packet,
+    ) -> Result<Option<WriteAcknowledgement>, Error> {
+        query_write_acknowledgement_event(self, packet).await
     }
 }
 
 #[async_trait]
-impl<Chain, Counterparty> OfaIbcChain<CosmosChain<Counterparty>> for CosmosChain<Chain>
+impl<Chain, Counterparty> OfaIbcChain<Counterparty> for CosmosChain<Chain>
 where
     Chain: ChainHandle,
-    Counterparty: ChainHandle,
+    Counterparty: OfaChainTypes<
+        // A Cosmos chain can act as an IBC chain to a counterparty,
+        // as long as the counterparty uses the same base Cosmos types.
+        ChainId = ChainId,
+        Height = Height,
+        Timestamp = Timestamp,
+        IncomingPacket = Packet,
+        OutgoingPacket = Packet,
+        ClientId = ClientId,
+        ConnectionId = ConnectionId,
+        ChannelId = ChannelId,
+        PortId = PortId,
+        Sequence = Sequence,
+        // TODO: Support other counterparty client types and payload types
+        // provided that we can build Cosmos messages for it.
+        ClientState = ClientState,
+        ConsensusState = ConsensusState,
+        CreateClientPayload = CosmosCreateClientPayload,
+        UpdateClientPayload = CosmosUpdateClientPayload,
+        ConnectionOpenInitPayload = CosmosConnectionOpenInitPayload,
+        ConnectionOpenTryPayload = CosmosConnectionOpenTryPayload,
+        ConnectionOpenAckPayload = CosmosConnectionOpenAckPayload,
+        ConnectionOpenConfirmPayload = CosmosConnectionOpenConfirmPayload,
+        ChannelOpenTryPayload = CosmosChannelOpenTryPayload,
+        ChannelOpenAckPayload = CosmosChannelOpenAckPayload,
+        ChannelOpenConfirmPayload = CosmosChannelOpenConfirmPayload,
+        ReceivePacketPayload = CosmosReceivePacketPayload,
+        AckPacketPayload = CosmosAckPacketPayload,
+        TimeoutUnorderedPacketPayload = CosmosTimeoutUnorderedPacketPayload,
+    >,
 {
-    type IncomingPacket = Packet;
-
-    type OutgoingPacket = Packet;
-
     fn incoming_packet_src_channel_id(packet: &Packet) -> &ChannelId {
         &packet.source_channel
     }
@@ -248,6 +487,10 @@ where
         &packet.timeout_timestamp
     }
 
+    fn client_state_latest_height(client_state: &ClientState) -> &Height {
+        &client_state.latest_height
+    }
+
     fn log_incoming_packet(packet: &Packet) -> LogValue<'_> {
         LogValue::Display(packet)
     }
@@ -256,34 +499,8 @@ where
         LogValue::Display(packet)
     }
 
-    fn counterparty_message_height(message: &CosmosIbcMessage) -> Option<Height> {
-        message.source_height
-    }
-
-    fn try_extract_send_packet_event(event: &Self::Event) -> Option<Self::SendPacketEvent> {
-        let event_type = event.kind.parse().ok()?;
-
-        if let IbcEventType::SendPacket = event_type {
-            let (packet, _) = extract_packet_and_write_ack_from_tx(event).ok()?;
-
-            let send_packet_event = SendPacket { packet };
-
-            Some(send_packet_event)
-        } else {
-            None
-        }
-    }
-
-    fn extract_packet_from_send_packet_event(
-        event: &Self::SendPacketEvent,
-    ) -> Self::OutgoingPacket {
-        event.packet.clone()
-    }
-
-    fn extract_packet_from_write_acknowledgement_event(
-        ack: &Self::WriteAcknowledgementEvent,
-    ) -> &Self::IncomingPacket {
-        &ack.packet
+    fn counterparty_message_height(message: &Arc<dyn CosmosMessage>) -> Option<Height> {
+        message.counterparty_height()
     }
 
     async fn query_chain_id_from_channel_id(
@@ -291,23 +508,11 @@ where
         channel_id: &ChannelId,
         port_id: &PortId,
     ) -> Result<ChainId, Error> {
-        let chain_handle = self.handle.clone();
+        query_chain_id_from_channel_id(self, channel_id, port_id).await
+    }
 
-        let port_id = port_id.clone();
-        let channel_id = channel_id.clone();
-
-        self.runtime
-            .runtime
-            .runtime
-            .spawn_blocking(move || {
-                let channel_id =
-                    counterparty_chain_from_channel(&chain_handle, &channel_id, &port_id)
-                        .map_err(BaseError::supervisor)?;
-
-                Ok(channel_id)
-            })
-            .await
-            .map_err(BaseError::join)?
+    async fn query_client_state(&self, client_id: &ClientId) -> Result<ClientState, Error> {
+        query_client_state(self, client_id).await
     }
 
     async fn query_consensus_state(
@@ -315,33 +520,7 @@ where
         client_id: &ClientId,
         height: &Height,
     ) -> Result<ConsensusState, Error> {
-        let chain_handle = self.handle.clone();
-
-        let client_id = client_id.clone();
-        let height = *height;
-
-        self.runtime
-            .runtime
-            .runtime
-            .spawn_blocking(move || {
-                let (any_consensus_state, _) = chain_handle
-                    .query_consensus_state(
-                        QueryConsensusStateRequest {
-                            client_id: client_id.clone(),
-                            consensus_height: height,
-                            query_height: QueryHeight::Latest,
-                        },
-                        IncludeProof::No,
-                    )
-                    .map_err(BaseError::relayer)?;
-
-                match any_consensus_state {
-                    AnyConsensusState::Tendermint(consensus_state) => Ok(consensus_state),
-                    _ => Err(BaseError::mismatch_consensus_state().into()),
-                }
-            })
-            .await
-            .map_err(BaseError::join)?
+        query_consensus_state(self, client_id, height).await
     }
 
     async fn query_is_packet_received(
@@ -350,207 +529,260 @@ where
         channel_id: &ChannelId,
         sequence: &Sequence,
     ) -> Result<bool, Error> {
-        let chain_handle = self.handle.clone();
-
-        let port_id = port_id.clone();
-        let channel_id = channel_id.clone();
-        let sequence = *sequence;
-
-        self.runtime
-            .runtime
-            .runtime
-            .spawn_blocking(move || {
-                let unreceived_packet = chain_handle
-                    .query_unreceived_packets(QueryUnreceivedPacketsRequest {
-                        port_id: port_id.clone(),
-                        channel_id: channel_id.clone(),
-                        packet_commitment_sequences: vec![sequence],
-                    })
-                    .map_err(BaseError::relayer)?;
-
-                let is_packet_received = unreceived_packet.is_empty();
-
-                Ok(is_packet_received)
-            })
-            .await
-            .map_err(BaseError::join)?
-    }
-
-    async fn query_write_acknowledgement_event(
-        &self,
-        packet: &Packet,
-    ) -> Result<Option<Self::WriteAcknowledgementEvent>, Self::Error> {
-        let status = self.query_chain_status().await?;
-
-        let query_height = Qualified::Equal(status.height);
-
-        let path_ident = PathIdentifiers {
-            port_id: packet.destination_port.clone(),
-            channel_id: packet.destination_channel.clone(),
-            counterparty_port_id: packet.source_port.clone(),
-            counterparty_channel_id: packet.source_channel.clone(),
-        };
-
-        let chain_handle = self.handle.clone();
-
-        let packet = packet.clone();
-
-        self.runtime
-            .runtime
-            .runtime
-            .spawn_blocking(move || {
-                let ibc_events = query_write_ack_events(
-                    &chain_handle,
-                    &path_ident,
-                    &[packet.sequence],
-                    query_height,
-                )
-                .map_err(BaseError::relayer)?;
-
-                let write_ack = ibc_events.into_iter().find_map(|event_with_height| {
-                    let event = event_with_height.event;
-
-                    if let IbcEvent::WriteAcknowledgement(write_ack) = event {
-                        Some(write_ack)
-                    } else {
-                        None
-                    }
-                });
-
-                Ok(write_ack)
-            })
-            .await
-            .map_err(BaseError::join)?
+        query_is_packet_received(self, port_id, channel_id, sequence).await
     }
 
     /// Construct a receive packet to be sent to a destination Cosmos
     /// chain from a source Cosmos chain.
-    async fn build_receive_packet_message(
+    async fn build_receive_packet_payload(
         &self,
         height: &Height,
         packet: &Packet,
-    ) -> Result<CosmosIbcMessage, Self::Error> {
-        let height = *height;
-        let packet = packet.clone();
+    ) -> Result<CosmosReceivePacketPayload, Error> {
+        build_receive_packet_payload(self, height, packet).await
+    }
 
-        let chain_handle = self.handle.clone();
-
-        self.runtime
-            .runtime
-            .runtime
-            .spawn_blocking(move || {
-                let proofs = chain_handle
-                    .build_packet_proofs(
-                        PacketMsgType::Recv,
-                        &packet.source_port,
-                        &packet.source_channel,
-                        packet.sequence,
-                        height,
-                    )
-                    .map_err(BaseError::relayer)?;
-
-                let packet = packet.clone();
-
-                let message = CosmosIbcMessage::new(Some(height), move |signer| {
-                    Ok(MsgRecvPacket::new(packet.clone(), proofs.clone(), signer.clone()).to_any())
-                });
-
-                Ok(message)
-            })
-            .await
-            .map_err(BaseError::join)?
+    async fn build_receive_packet_message(
+        &self,
+        payload: CosmosReceivePacketPayload,
+    ) -> Result<Arc<dyn CosmosMessage>, Error> {
+        build_receive_packet_message(payload)
     }
 
     /// Construct an acknowledgement packet to be sent from a Cosmos
     /// chain that successfully received a packet from another Cosmos
     /// chain.
-    async fn build_ack_packet_message(
+    async fn build_ack_packet_payload(
         &self,
         height: &Height,
         packet: &Packet,
-        ack: &Self::WriteAcknowledgementEvent,
-    ) -> Result<CosmosIbcMessage, Self::Error> {
-        let height = *height;
-        let packet = packet.clone();
-        let ack = ack.clone();
+        ack: &WriteAcknowledgement,
+    ) -> Result<CosmosAckPacketPayload, Error> {
+        build_ack_packet_payload(self, height, packet, ack).await
+    }
 
-        let chain_handle = self.handle.clone();
-
-        self.runtime
-            .runtime
-            .runtime
-            .spawn_blocking(move || {
-                let proofs = chain_handle
-                    .build_packet_proofs(
-                        PacketMsgType::Ack,
-                        &packet.destination_port,
-                        &packet.destination_channel,
-                        packet.sequence,
-                        height,
-                    )
-                    .map_err(BaseError::relayer)?;
-
-                let packet = packet.clone();
-                let ack = ack.ack.clone();
-
-                let message = CosmosIbcMessage::new(Some(height), move |signer| {
-                    Ok(MsgAcknowledgement::new(
-                        packet.clone(),
-                        ack.clone().into(),
-                        proofs.clone(),
-                        signer.clone(),
-                    )
-                    .to_any())
-                });
-
-                Ok(message)
-            })
-            .await
-            .map_err(BaseError::join)?
+    async fn build_ack_packet_message(
+        &self,
+        payload: CosmosAckPacketPayload,
+    ) -> Result<Arc<dyn CosmosMessage>, Error> {
+        build_ack_packet_message(payload)
     }
 
     /// Construct a timeout packet message to be sent between Cosmos chains
     /// over an unordered channel in the event that a packet that originated
     /// from a source chain was not received.
-    async fn build_timeout_unordered_packet_message(
+    async fn build_timeout_unordered_packet_payload(
         &self,
         height: &Height,
         packet: &Packet,
-    ) -> Result<CosmosIbcMessage, Self::Error> {
-        let height = *height;
-        let packet = packet.clone();
+    ) -> Result<CosmosTimeoutUnorderedPacketPayload, Error> {
+        build_timeout_unordered_packet_payload(self, height, packet).await
+    }
 
-        let chain_handle = self.handle.clone();
+    async fn build_timeout_unordered_packet_message(
+        &self,
+        payload: CosmosTimeoutUnorderedPacketPayload,
+    ) -> Result<Arc<dyn CosmosMessage>, Error> {
+        build_timeout_unordered_packet_message(payload)
+    }
 
-        self.runtime
-            .runtime
-            .runtime
-            .spawn_blocking(move || {
-                let proofs = chain_handle
-                    .build_packet_proofs(
-                        PacketMsgType::TimeoutUnordered,
-                        &packet.destination_port,
-                        &packet.destination_channel,
-                        packet.sequence,
-                        height,
-                    )
-                    .map_err(BaseError::relayer)?;
+    async fn build_create_client_payload(
+        &self,
+        client_settings: &ClientSettings,
+    ) -> Result<CosmosCreateClientPayload, Error> {
+        build_create_client_payload(self, client_settings).await
+    }
 
-                let packet = packet.clone();
+    async fn build_create_client_message(
+        &self,
+        payload: CosmosCreateClientPayload,
+    ) -> Result<Arc<dyn CosmosMessage>, Error> {
+        build_create_client_message(payload)
+    }
 
-                let message = CosmosIbcMessage::new(Some(height), move |signer| {
-                    Ok(MsgTimeout::new(
-                        packet.clone(),
-                        packet.sequence,
-                        proofs.clone(),
-                        signer.clone(),
-                    )
-                    .to_any())
-                });
+    async fn build_update_client_payload(
+        &self,
+        trusted_height: &Height,
+        target_height: &Height,
+        client_state: ClientState,
+    ) -> Result<CosmosUpdateClientPayload, Error> {
+        build_update_client_payload(self, trusted_height, target_height, client_state).await
+    }
 
-                Ok(message)
-            })
-            .await
-            .map_err(BaseError::join)?
+    async fn build_update_client_message(
+        &self,
+        client_id: &ClientId,
+        payload: CosmosUpdateClientPayload,
+    ) -> Result<Vec<Arc<dyn CosmosMessage>>, Error> {
+        build_update_client_message(client_id, payload)
+    }
+
+    async fn find_consensus_state_height_before(
+        &self,
+        client_id: &ClientId,
+        target_height: &Height,
+    ) -> Result<Height, Error> {
+        find_consensus_state_height_before(self, client_id, target_height).await
+    }
+
+    async fn build_connection_open_init_payload(
+        &self,
+    ) -> Result<CosmosConnectionOpenInitPayload, Error> {
+        build_connection_open_init_payload(self).await
+    }
+
+    async fn build_connection_open_try_payload(
+        &self,
+        height: &Height,
+        client_id: &ClientId,
+        connection_id: &ConnectionId,
+    ) -> Result<CosmosConnectionOpenTryPayload, Error> {
+        build_connection_open_try_payload(self, height, client_id, connection_id).await
+    }
+
+    async fn build_connection_open_ack_payload(
+        &self,
+        height: &Height,
+        client_id: &ClientId,
+        connection_id: &ConnectionId,
+    ) -> Result<CosmosConnectionOpenAckPayload, Error> {
+        build_connection_open_ack_payload(self, height, client_id, connection_id).await
+    }
+
+    async fn build_connection_open_confirm_payload(
+        &self,
+        height: &Height,
+        client_id: &ClientId,
+        connection_id: &ConnectionId,
+    ) -> Result<CosmosConnectionOpenConfirmPayload, Error> {
+        build_connection_open_confirm_payload(self, height, client_id, connection_id).await
+    }
+
+    async fn build_connection_open_init_message(
+        &self,
+        client_id: &ClientId,
+        counterparty_client_id: &ClientId,
+        init_connection_options: &CosmosInitConnectionOptions,
+        counterparty_payload: CosmosConnectionOpenInitPayload,
+    ) -> Result<Arc<dyn CosmosMessage>, Error> {
+        build_connection_open_init_message(
+            self,
+            client_id,
+            counterparty_client_id,
+            init_connection_options,
+            counterparty_payload,
+        )
+        .await
+    }
+
+    async fn build_connection_open_try_message(
+        &self,
+        client_id: &ClientId,
+        counterparty_client_id: &ClientId,
+        counterparty_connection_id: &ConnectionId,
+        counterparty_payload: CosmosConnectionOpenTryPayload,
+    ) -> Result<Arc<dyn CosmosMessage>, Error> {
+        build_connection_open_try_message(
+            client_id,
+            counterparty_client_id,
+            counterparty_connection_id,
+            counterparty_payload,
+        )
+    }
+
+    async fn build_connection_open_ack_message(
+        &self,
+        connection_id: &ConnectionId,
+        counterparty_connection_id: &ConnectionId,
+        counterparty_payload: CosmosConnectionOpenAckPayload,
+    ) -> Result<Arc<dyn CosmosMessage>, Error> {
+        build_connection_open_ack_message(
+            connection_id,
+            counterparty_connection_id,
+            counterparty_payload,
+        )
+    }
+
+    async fn build_connection_open_confirm_message(
+        &self,
+        connection_id: &ConnectionId,
+        counterparty_payload: CosmosConnectionOpenConfirmPayload,
+    ) -> Result<Arc<dyn CosmosMessage>, Error> {
+        build_connection_open_confirm_message(connection_id, counterparty_payload)
+    }
+
+    async fn build_channel_open_try_payload(
+        &self,
+        height: &Height,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+    ) -> Result<CosmosChannelOpenTryPayload, Error> {
+        build_channel_open_try_payload(self, height, port_id, channel_id).await
+    }
+
+    async fn build_channel_open_ack_payload(
+        &self,
+        height: &Height,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+    ) -> Result<CosmosChannelOpenAckPayload, Error> {
+        build_channel_open_ack_payload(self, height, port_id, channel_id).await
+    }
+
+    async fn build_channel_open_confirm_payload(
+        &self,
+        height: &Height,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+    ) -> Result<CosmosChannelOpenConfirmPayload, Error> {
+        build_channel_open_confirm_payload(self, height, port_id, channel_id).await
+    }
+
+    async fn build_channel_open_init_message(
+        &self,
+        port_id: &PortId,
+        counterparty_port_id: &PortId,
+        init_channel_options: &CosmosInitChannelOptions,
+    ) -> Result<Arc<dyn CosmosMessage>, Error> {
+        build_channel_open_init_message(port_id, counterparty_port_id, init_channel_options)
+    }
+
+    async fn build_channel_open_try_message(
+        &self,
+        port_id: &PortId,
+        counterparty_port_id: &PortId,
+        counterparty_channel_id: &ChannelId,
+        counterparty_payload: CosmosChannelOpenTryPayload,
+    ) -> Result<Arc<dyn CosmosMessage>, Error> {
+        build_channel_open_try_message(
+            port_id,
+            counterparty_port_id,
+            counterparty_channel_id,
+            counterparty_payload,
+        )
+    }
+
+    async fn build_channel_open_ack_message(
+        &self,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        counterparty_channel_id: &ChannelId,
+        counterparty_payload: CosmosChannelOpenAckPayload,
+    ) -> Result<Arc<dyn CosmosMessage>, Error> {
+        build_channel_open_ack_message(
+            port_id,
+            channel_id,
+            counterparty_channel_id,
+            counterparty_payload,
+        )
+    }
+
+    async fn build_channel_open_confirm_message(
+        &self,
+        port_id: &PortId,
+        channel_id: &ChannelId,
+        counterparty_payload: CosmosChannelOpenConfirmPayload,
+    ) -> Result<Arc<dyn CosmosMessage>, Error> {
+        build_channel_open_confirm_message(port_id, channel_id, counterparty_payload)
     }
 }

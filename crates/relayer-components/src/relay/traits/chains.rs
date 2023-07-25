@@ -1,4 +1,4 @@
-use crate::chain::traits::types::packet::HasIbcPacketTypes;
+use crate::chain::traits::types::packet::{HasIbcPacketFields, HasIbcPacketTypes};
 use crate::chain::types::aliases::ClientId;
 use crate::core::traits::error::HasErrorType;
 
@@ -10,7 +10,7 @@ use crate::core::traits::error::HasErrorType;
     connected to each others. This is reflected by both types being required
     to implement [`HasIbcPacketTypes`] with each others being the counterparty.
 
-    The relay context also has an abstract [`Packet`](Self::Packet) type, which
+    The relay context also has an abstract [`Packet`](crate::relay::traits::packet::HasRelayPacket::Packet) type, which
     represents the IBC packet sent from the source chain to the destination
     chain. In other words, the relay context only covers relaying of IBC packets
     in one direction. To support bi-directional relaying between two chains,
@@ -35,17 +35,17 @@ pub trait HasRelayChains: HasErrorType {
         A source chain context that has the IBC chain types that are correspond
         to the destination chain.
     */
-    type SrcChain: HasIbcPacketTypes<Self::DstChain>;
+    type SrcChain: HasIbcPacketFields<Self::DstChain> + HasErrorType;
 
     /**
         A destination chain context that has the IBC chain types that are correspond
         to the source chain.
     */
-    type DstChain: HasIbcPacketTypes<
-        Self::SrcChain,
-        IncomingPacket = <Self::SrcChain as HasIbcPacketTypes<Self::DstChain>>::OutgoingPacket,
-        OutgoingPacket = <Self::SrcChain as HasIbcPacketTypes<Self::DstChain>>::IncomingPacket,
-    >;
+    type DstChain: HasIbcPacketFields<
+            Self::SrcChain,
+            IncomingPacket = <Self::SrcChain as HasIbcPacketTypes<Self::DstChain>>::OutgoingPacket,
+            OutgoingPacket = <Self::SrcChain as HasIbcPacketTypes<Self::DstChain>>::IncomingPacket,
+        > + HasErrorType;
 
     /**
         Get a reference to the source chain context from the relay context.

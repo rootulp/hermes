@@ -1,7 +1,12 @@
 use ibc_relayer_components::chain::types::aliases::{IncomingPacket, OutgoingPacket};
 use ibc_relayer_components::logger::traits::level::HasLoggerWithBaseLevels;
+use ibc_relayer_components::relay::impls::client::create::CanCreateClient;
 use ibc_relayer_components::relay::traits::auto_relayer::CanAutoRelay;
 use ibc_relayer_components::relay::traits::chains::HasRelayChains;
+use ibc_relayer_components::relay::traits::channel::open_handshake::CanRelayChannelOpenHandshake;
+use ibc_relayer_components::relay::traits::channel::open_init::CanInitChannel;
+use ibc_relayer_components::relay::traits::connection::open_handshake::CanRelayConnectionOpenHandshake;
+use ibc_relayer_components::relay::traits::connection::open_init::CanInitConnection;
 use ibc_relayer_components::relay::traits::event_relayer::CanRelayEvent;
 use ibc_relayer_components::relay::traits::ibc_message_sender::CanSendIbcMessages;
 use ibc_relayer_components::relay::traits::messages::update_client::CanBuildUpdateClientMessage;
@@ -40,6 +45,12 @@ pub trait AfoRelay:
     + CanRelayTimeoutUnorderedPacket
     + CanSendIbcMessagesFromBatchWorker<SourceTarget>
     + CanSendIbcMessagesFromBatchWorker<DestinationTarget>
+    + CanCreateClient<SourceTarget>
+    + CanCreateClient<DestinationTarget>
+    + CanInitConnection
+    + CanRelayConnectionOpenHandshake
+    + CanInitChannel
+    + CanRelayChannelOpenHandshake
     + SupportsPacketRetry
 {
     type AfoSrcChain: AfoChain<Self::AfoDstChain>;
@@ -74,6 +85,12 @@ where
         + CanRelayTimeoutUnorderedPacket
         + CanSendIbcMessagesFromBatchWorker<SourceTarget>
         + CanSendIbcMessagesFromBatchWorker<DestinationTarget>
+        + CanCreateClient<SourceTarget>
+        + CanCreateClient<DestinationTarget>
+        + CanInitConnection
+        + CanRelayConnectionOpenHandshake
+        + CanInitChannel
+        + CanRelayChannelOpenHandshake
         + SupportsPacketRetry,
 {
     type AfoSrcChain = SrcChain;

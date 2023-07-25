@@ -4,16 +4,16 @@ use crate::core::traits::error::HasErrorType;
 use crate::core::traits::sync::Async;
 use crate::relay::traits::chains::HasRelayChains;
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct SourceTarget;
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct DestinationTarget;
 
-pub trait ChainTarget<Relay: HasRelayChains>: Async + Default + private::Sealed {
-    type TargetChain: HasIbcChainTypes<Self::CounterpartyChain>;
+pub trait ChainTarget<Relay: HasRelayChains>: Async + Default + Copy + private::Sealed {
+    type TargetChain: HasIbcChainTypes<Self::CounterpartyChain> + HasErrorType;
 
-    type CounterpartyChain: HasIbcChainTypes<Self::TargetChain>;
+    type CounterpartyChain: HasIbcChainTypes<Self::TargetChain> + HasErrorType;
 
     fn target_chain_error(e: <Self::TargetChain as HasErrorType>::Error) -> Relay::Error;
 
@@ -21,14 +21,14 @@ pub trait ChainTarget<Relay: HasRelayChains>: Async + Default + private::Sealed 
         e: <Self::CounterpartyChain as HasErrorType>::Error,
     ) -> Relay::Error;
 
-    fn target_chain(context: &Relay) -> &Self::TargetChain;
+    fn target_chain(relay: &Relay) -> &Self::TargetChain;
 
-    fn counterparty_chain(context: &Relay) -> &Self::CounterpartyChain;
+    fn counterparty_chain(relay: &Relay) -> &Self::CounterpartyChain;
 
-    fn target_client_id(context: &Relay) -> &ClientId<Self::TargetChain, Self::CounterpartyChain>;
+    fn target_client_id(relay: &Relay) -> &ClientId<Self::TargetChain, Self::CounterpartyChain>;
 
     fn counterparty_client_id(
-        context: &Relay,
+        relay: &Relay,
     ) -> &ClientId<Self::CounterpartyChain, Self::TargetChain>;
 }
 

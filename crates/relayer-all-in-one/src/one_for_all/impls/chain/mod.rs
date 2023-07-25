@@ -1,3 +1,6 @@
+pub mod channel;
+pub mod client;
+pub mod connection;
 pub mod error;
 pub mod event_subscription;
 pub mod logger;

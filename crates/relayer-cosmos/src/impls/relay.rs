@@ -1,7 +1,8 @@
 use async_trait::async_trait;
+use eyre::eyre;
 use futures::channel::oneshot::{channel, Sender};
 use ibc_relayer::chain::handle::ChainHandle;
-use ibc_relayer::foreign_client::ForeignClient;
+use ibc_relayer_all_in_one::one_for_all::traits::chain::OfaChain;
 use ibc_relayer_all_in_one::one_for_all::traits::relay::OfaRelay;
 use ibc_relayer_all_in_one::one_for_all::types::chain::OfaChainWrapper;
 use ibc_relayer_all_in_one::one_for_all::types::runtime::OfaRuntimeWrapper;
@@ -9,15 +10,12 @@ use ibc_relayer_runtime::tokio::context::TokioRuntimeContext;
 use ibc_relayer_runtime::tokio::error::Error as TokioError;
 use ibc_relayer_runtime::tokio::logger::tracing::TracingLogger;
 use ibc_relayer_types::core::ics04_channel::packet::Packet;
-use ibc_relayer_types::core::ics24_host::identifier::ClientId;
-use ibc_relayer_types::tx_msg::Msg;
-use ibc_relayer_types::Height;
+use ibc_relayer_types::core::ics24_host::identifier::{ChannelId, ClientId, ConnectionId};
 
 use crate::contexts::chain::CosmosChain;
 use crate::contexts::relay::CosmosRelay;
 use crate::types::batch::CosmosBatchSender;
 use crate::types::error::{BaseError, Error};
-use crate::types::message::CosmosIbcMessage;
 
 pub struct PacketLock {
     pub release_sender: Option<Sender<()>>,
@@ -72,11 +70,11 @@ where
     }
 
     fn src_client_id(&self) -> &ClientId {
-        &self.dst_to_src_client.id
+        &self.src_client_id
     }
 
     fn dst_client_id(&self) -> &ClientId {
-        &self.src_to_dst_client.id
+        &self.dst_client_id
     }
 
     fn src_chain(&self) -> &OfaChainWrapper<Self::SrcChain> {
@@ -85,36 +83,6 @@ where
 
     fn dst_chain(&self) -> &OfaChainWrapper<Self::DstChain> {
         &self.dst_chain
-    }
-
-    async fn build_src_update_client_messages(
-        &self,
-        height: &Height,
-    ) -> Result<Vec<CosmosIbcMessage>, Self::Error> {
-        let height = *height;
-        let client = self.dst_to_src_client.clone();
-
-        self.runtime
-            .runtime
-            .runtime
-            .spawn_blocking(move || build_update_client_messages(&client, height))
-            .await
-            .map_err(BaseError::join)?
-    }
-
-    async fn build_dst_update_client_messages(
-        &self,
-        height: &Height,
-    ) -> Result<Vec<CosmosIbcMessage>, Self::Error> {
-        let height = *height;
-        let client = self.src_to_dst_client.clone();
-
-        self.runtime
-            .runtime
-            .runtime
-            .spawn_blocking(move || build_update_client_messages(&client, height))
-            .await
-            .map_err(BaseError::join)?
     }
 
     async fn try_acquire_packet_lock<'a>(&'a self, packet: &'a Packet) -> Option<PacketLock> {
@@ -161,7 +129,47 @@ where
         e
     }
 
-    async fn should_relay_packet(&self, packet: &Self::Packet) -> Result<bool, Self::Error> {
+    fn missing_connection_init_event_error(&self) -> Error {
+        BaseError::generic(eyre!("missing_connection_init_event_error")).into()
+    }
+
+    fn missing_src_create_client_event_error(
+        src_chain: &Self::SrcChain,
+        dst_chain: &Self::DstChain,
+    ) -> Self::Error {
+        BaseError::generic(eyre!("missing CreateClient event when creating client from chain {} with counterparty chain {}",
+            src_chain.chain_id(),
+            dst_chain.chain_id(),
+        )).into()
+    }
+
+    fn missing_dst_create_client_event_error(
+        dst_chain: &Self::DstChain,
+        src_chain: &Self::SrcChain,
+    ) -> Self::Error {
+        BaseError::generic(eyre!("missing CreateClient event when creating client from chain {} with counterparty chain {}",
+            dst_chain.chain_id(),
+            src_chain.chain_id(),
+        )).into()
+    }
+
+    fn missing_connection_try_event_error(&self, src_connection_id: &ConnectionId) -> Error {
+        BaseError::generic(eyre!(
+            "missing_connection_try_event_error: {}",
+            src_connection_id
+        ))
+        .into()
+    }
+
+    fn missing_channel_init_event_error(&self) -> Error {
+        BaseError::generic(eyre!("missing_channel_init_event_error")).into()
+    }
+
+    fn missing_channel_try_event_error(&self, src_channel_id: &ChannelId) -> Error {
+        BaseError::generic(eyre!("missing_channel_try_event_error: {}", src_channel_id)).into()
+    }
+
+    async fn should_relay_packet(&self, packet: &Packet) -> Result<bool, Error> {
         Ok(self
             .packet_filter
             .channel_policy
@@ -175,30 +183,4 @@ where
     fn dst_chain_message_batch_sender(&self) -> &CosmosBatchSender {
         &self.dst_chain_message_batch_sender
     }
-}
-
-fn build_update_client_messages<DstChain, SrcChain>(
-    foreign_client: &ForeignClient<DstChain, SrcChain>,
-    height: Height,
-) -> Result<Vec<CosmosIbcMessage>, Error>
-where
-    SrcChain: ChainHandle,
-    DstChain: ChainHandle,
-{
-    let messages = foreign_client
-        .build_update_client_with_trusted(height, None)
-        .map_err(BaseError::foreign_client)?;
-
-    let ibc_messages = messages
-        .into_iter()
-        .map(|update_message| {
-            CosmosIbcMessage::new(Some(height), move |signer| {
-                let mut update_message = update_message.clone();
-                update_message.signer = signer.clone();
-                Ok(update_message.to_any())
-            })
-        })
-        .collect();
-
-    Ok(ibc_messages)
 }

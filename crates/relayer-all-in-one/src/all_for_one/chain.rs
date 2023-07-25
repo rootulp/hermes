@@ -1,9 +1,17 @@
+use ibc_relayer_components::chain::traits::client::create::HasCreateClientOptions;
 use ibc_relayer_components::chain::traits::queries::consensus_state::CanQueryConsensusState;
 use ibc_relayer_components::chain::traits::queries::received_packet::CanQueryReceivedPacket;
 use ibc_relayer_components::chain::traits::queries::status::CanQueryChainStatus;
+use ibc_relayer_components::chain::traits::types::chain::HasChainTypes;
+use ibc_relayer_components::chain::traits::types::channel::{
+    HasChannelHandshakePayloads, HasInitChannelOptionsType,
+};
+use ibc_relayer_components::chain::traits::types::connection::{
+    HasConnectionHandshakePayloads, HasInitConnectionOptionsType,
+};
 use ibc_relayer_components::chain::traits::types::consensus_state::HasConsensusStateType;
 use ibc_relayer_components::chain::traits::types::ibc_events::write_ack::HasWriteAcknowledgementEvent;
-use ibc_relayer_components::chain::traits::types::packet::HasIbcPacketTypes;
+use ibc_relayer_components::chain::traits::types::packet::{HasIbcPacketFields, HasIbcPacketTypes};
 use ibc_relayer_components::logger::traits::level::HasLoggerWithBaseLevels;
 use ibc_relayer_components_extra::telemetry::traits::telemetry::HasTelemetry;
 
@@ -14,12 +22,18 @@ pub trait AfoChain<Counterparty>:
     + HasAfoRuntime
     + HasLoggerWithBaseLevels
     + HasTelemetry
-    + HasIbcPacketTypes<Counterparty>
+    + HasChainTypes
+    + CanQueryChainStatus
+    + HasIbcPacketFields<Counterparty>
     + HasWriteAcknowledgementEvent<Counterparty>
     + HasConsensusStateType<Counterparty>
     + CanQueryConsensusState<Counterparty>
     + CanQueryReceivedPacket<Counterparty>
-    + CanQueryChainStatus
+    + HasCreateClientOptions<Counterparty>
+    + HasInitConnectionOptionsType<Counterparty>
+    + HasConnectionHandshakePayloads<Counterparty>
+    + HasInitChannelOptionsType<Counterparty>
+    + HasChannelHandshakePayloads<Counterparty>
 where
     Counterparty: AfoCounterpartyChain<Self>,
 {
@@ -33,7 +47,7 @@ pub trait AfoCounterpartyChain<Chain>:
         OutgoingPacket = Chain::IncomingPacket,
     >
 where
-    Chain: HasIbcPacketTypes<Self>,
+    Chain: HasIbcPacketFields<Self>,
 {
 }
 
@@ -44,20 +58,26 @@ where
         + HasAfoRuntime
         + HasLoggerWithBaseLevels
         + HasTelemetry
-        + HasIbcPacketTypes<Counterparty>
+        + HasChainTypes
+        + CanQueryChainStatus
+        + HasIbcPacketFields<Counterparty>
         + HasWriteAcknowledgementEvent<Counterparty>
         + HasConsensusStateType<Counterparty>
         + CanQueryConsensusState<Counterparty>
         + CanQueryReceivedPacket<Counterparty>
-        + CanQueryChainStatus,
+        + HasCreateClientOptions<Counterparty>
+        + HasInitConnectionOptionsType<Counterparty>
+        + HasConnectionHandshakePayloads<Counterparty>
+        + HasInitChannelOptionsType<Counterparty>
+        + HasChannelHandshakePayloads<Counterparty>,
 {
 }
 
 impl<Chain, Counterparty> AfoCounterpartyChain<Chain> for Counterparty
 where
-    Chain: HasIbcPacketTypes<Counterparty>,
+    Chain: HasIbcPacketFields<Counterparty>,
     Counterparty: HasConsensusStateType<Chain>
-        + HasIbcPacketTypes<
+        + HasIbcPacketFields<
             Chain,
             IncomingPacket = Chain::OutgoingPacket,
             OutgoingPacket = Chain::IncomingPacket,
