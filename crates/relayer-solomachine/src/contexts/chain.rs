@@ -4,8 +4,11 @@ use ibc_relayer_all_in_one::one_for_all::types::telemetry::OfaTelemetryWrapper;
 use ibc_relayer_runtime::tokio::context::TokioRuntimeContext;
 use ibc_relayer_types::core::ics24_host::identifier::ChainId;
 
+use basecoin_rs::store::InMemoryStore;
+
 #[derive(Clone)]
 pub struct SolomachineChain<Handle: ChainHandle> {
+    pub store: InMemoryStore,
     pub handle: Handle,
     pub chain_id: ChainId,
     pub runtime: OfaRuntimeWrapper<TokioRuntimeContext>,
