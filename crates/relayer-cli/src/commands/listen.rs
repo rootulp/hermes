@@ -1,7 +1,6 @@
 use alloc::sync::Arc;
 use core::{
     fmt::{Display, Error as FmtError, Formatter},
-    ops::Deref,
     str::FromStr,
 };
 use std::thread;
@@ -17,7 +16,7 @@ use tracing::{error, info, instrument};
 use ibc_relayer::{
     chain::handle::Subscription,
     config::{ChainConfig, EventSourceMode},
-    event::source::websocket::EventSource,
+    event::source::EventSource,
 };
 use ibc_relayer_types::{core::ics24_host::identifier::ChainId, events::IbcEvent};
 
@@ -97,7 +96,7 @@ impl ListenCmd {
 impl Runnable for ListenCmd {
     fn run(&self) {
         self.cmd()
-            .unwrap_or_else(|e| fatal_error(app_reader().deref(), &*e));
+            .unwrap_or_else(|e| fatal_error(app_reader(), &*e));
     }
 }
 
@@ -144,29 +143,25 @@ fn subscribe(
     compat_mode: CompatMode,
     rt: Arc<TokioRuntime>,
 ) -> eyre::Result<Subscription> {
-    let EventSourceMode::Push { url, batch_delay } = &chain_config.event_source else {
-        return Err(eyre!("unsupported event source mode, only 'push' is supported for listening to events"));
-    };
+    let (event_source, monitor_tx) = match &chain_config.event_source {
+        EventSourceMode::Push { url, batch_delay } => EventSource::websocket(
+            chain_config.id.clone(),
+            url.clone(),
+            compat_mode,
+            *batch_delay,
+            rt,
+        ),
+        EventSourceMode::Pull { interval } => EventSource::rpc(
+            chain_config.id.clone(),
+            HttpClient::new(chain_config.rpc_addr.clone())?,
+            *interval,
+            rt,
+        ),
+    }?;
 
-    let (mut event_source, tx_cmd) = EventSource::new(
-        chain_config.id.clone(),
-        url.clone(),
-        compat_mode,
-        *batch_delay,
-        rt,
-    )
-    .map_err(|e| eyre!("could not initialize event source: {}", e))?;
+    thread::spawn(move || event_source.run());
 
-    event_source
-        .init_subscriptions()
-        .map_err(|e| eyre!("could not initialize subscriptions: {}", e))?;
-
-    let queries = event_source.queries();
-    info!("listening for queries: {}", queries.iter().format(", "),);
-
-    thread::spawn(|| event_source.run());
-
-    let subscription = tx_cmd.subscribe()?;
+    let subscription = monitor_tx.subscribe()?;
     Ok(subscription)
 }
 
